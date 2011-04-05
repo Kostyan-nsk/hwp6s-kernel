@@ -10,6 +10,8 @@
 #define DIRTY_SCOPE		8
 #define DIRTY_FULL_SCOPE	(DIRTY_SCOPE / 2)
 
+DECLARE_PER_CPU(int, dirty_throttle_leaks);
+
 /*
  * The 1/16 region above the global dirty limit will be put to maximum pauses:
  *
