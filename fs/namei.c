@@ -226,7 +226,7 @@ other_perms:
  * request cannot be satisfied (eg. requires blocking or too much complexity).
  * It would then be called again in ref-walk mode.
  */
-int generic_permission(struct inode *inode, int mask, unsigned int flags)
+int generic_permission(struct inode *inode, int mask)
 {
 	int ret;
 
@@ -291,7 +291,7 @@ int inode_permission2(struct vfsmount *mnt, struct inode *inode, int mask)
 	if (inode->i_op->permission2)
 		retval = inode->i_op->permission2(mnt, inode, mask, 0);
 	else
-		retval = generic_permission(inode, mask, 0);
+		retval = generic_permission(inode, mask);
 
 	if (retval)
 		return retval;
