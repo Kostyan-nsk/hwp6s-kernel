@@ -1061,7 +1061,7 @@ static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
 	}
 
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
-		err = generic_permission(inode, mask, flags, NULL);
+		err = generic_permission(inode, mask, flags);
 
 		/* If permission is denied, try to refresh file
 		   attributes.  This is also needed, because the root
@@ -1070,7 +1070,7 @@ static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
 			err = fuse_perm_getattr(inode, flags);
 			if (!err)
 				err = generic_permission(inode, mask,
-							flags, NULL);
+							flags);
 		}
 
 		/* Note: the opposite of the above test does not
