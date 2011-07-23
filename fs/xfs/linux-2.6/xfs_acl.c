@@ -116,6 +116,8 @@ xfs_get_acl(struct inode *inode, int type)
 	if (acl != ACL_NOT_CACHED)
 		return acl;
 
+	trace_xfs_get_acl(ip);
+
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		ea_name = SGI_ACL_FILE;
@@ -217,36 +219,6 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 
 	if (!error)
 		set_cached_acl(inode, type, acl);
-	return error;
-}
-
-int
-xfs_check_acl(struct inode *inode, int mask)
-{
-	struct xfs_inode *ip;
-	struct posix_acl *acl;
-	int error = -EAGAIN;
-
-	ip = XFS_I(inode);
-	trace_xfs_check_acl(ip);
-
-	/*
-	 * If there is no attribute fork no ACL exists on this inode and
-	 * we can skip the whole exercise.
-	 *
-	 * FIXME! Fill the cache! Locking?
-	 */
-	if (!XFS_IFORK_Q(ip))
-		return -EAGAIN;
-
-	acl = xfs_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-	}
-
 	return error;
 }
 
