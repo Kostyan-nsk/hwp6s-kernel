@@ -178,6 +178,7 @@ EXPORT_SYMBOL(putname);
 
 static int check_acl(struct inode *inode, int mask)
 {
+#ifdef CONFIG_FS_POSIX_ACL
 	struct posix_acl *acl;
 
 	/*
@@ -221,6 +222,7 @@ static int check_acl(struct inode *inode, int mask)
 	        posix_acl_release(acl);
 	        return error;
 	}
+#endif
 
 	return -EAGAIN;
 }
