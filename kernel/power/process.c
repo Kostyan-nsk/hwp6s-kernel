@@ -127,10 +127,7 @@ static int try_to_freeze_tasks(bool user_only)
 /**
  * freeze_processes - Signal user space processes to enter the refrigerator.
  *
- * On success, returns 0.  On failure, -errno and only the kernel threads are
- * thawed, so as to give a chance to the caller to do additional cleanups
- * (if any) before thawing the userspace tasks. So, it is the responsibility
- * of the caller to thaw the userspace tasks, when the time is right.
+ * On success, returns 0.  On failure, -errno and system is fully thawed.
  */
 int freeze_processes(void)
 {
@@ -159,8 +156,8 @@ int freeze_processes(void)
 }
 
 /**
-+ * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
-+ */
+ * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
+ */
 int freeze_kernel_threads(void)
 {
 	int error;
