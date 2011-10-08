@@ -1039,7 +1039,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	if (*flags & MS_RDONLY) {
-		writeback_inodes_sb(sb);
+		writeback_inodes_sb(sb, WB_REASON_SYNC);
 		sync_inodes_sb(sb);
 
 		set_sbi_flag(sbi, SBI_IS_DIRTY);
