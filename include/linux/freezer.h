@@ -107,18 +107,18 @@ static inline int freezer_should_skip(struct task_struct *p)
 /*
  * Tell the freezer that the current task should be frozen by it
  */
-static inline void set_freezable(void)
+static inline bool set_freezable(void)
 {
-	current->flags &= ~PF_NOFREEZE;
+	return __set_freezable(false);
 }
 
 /*
  * Tell the freezer that the current task should be frozen by it and that it
  * should send a fake signal to the task to freeze it.
  */
-static inline void set_freezable_with_signal(void)
+static inline bool set_freezable_with_signal(void)
 {
-	current->flags &= ~(PF_NOFREEZE | PF_FREEZER_NOSIG);
+	return __set_freezable(true);
 }
 
 /*
