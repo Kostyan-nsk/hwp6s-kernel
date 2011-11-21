@@ -155,6 +155,8 @@ int freeze_processes(void)
 
 /**
  * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
+ *
+ * On success, returns 0.  On failure, -errno and system is fully thawed.
  */
 int freeze_kernel_threads(void)
 {

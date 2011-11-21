@@ -51,7 +51,6 @@ static inline bool try_to_freeze(void)
 
 extern bool freeze_task(struct task_struct *p);
 extern bool set_freezable(void);
-
 #ifdef CONFIG_CGROUP_FREEZER
 extern bool cgroup_freezing(struct task_struct *task);
 #else /* !CONFIG_CGROUP_FREEZER */
