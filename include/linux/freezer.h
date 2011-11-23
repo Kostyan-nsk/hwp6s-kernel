@@ -106,23 +106,6 @@ static inline int freezer_should_skip(struct task_struct *p)
 }
 
 /*
- * Tell the freezer that the current task should be frozen by it
- */
-static inline bool set_freezable(void)
-{
-	return __set_freezable(false);
-}
-
-/*
- * Tell the freezer that the current task should be frozen by it and that it
- * should send a fake signal to the task to freeze it.
- */
-static inline bool set_freezable_with_signal(void)
-{
-	return __set_freezable(true);
-}
-
-/*
  * Freezer-friendly wrappers around wait_event_interruptible(),
  * wait_event_killable() and wait_event_interruptible_timeout(), originally
  * defined in <linux/wait.h>
