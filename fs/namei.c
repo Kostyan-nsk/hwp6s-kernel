@@ -931,7 +931,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 			       struct inode **inode)
 {
 	for (;;) {
-		struct vfsmount *mounted;
+		struct mount *mounted;
 		/*
 		 * Don't forget we might have a non-mountpoint managed dentry
 		 * that wants to block transit.
@@ -945,8 +945,8 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
 		if (!mounted)
 			break;
-		path->mnt = mounted;
-		path->dentry = mounted->mnt_root;
+		path->mnt = &mounted->mnt;
+		path->dentry = mounted->mnt.mnt_root;
 		nd->flags |= LOOKUP_JUMPED;
 		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
 		/*
@@ -962,12 +962,12 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 static void follow_mount_rcu(struct nameidata *nd)
 {
 	while (d_mountpoint(nd->path.dentry)) {
-		struct vfsmount *mounted;
+		struct mount *mounted;
 		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry, 1);
 		if (!mounted)
 			break;
-		nd->path.mnt = mounted;
-		nd->path.dentry = mounted->mnt_root;
+		nd->path.mnt = &mounted->mnt;
+		nd->path.dentry = mounted->mnt.mnt_root;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 	}
 }
