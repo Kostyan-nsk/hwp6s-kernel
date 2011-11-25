@@ -502,8 +502,8 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry,
 		p = NULL;
 		if (tmp == head)
 			break;
-		p = list_entry(tmp, struct mount, mnt.mnt_hash);
-		if (p->mnt.mnt_parent == mnt && p->mnt.mnt_mountpoint == dentry) {
+		p = list_entry(tmp, struct mount, mnt_hash);
+		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry) {
 			found = p;
 			break;
 		}
@@ -584,6 +584,7 @@ static void dentry_reset_mounted(struct vfsmount *mnt, struct dentry *dentry)
  */
 static void detach_mnt(struct vfsmount *mnt, struct path *old_path)
 {
+<<<<<<< HEAD
 	old_path->dentry = mnt->mnt_mountpoint;
 	old_path->mnt = mnt->mnt_parent;
 	mnt->mnt_parent = mnt;
@@ -601,6 +602,7 @@ void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
 {
 	child_mnt->mnt_parent = mntget(mnt);
 	child_mnt->mnt_mountpoint = dget(dentry);
+	child_mnt->mnt_parent = mnt;
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_MOUNTED;
 	spin_unlock(&dentry->d_lock);
@@ -665,10 +667,17 @@ static struct vfsmount *next_mnt(struct vfsmount *p, struct vfsmount *root)
 		while (1) {
 			if (p == root)
 				return NULL;
+<<<<<<< HEAD
 			next = p->mnt_child.next;
 			if (next != &p->mnt_parent->mnt_mounts)
 				break;
 			p = p->mnt_parent;
+=======
+			next = p->mnt.mnt_child.next;
+			if (next != &p->mnt_parent->mnt_mounts)
+				break;
+			p = real_mount(p->mnt_parent);
+>>>>>>> 93de825b540... vfs: mnt_parent moved to struct mount
 		}
 	}
 	return list_entry(next, struct vfsmount, mnt_child);
@@ -715,11 +724,19 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 		return ERR_CAST(root);
 	}
 
+<<<<<<< HEAD
 	mnt->mnt_root = root;
 	mnt->mnt_sb = root->d_sb;
 	mnt->mnt_mountpoint = mnt->mnt_root;
 	mnt->mnt_parent = mnt;
 	return mnt;
+=======
+	mnt->mnt.mnt_root = root;
+	mnt->mnt.mnt_sb = root->d_sb;
+	mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+	mnt->mnt_parent = &mnt->mnt;
+	return &mnt->mnt;
+>>>>>>> 93de825b540... vfs: mnt_parent moved to struct mount
 }
 EXPORT_SYMBOL_GPL(vfs_kern_mount);
 
@@ -749,10 +766,17 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 
 		mnt->mnt_flags = old->mnt_flags & ~(MNT_WRITE_HOLD|MNT_MARKED);
 		atomic_inc(&sb->s_active);
+<<<<<<< HEAD
 		mnt->mnt_sb = sb;
 		mnt->mnt_root = dget(root);
 		mnt->mnt_mountpoint = mnt->mnt_root;
 		mnt->mnt_parent = mnt;
+=======
+		mnt->mnt.mnt_sb = sb;
+		mnt->mnt.mnt_root = dget(root);
+		mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+		mnt->mnt_parent = &mnt->mnt;
+>>>>>>> 93de825b540... vfs: mnt_parent moved to struct mount
 
 		if (flag & CL_SLAVE) {
 			list_add(&mnt->mnt_slave, &old->mnt_slave_list);
@@ -974,12 +998,13 @@ static int show_mountinfo(struct seq_file *m, void *v)
 {
 	struct proc_mounts *p = m->private;
 	struct vfsmount *mnt = list_entry(v, struct vfsmount, mnt_list);
+	struct mount *r = real_mount(mnt);
 	struct super_block *sb = mnt->mnt_sb;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	struct path root = p->root;
 	int err = 0;
 
-	seq_printf(m, "%i %i %u:%u ", mnt->mnt_id, mnt->mnt_parent->mnt_id,
+	seq_printf(m, "%i %i %u:%u ", mnt->mnt_id, r->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
 	if (sb->s_op->show_path)
 		err = sb->s_op->show_path(m, mnt);
@@ -1154,10 +1179,17 @@ void release_mounts(struct list_head *head)
 			struct vfsmount *m;
 
 			br_write_lock(vfsmount_lock);
+<<<<<<< HEAD
 			dentry = mnt->mnt_mountpoint;
 			m = mnt->mnt_parent;
 			mnt->mnt_mountpoint = mnt->mnt_root;
 			mnt->mnt_parent = mnt;
+=======
+			dentry = mnt->mnt.mnt_mountpoint;
+			m = mnt->mnt_parent;
+			mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+			mnt->mnt_parent = &mnt->mnt;
+>>>>>>> 93de825b540... vfs: mnt_parent moved to struct mount
 			m->mnt_ghosts--;
 			br_write_unlock(vfsmount_lock);
 			dput(dentry);
@@ -1191,7 +1223,7 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 		__mnt_make_shortterm(&p->mnt);
 		list_del_init(&p->mnt.mnt_child);
 		if (mnt_has_parent(p)) {
-			p->mnt.mnt_parent->mnt_ghosts++;
+			p->mnt_parent->mnt_ghosts++;
 			dentry_reset_mounted(p->mnt.mnt_mountpoint);
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
@@ -1387,9 +1419,15 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 				s = skip_mnt_tree(s);
 				continue;
 			}
+<<<<<<< HEAD
 			while (p != s->mnt_parent) {
 				p = p->mnt_parent;
 				q = q->mnt_parent;
+=======
+			while (p != real_mount(s->mnt_parent)) {
+				p = real_mount(p->mnt_parent);
+				q = real_mount(q->mnt_parent);
+>>>>>>> 93de825b540... vfs: mnt_parent moved to struct mount
 			}
 			p = s;
 			path.mnt = q;
@@ -1857,7 +1895,7 @@ static int do_move_mount(struct path *path, char *old_name)
 	/*
 	 * Don't move a mount residing in a shared parent.
 	 */
-	if (IS_MNT_SHARED(old_path.mnt->mnt_parent))
+	if (IS_MNT_SHARED(old->mnt_parent))
 		goto out1;
 	/*
 	 * Don't move a mount tree containing unbindable mounts to a destination
@@ -1867,7 +1905,7 @@ static int do_move_mount(struct path *path, char *old_name)
 	    tree_contains_unbindable(old_path.mnt))
 		goto out1;
 	err = -ELOOP;
-	for (p = real_mount(path->mnt); mnt_has_parent(p); p = real_mount(p->mnt.mnt_parent))
+	for (p = real_mount(path->mnt); mnt_has_parent(p); p = real_mount(p->mnt_parent))
 		if (p == old)
 			goto out1;
 
@@ -2123,8 +2161,13 @@ resume:
 	 * All done at this level ... ascend and resume the search
 	 */
 	if (this_parent != parent) {
+<<<<<<< HEAD
 		next = this_parent->mnt_child.next;
 		this_parent = this_parent->mnt_parent;
+=======
+		next = this_parent->mnt.mnt_child.next;
+		this_parent = real_mount(this_parent->mnt_parent);
+>>>>>>> 93de825b540... vfs: mnt_parent moved to struct mount
 		goto resume;
 	}
 	return found;
@@ -2495,9 +2538,15 @@ out_type:
 bool is_path_reachable(struct vfsmount *mnt, struct dentry *dentry,
 			 const struct path *root)
 {
+<<<<<<< HEAD
 	while (mnt != root->mnt && mnt_has_parent(real_mount(mnt))) {
 		dentry = mnt->mnt_mountpoint;
 		mnt = mnt->mnt_parent;
+=======
+	while (&mnt->mnt != root->mnt && mnt_has_parent(mnt)) {
+		dentry = mnt->mnt.mnt_mountpoint;
+		mnt = real_mount(mnt->mnt_parent);
+>>>>>>> 93de825b540... vfs: mnt_parent moved to struct mount
 	}
 	return mnt == root->mnt && is_subdir(dentry, root->dentry);
 }
@@ -2565,8 +2614,8 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 
 	error = -EINVAL;
 	if (IS_MNT_SHARED(old.mnt) ||
-		IS_MNT_SHARED(new.mnt->mnt_parent) ||
-		IS_MNT_SHARED(root.mnt->mnt_parent))
+		IS_MNT_SHARED(new_mnt->mnt_parent) ||
+		IS_MNT_SHARED(root_mnt->mnt_parent))
 		goto out4;
 	if (!check_mnt(root.mnt) || !check_mnt(new.mnt))
 		goto out4;

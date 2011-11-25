@@ -4,13 +4,16 @@
 
 struct mnt_namespace {
 	atomic_t		count;
-	struct vfsmount *	root;
+	struct mount *	root;
 	struct list_head	list;
 	wait_queue_head_t poll;
 	int event;
 };
 
 struct mount {
+	struct list_head mnt_hash;
+	struct mount *mnt_parent;
+	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
 };
 
@@ -21,7 +24,7 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 
 static inline int mnt_has_parent(struct mount *mnt)
 {
-	return &mnt->mnt != mnt->mnt.mnt_parent;
+	return &mnt->mnt != mnt->mnt_parent;
 }
 
 extern struct mount *__lookup_mnt(struct vfsmount *, struct dentry *, int)
