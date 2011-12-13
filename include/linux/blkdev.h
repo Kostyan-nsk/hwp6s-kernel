@@ -307,6 +307,12 @@ struct request_queue
 	void			*queuedata;
 
 	/*
+	 * ida allocated id for this queue.  Used to index queues from
+	 * ioctx.
+	 */
+	int			id;
+
+	/*
 	 * queue needs bounce pages for pages above this limit
 	 */
 	gfp_t			bounce_gfp;
