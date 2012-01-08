@@ -11,11 +11,6 @@
 #define DIRTY_FULL_SCOPE	(DIRTY_SCOPE / 2)
 
 /*
- * 4MB minimal write chunk size
- */
-#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_CACHE_SHIFT - 10))
-
-/*
  * The 1/16 region above the global dirty limit will be put to maximum pauses:
  *
  *	(limit, limit + limit/DIRTY_MAXPAUSE_AREA)
