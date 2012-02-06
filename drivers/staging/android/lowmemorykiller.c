@@ -9,7 +9,6 @@
  *
  * For example, write "0,8" to /sys/module/lowmemorykiller/parameters/adj and
  * "1024,4096" to /sys/module/lowmemorykiller/parameters/minfree to kill
-<<<<<<< HEAD
  * processes with a oom_score_adj value of 8 or higher when the free memory
  * drops below 4096 pages and kill processes with a oom_score_adj value of 0 or
  * higher when the free memory drops below 1024 pages.
@@ -79,6 +78,12 @@ static unsigned long lowmem_deathpending_timeout;
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
 	struct task_struct *tsk;
+<<<<<<< HEAD
+=======
+#ifdef ENHANCED_LMK_ROUTINE
+	struct task_struct *selected[LOWMEM_DEATHPENDING_DEPTH] = {NULL,};
+#else
+>>>>>>> 02f83a69246... staging: android/lowmemorykiller: Better mm handling
 	struct task_struct *selected = NULL;
 	int rem = 0;
 	int tasksize;
@@ -127,17 +132,19 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			continue;
 =======
 	rcu_read_lock();
-	for_each_process(p) {
-		struct mm_struct *mm;
+	for_each_process(tsk) {
+		struct task_struct *p;
 		struct signal_struct *sig;
 		int oom_adj;
 #ifdef ENHANCED_LMK_ROUTINE
 		int is_exist_oom_task = 0;
 #endif
-		task_lock(p);
-		mm = p->mm;
+		p = find_lock_task_mm(tsk);
+		if (!p)
+			continue;
+
 		sig = p->signal;
-		if (!mm || !sig) {
+		if (!sig) {
 			task_unlock(p);
 >>>>>>> e6edd472312... staging: android/lowmemorykiller: Don't grab tasklist_lock
 
