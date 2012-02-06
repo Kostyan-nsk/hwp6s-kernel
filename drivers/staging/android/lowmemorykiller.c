@@ -13,11 +13,6 @@
  * processes with a oom_score_adj value of 8 or higher when the free memory
  * drops below 4096 pages and kill processes with a oom_score_adj value of 0 or
  * higher when the free memory drops below 1024 pages.
-=======
- * processes with a oom_adj value of 8 or higher when the free memory drops
- * below 4096 pages and kill processes with a oom_adj value of 0 or higher
- * when the free memory drops below 1024 pages.
->>>>>>> fa24b26d017... Staging: android: fixed 80 characters warnings in lowmemorykiller.c
  *
  * The driver considers memory used for caches to be free, but if a large
  * percentage of the cached memory is locked this can be very inaccurate
@@ -44,6 +39,7 @@
 #include <linux/mm.h>
 #include <linux/oom.h>
 #include <linux/sched.h>
+#include <linux/rcupdate.h>
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/hw_kstate.h>
@@ -108,15 +104,9 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		}
 	}
 	if (sc->nr_to_scan > 0)
-<<<<<<< HEAD
 		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %hd\n",
 				sc->nr_to_scan, sc->gfp_mask, other_free,
 				other_file, min_score_adj);
-/*
-		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %d\n",
-				sc->nr_to_scan, sc->gfp_mask, other_free,
-				other_file, min_adj);
-**/
 	rem = global_page_state(NR_ACTIVE_ANON) +
 		global_page_state(NR_ACTIVE_FILE) +
 		global_page_state(NR_INACTIVE_ANON) +
@@ -135,6 +125,22 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 
 		if (tsk->flags & PF_KTHREAD)
 			continue;
+=======
+	rcu_read_lock();
+	for_each_process(p) {
+		struct mm_struct *mm;
+		struct signal_struct *sig;
+		int oom_adj;
+#ifdef ENHANCED_LMK_ROUTINE
+		int is_exist_oom_task = 0;
+#endif
+		task_lock(p);
+		mm = p->mm;
+		sig = p->signal;
+		if (!mm || !sig) {
+			task_unlock(p);
+>>>>>>> e6edd472312... staging: android/lowmemorykiller: Don't grab tasklist_lock
+
 
 		p = find_lock_task_mm(tsk);
 		if (!p)
@@ -187,6 +193,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     min_score_adj,
 			     other_free * (long)(PAGE_SIZE / 1024));
 		lowmem_deathpending_timeout = jiffies + HZ;
+		send_sig(SIGKILL, selected, 0);
 		rem -= selected_tasksize;
 	}
 
