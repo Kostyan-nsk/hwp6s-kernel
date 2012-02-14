@@ -77,14 +77,11 @@ static unsigned long lowmem_deathpending_timeout;
 
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
-	struct task_struct *tsk;
-<<<<<<< HEAD
-=======
 #ifdef ENHANCED_LMK_ROUTINE
 	struct task_struct *selected[LOWMEM_DEATHPENDING_DEPTH] = {NULL,};
 #else
->>>>>>> 02f83a69246... staging: android/lowmemorykiller: Better mm handling
 	struct task_struct *selected = NULL;
+#endif
 	int rem = 0;
 	int tasksize;
 	int i;
@@ -92,6 +89,16 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int minfree = 0;
 	int selected_tasksize = 0;
 	short selected_oom_score_adj;
+	int min_score_adj = OOM_SCORE_ADJ_MAX + 1;
+#ifdef ENHANCED_LMK_ROUTINE
+	int selected_tasksize[LOWMEM_DEATHPENDING_DEPTH] = {0,};
+	int selected_oom_adj[LOWMEM_DEATHPENDING_DEPTH] = {OOM_ADJUST_MAX,};
+	int all_selected_oom = 0;
+	int max_selected_oom_idx = 0;
+#else
+	int selected_tasksize = 0;
+	int selected_oom_score_adj;
+#endif
 	int array_size = ARRAY_SIZE(lowmem_adj);
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
 	int other_file = global_page_state(NR_FILE_PAGES) -
@@ -130,11 +137,17 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 
 		if (tsk->flags & PF_KTHREAD)
 			continue;
-=======
+
+#ifdef ENHANCED_LMK_ROUTINE
+	for (i = 0; i < LOWMEM_DEATHPENDING_DEPTH; i++)
+		selected_oom_adj[i] = min_adj;
+#else
+	selected_oom_score_adj = min_score_adj;
+#endif
 	rcu_read_lock();
 	for_each_process(tsk) {
 		struct task_struct *p;
-		int oom_adj;
+		int oom_score_adj;
 #ifdef ENHANCED_LMK_ROUTINE
 		int is_exist_oom_task = 0;
 #endif
@@ -145,12 +158,9 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (!p)
 			continue;
 
-<<<<<<< HEAD
 		sig = p->signal;
 		if (!sig) {
 			task_unlock(p);
->>>>>>> e6edd472312... staging: android/lowmemorykiller: Don't grab tasklist_lock
-
 
 		p = find_lock_task_mm(tsk);
 		if (!p)
@@ -162,6 +172,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			rcu_read_unlock();
 			return 0;
 		}
+
 		oom_score_adj = p->signal->oom_score_adj;
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
@@ -181,6 +192,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		selected = p;
 		selected_tasksize = tasksize;
 		selected_oom_score_adj = oom_score_adj;
+
 		lowmem_print(2, "select '%s' (%d), adj %hd, size %d, to kill\n",
 			     p->comm, p->pid, oom_score_adj, tasksize);
 	}
@@ -202,6 +214,11 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     minfree * (long)(PAGE_SIZE / 1024),
 			     min_score_adj,
 			     other_free * (long)(PAGE_SIZE / 1024));
+
+		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
+			     selected->pid, selected->comm,
+			     selected_oom_score_adj, selected_tasksize);
+		lowmem_deathpending = selected;
 		lowmem_deathpending_timeout = jiffies + HZ;
 		send_sig(SIGKILL, selected, 0);
 		rem -= selected_tasksize;
