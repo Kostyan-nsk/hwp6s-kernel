@@ -638,7 +638,7 @@ int hibernate(void)
 
 	error = freeze_processes();
 	if (error)
-		goto Finish;
+		goto Free_bitmaps;
 
 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
 	if (error || freezer_test_done)
@@ -668,7 +668,7 @@ int hibernate(void)
 	/* Don't bother checking whether freezer_test_done is true */
 	freezer_test_done = false;
 
- Finish:
+ Free_bitmaps:
 	free_basic_memory_bitmaps();
  Exit:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
