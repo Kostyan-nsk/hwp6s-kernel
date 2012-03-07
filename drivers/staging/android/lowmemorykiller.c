@@ -56,7 +56,7 @@ static int lowmem_adj_size = 4;
 static int lmk_fast_run = 1;
 static int recovery_mode = 1;
 
-static size_t lowmem_minfree[6] = {
+static int lowmem_minfree[6] = {
 	3 * 512,	/* 6MB */
 	2 * 1024,	/* 8MB */
 	4 * 1024,	/* 16MB */
