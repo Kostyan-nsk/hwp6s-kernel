@@ -14,6 +14,7 @@
 #include <linux/reboot.h>
 #include <linux/string.h>
 #include <linux/device.h>
+#include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -636,10 +637,6 @@ int hibernate(void)
 	sys_sync();
 	printk("done.\n");
 
-	error = usermodehelper_disable();
-	if (error)
-		goto Exit;
-
 	error = freeze_processes();
 	if (error)
 		goto Free_bitmaps;
@@ -674,9 +671,12 @@ int hibernate(void)
 
  Free_bitmaps:
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 	usermodehelper_enable();
 >>>>>>> 74d47cc34c5... PM / Hibernate: Disable usermode helpers right before freezing tasks
+=======
+>>>>>>> 268b030f0c8... PM / Sleep: Move disabling of usermode helpers to the freezer
 	free_basic_memory_bitmaps();
  Exit:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
