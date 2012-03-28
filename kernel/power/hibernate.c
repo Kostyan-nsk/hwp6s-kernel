@@ -630,11 +630,15 @@ int hibernate(void)
 	/* Allocate memory management structures */
 	error = create_basic_memory_bitmaps();
 	if (error)
-		goto Enable_umh;
+		goto Exit;
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
 	sys_sync();
 	printk("done.\n");
+
+	error = usermodehelper_disable();
+	if (error)
+		goto Exit;
 
 	error = freeze_processes();
 	if (error)
@@ -669,6 +673,10 @@ int hibernate(void)
 	freezer_test_done = false;
 
  Free_bitmaps:
+<<<<<<< HEAD
+=======
+	usermodehelper_enable();
+>>>>>>> 74d47cc34c5... PM / Hibernate: Disable usermode helpers right before freezing tasks
 	free_basic_memory_bitmaps();
  Exit:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
