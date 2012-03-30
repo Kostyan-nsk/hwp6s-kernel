@@ -1199,7 +1199,6 @@ retry:
 				return PTR_ERR(dentry);
 			}
 			/* known good */
-			need_reval = 0;
 			status = 1;
 		} else if (unlikely(d_need_lookup(dentry))) {
 			dentry = d_inode_lookup(parent, dentry, nd);
@@ -1208,10 +1207,8 @@ retry:
 				return PTR_ERR(dentry);
 			}
 			/* known good */
-			need_reval = 0;
 			status = 1;
-		}
-		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE) && need_reval)
+		} else if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
 			status = d_revalidate(dentry, nd);
 		if (unlikely(status <= 0)) {
 			if (status < 0) {
@@ -1227,7 +1224,6 @@ retry:
 					return PTR_ERR(dentry);
 				}
 				/* known good */
-				need_reval = 0;
 				status = 1;
 			}
 		}
@@ -1244,7 +1240,6 @@ retry:
 		if (!d_invalidate(dentry)) {
 			dput(dentry);
 			dentry = NULL;
-			need_reval = 1;
 			goto retry;
 		}
 	}
