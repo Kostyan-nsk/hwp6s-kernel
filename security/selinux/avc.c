@@ -458,9 +458,9 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	audit_log_format(ab, "avc:  %s ",
-			 ad->selinux_audit_data.denied ? "denied" : "granted");
-	avc_dump_av(ab, ad->selinux_audit_data.tclass,
-			ad->selinux_audit_data.audited);
+			 ad->selinux_audit_data->denied ? "denied" : "granted");
+	avc_dump_av(ab, ad->selinux_audit_data->tclass,
+			ad->selinux_audit_data->audited);
 	audit_log_format(ab, " for ");
 }
 
@@ -641,18 +641,53 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	audit_log_format(ab, " ");
-	avc_dump_query(ab, ad->selinux_audit_data.ssid,
-			   ad->selinux_audit_data.tsid,
-			   ad->selinux_audit_data.tclass);
+	avc_dump_query(ab, ad->selinux_audit_data->ssid,
+			   ad->selinux_audit_data->tsid,
+			   ad->selinux_audit_data->tclass);
 
 #ifdef CONFIG_SECURITY_SELINUX_AVC_APR
-   if (ad->selinux_audit_data.denied) {
+   if (ad->selinux_audit_data->denied) {
        audit_log_format(ab, " permissive=%u",
-                        ad->selinux_audit_data.result ? 0 : 1);
+                        ad->selinux_audit_data->result ? 0 : 1);
    }
 
    selinux_apr_upload(ab, ad);
 #endif
+}
+
+/* This is the slow part of avc audit with big stack footprint */
+static noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
+		u32 requested, u32 audited, u32 denied,
+		struct av_decision *avd, struct common_audit_data *a,
+		unsigned flags)
+{
+	struct common_audit_data stack_data;
+	struct selinux_audit_data sad = {0,};
+	if (!a) {
+		a = &stack_data;
+		COMMON_AUDIT_DATA_INIT(a, NONE);
+		a->selinux_audit_data = &sad;
+    }
+	/*
+	 * When in a RCU walk do the audit on the RCU retry.  This is because
+	 * the collection of the dname in an inode audit message is not RCU
+	 * safe.  Note this may drop some audits when the situation changes
+	 * during retry. However this is logically just as if the operation
+	 * happened a little later.
+	 */
+	if ((a->type == LSM_AUDIT_DATA_INODE) &&
+	    (flags & MAY_NOT_BLOCK))
+		return -ECHILD;
+	a->selinux_audit_data->tclass = tclass;
+	a->selinux_audit_data->requested = requested;
+	a->selinux_audit_data->ssid = ssid;
+	a->selinux_audit_data->tsid = tsid;
+	a->selinux_audit_data->audited = audited;
+	a->selinux_audit_data->denied = denied;
+	a->lsm_pre_audit = avc_audit_pre_callback;
+	a->lsm_post_audit = avc_audit_post_callback;
+	common_lsm_audit(a);
+	return 0;
 }
 
 /**
@@ -675,18 +710,17 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
  * be performed under a lock, to allow the lock to be released
  * before calling the auditing code.
  */
-int avc_audit(u32 ssid, u32 tsid,
-	       u16 tclass, u32 requested,
-	       struct av_decision *avd, int result, struct common_audit_data *a,
-	       unsigned flags)
+inline int avc_audit(u32 ssid, u32 tsid,
+	    u16 tclass, u32 requested,
+	    struct av_decision *avd, int result, struct common_audit_data *a,
+	    unsigned flags)
 {
-	struct common_audit_data stack_data;
 	u32 denied, audited;
 	denied = requested & ~avd->allowed;
-	if (denied) {
+	if (unlikely(denied)) {
 		audited = denied & avd->auditdeny;
 		/*
-		 * a->selinux_audit_data.auditdeny is TRICKY!  Setting a bit in
+		 * a->selinux_audit_data->auditdeny is TRICKY!  Setting a bit in
 		 * this field means that ANY denials should NOT be audited if
 		 * the policy contains an explicit dontaudit rule for that
 		 * permission.  Take notice that this is unrelated to the
@@ -695,51 +729,26 @@ int avc_audit(u32 ssid, u32 tsid,
 		 *
 		 * denied == READ
 		 * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
-		 * selinux_audit_data.auditdeny & ACCESS == 1
+		 * selinux_audit_data->auditdeny & ACCESS == 1
 		 *
 		 * We will NOT audit the denial even though the denied
 		 * permission was READ and the auditdeny checks were for
 		 * ACCESS
 		 */
 		if (a &&
-		    a->selinux_audit_data.auditdeny &&
-		    !(a->selinux_audit_data.auditdeny & avd->auditdeny))
+		    a->selinux_audit_data->auditdeny &&
+		    !(a->selinux_audit_data->auditdeny & avd->auditdeny))
 			audited = 0;
 	} else if (result)
 		audited = denied = requested;
 	else
 		audited = requested & avd->auditallow;
-	if (!audited)
+	if (likely(!audited))
 		return 0;
-
-	if (!a) {
-		a = &stack_data;
-		COMMON_AUDIT_DATA_INIT(a, NONE);
-	}
-
-	/*
-	 * When in a RCU walk do the audit on the RCU retry.  This is because
-	 * the collection of the dname in an inode audit message is not RCU
-	 * safe.  Note this may drop some audits when the situation changes
-	 * during retry. However this is logically just as if the operation
-	 * happened a little later.
-	 */
-	if ((a->type == LSM_AUDIT_DATA_INODE) &&
-	    (flags & IPERM_FLAG_RCU))
-		return -ECHILD;
-
-	a->selinux_audit_data.tclass = tclass;
-	a->selinux_audit_data.requested = requested;
-	a->selinux_audit_data.ssid = ssid;
-	a->selinux_audit_data.tsid = tsid;
-	a->selinux_audit_data.audited = audited;
-	a->selinux_audit_data.denied = 0;
-	a->lsm_pre_audit = avc_audit_pre_callback;
-	a->lsm_post_audit = avc_audit_post_callback;
-	common_lsm_audit(a);
-	return 0;
+	return slow_avc_audit(ssid, tsid, tclass,
+		requested, audited, denied,
+		avd, a, flags);
 }
-
 /**
  * avc_add_callback - Register a callback for security events.
  * @callback: callback function
