@@ -1314,6 +1314,22 @@ static int smack_file_receive(struct file *file)
 	return smk_curacc(file->f_security, may, &ad);
 }
 
+/**
+ * smack_file_open - Smack dentry open processing
+ * @file: the object
+ * @cred: unused
+ *
+ * Set the security blob in the file structure.
+ *
+ * Returns 0
+ */
+static int smack_file_open(struct file *file, const struct cred *cred)
+{
+	struct inode_smack *isp = file->f_path.dentry->d_inode->i_security;
+	file->f_security = isp->smk_inode;
+	return 0;
+}
+
 /*
  * Task hooks
  */
@@ -3443,6 +3459,7 @@ struct security_operations smack_ops = {
 	.file_set_fowner = 		smack_file_set_fowner,
 	.file_send_sigiotask = 		smack_file_send_sigiotask,
 	.file_receive = 		smack_file_receive,
+	.file_open =			smack_file_open,
 
 	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,
