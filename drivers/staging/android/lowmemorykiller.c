@@ -64,7 +64,6 @@ static int lowmem_minfree[6] = {
 };
 static int lowmem_minfree_size = 4;
 
-static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
 
 #define lowmem_print(level, x...)			\
@@ -72,24 +71,6 @@ static unsigned long lowmem_deathpending_timeout;
 		if (lowmem_debug_level >= (level))	\
 			printk(x);			\
 	} while (0)
-
-static int
-task_notify_func(struct notifier_block *self, unsigned long val, void *data);
-
-static struct notifier_block task_nb = {
-	.notifier_call	= task_notify_func,
-};
-
-static int
-task_notify_func(struct notifier_block *self, unsigned long val, void *data)
-{
-	struct task_struct *task = data;
-
-	if (task == lowmem_deathpending)
-		lowmem_deathpending = NULL;
-
-	return NOTIFY_OK;
-}
 
 int can_use_cma_pages(gfp_t gfp_mask)
 {
@@ -300,18 +281,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
 
-
-
-	/*
-	 * If we already have a death outstanding, then
-	 * bail out right away; indicating to vmscan
-	 * that we have nothing further to offer on
-	 * this pass.
-	 *
-	 */
-	if (lowmem_deathpending &&
-	    time_before_eq(jiffies, lowmem_deathpending_timeout))
-		return 0;
     if (0 == recovery_mode)
         tune_lmk_param(&other_free, &other_file, sc);
 
@@ -353,6 +322,12 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (!p)
 			continue;
 
+		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
+		    time_before_eq(jiffies, lowmem_deathpending_timeout)) {
+			task_unlock(p);
+			rcu_read_unlock();
+			return 0;
+		}
 		oom_score_adj = p->signal->oom_score_adj;
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
@@ -379,7 +354,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_score_adj, selected_tasksize);
-		lowmem_deathpending = selected;
 		lowmem_deathpending_timeout = jiffies + HZ;
 		if (lowmem_dumpmem_adj >= 0 && selected_oom_score_adj <= lowmem_dumpmem_adj) {
 			dump_meminfo();
@@ -387,6 +361,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 
 		kstate(KSTATE_FREEZER_MASK, "[PID %d KILLED][SIG %d]", selected->tgid, SIGKILL);
 		send_sig(SIGKILL, selected, 0);
+		set_tsk_thread_flag(selected, TIF_MEMDIE);
 		rem -= selected_tasksize;
 	}
 	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
@@ -407,7 +382,6 @@ static int __init enter_recovery_setup(char *arg) {
 
 static int __init lowmem_init(void)
 {
-	task_free_register(&task_nb);
 	register_shrinker(&lowmem_shrinker);
 	return 0;
 }
@@ -415,7 +389,6 @@ static int __init lowmem_init(void)
 static void __exit lowmem_exit(void)
 {
 	unregister_shrinker(&lowmem_shrinker);
-	task_free_unregister(&task_nb);
 }
 
 early_param("enter_recovery", enter_recovery_setup);
