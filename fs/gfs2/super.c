@@ -1532,7 +1532,7 @@ out_unlock:
 out:
 	/* Case 3 starts here */
 	truncate_inode_pages(&inode->i_data, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 
 	ip->i_gl->gl_object = NULL;
 	gfs2_glock_add_to_lru(ip->i_gl);

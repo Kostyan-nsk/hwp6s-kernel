@@ -80,7 +80,7 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 
 static void pstore_evict_inode(struct inode *inode)
 {
-	end_writeback(inode);
+	clear_inode(inode);
 	kfree(inode->i_private);
 }
 
