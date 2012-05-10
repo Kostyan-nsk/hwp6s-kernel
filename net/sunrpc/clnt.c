@@ -100,9 +100,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 	struct nameidata nd;
 	struct path path;
 	char name[15];
-	struct qstr q = {
-		.name = name,
-	};
+	struct qstr q = { .name = name };
 	int error;
 
 	clnt->cl_path.mnt = ERR_PTR(-ENOENT);
