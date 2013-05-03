@@ -34,6 +34,7 @@
 
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
@@ -49,10 +50,7 @@
 #else
 #define _ZONE ZONE_NORMAL
 #endif
-<<<<<<< HEAD
-static u32 lowmem_debug_level = 1;
-static short lowmem_adj[6] = {
-=======
+
 
 static uint32_t lowmem_debug_level = 1;
 static int lowmem_adj[6] = {
@@ -95,6 +93,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int selected_tasksize = 0;
 	short selected_oom_score_adj;
 	int min_score_adj = OOM_SCORE_ADJ_MAX + 1;
+	int minfree = 0;
 #ifdef ENHANCED_LMK_ROUTINE
 	int selected_tasksize[LOWMEM_DEATHPENDING_DEPTH] = {0,};
 	int selected_oom_adj[LOWMEM_DEATHPENDING_DEPTH] = {OOM_ADJUST_MAX,};
@@ -202,9 +201,22 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		selected = p;
 		selected_tasksize = tasksize;
 		selected_oom_score_adj = oom_score_adj;
-
 		lowmem_print(2, "select '%s' (%d), adj %hd, size %d, to kill\n",
 			     p->comm, p->pid, oom_score_adj, tasksize);
+
+	}
+#ifdef ENHANCED_LMK_ROUTINE
+	for (i = 0; i < LOWMEM_DEATHPENDING_DEPTH; i++) {
+		if (selected[i]) {
+			lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
+				selected[i]->pid, selected[i]->comm,
+				selected_oom_adj[i], selected_tasksize[i]);
+			lowmem_deathpending[i] = selected[i];
+			lowmem_deathpending_timeout = jiffies + HZ;
+			force_sig(SIGKILL, selected[i]);
+			rem -= selected_tasksize[i];
+		}
+>>>>>>> 60a864d62b9... lowmemorykiller: make default lowmemorykiller debug message useful
 	}
 	if (selected) {
 		task_lock(selected);
@@ -216,6 +228,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 				 "   to free %ldkB on behalf of '%s' (%d) because\n"
 				 "   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n"
 				 "   Free memory is %ldkB above reserved\n",
+
 			     selected->comm, selected->pid,
 			     selected_oom_score_adj,
 			     selected_tasksize * (long)(PAGE_SIZE / 1024),
@@ -224,7 +237,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     minfree * (long)(PAGE_SIZE / 1024),
 			     min_score_adj,
 			     other_free * (long)(PAGE_SIZE / 1024));
-
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_score_adj, selected_tasksize);
