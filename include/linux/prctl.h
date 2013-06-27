@@ -88,6 +88,9 @@
 #define PR_TASK_PERF_EVENTS_DISABLE		31
 #define PR_TASK_PERF_EVENTS_ENABLE		32
 
+#define PR_SET_VMA		0x53564d41
+# define PR_SET_VMA_ANON_NAME		0
+
 /*
  * Set early/late kill mode for hwpoison memory corruption.
  * This influences when the process gets killed on a memory corruption.
@@ -101,5 +104,8 @@
 # define PR_MCE_KILL_DEFAULT 2
 
 #define PR_MCE_KILL_GET 34
+
+#define PR_SET_VMA		0x53564d41
+# define PR_SET_VMA_ANON_NAME		0
 
 #endif /* _LINUX_PRCTL_H */
