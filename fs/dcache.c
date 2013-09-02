@@ -1720,7 +1720,7 @@ EXPORT_SYMBOL(d_add_ci);
  * without taking d_lock and checking d_seq sequence count against @seq
  * returned here.
  *
- * A refcount may be taken on the found dentry with the __d_rcu_to_refcount
+ * A refcount may be taken on the found dentry with the d_rcu_to_refcount
  * function.
  *
  * Alternatively, __d_lookup_rcu may be called again to look up the child of
