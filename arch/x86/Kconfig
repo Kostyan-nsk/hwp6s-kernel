@@ -12,6 +12,7 @@ config X86_32
 
 config X86_64
 	def_bool 64BIT
+	select ARCH_USE_CMPXCHG_LOCKREF
 
 ### Arch settings
 config X86
