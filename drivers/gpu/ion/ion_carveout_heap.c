@@ -87,8 +87,8 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 	buffer->priv_phys = ION_CARVEOUT_ALLOCATE_FAIL;
 }
 
-struct sg_table *ion_carveout_heap_map_dma(struct ion_heap *heap,
-					      struct ion_buffer *buffer)
+static struct sg_table *ion_carveout_heap_map_dma(struct ion_heap *heap,
+						  struct ion_buffer *buffer)
 {
 	struct sg_table *table;
 	int ret;
@@ -106,8 +106,8 @@ struct sg_table *ion_carveout_heap_map_dma(struct ion_heap *heap,
 	return table;
 }
 
-void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
-				 struct ion_buffer *buffer)
+static void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
+					struct ion_buffer *buffer)
 {
 	sg_free_table(buffer->sg_table);
 }
