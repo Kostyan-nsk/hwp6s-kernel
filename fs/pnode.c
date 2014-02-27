@@ -178,46 +178,90 @@ static struct vfsmount *propagation_next(struct vfsmount *m,
 	}
 }
 
-/*
- * return the source mount to be used for cloning
- *
- * @dest 	the current destination mount
- * @last_dest  	the last seen destination mount
- * @last_src  	the last seen source mount
- * @type	return CL_SLAVE if the new mount has to be
- * 		cloned as a slave.
- */
-static struct vfsmount *get_source(struct vfsmount *dest,
-					struct vfsmount *last_dest,
-					struct vfsmount *last_src,
-					int *type)
+static struct vfsmount *next_group(struct vfsmount *m, struct vfsmount *origin)
 {
-	struct vfsmount *p_last_src = NULL;
-	struct vfsmount *p_last_dest = NULL;
-
-	while (last_dest != dest->mnt_master) {
-		p_last_dest = last_dest;
-		p_last_src = last_src;
-		last_dest = last_dest->mnt_master;
-		last_src = last_src->mnt_master;
-	}
-
-	if (p_last_dest) {
-		do {
-			p_last_dest = next_peer(p_last_dest);
-		} while (IS_MNT_NEW(p_last_dest));
-		/* is that a peer of the earlier? */
-		if (dest == p_last_dest) {
-			*type = CL_MAKE_SHARED;
-			return p_last_src;
+	while (1) {
+		while (1) {
+			struct vfsmount *next;
+			if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
+				return first_slave(m);
+			next = next_peer(m);
+			if (m->mnt_group_id == origin->mnt_group_id) {
+				if (next == origin)
+					return NULL;
+			} else if (m->mnt_slave.next != &next->mnt_slave)
+				break;
+			m = next;
 		}
+		/* m is the last peer */
+		while (1) {
+			struct vfsmount *master = m->mnt_master;
+			if (m->mnt_slave.next != &master->mnt_slave_list)
+				return next_slave(m);
+			m = next_peer(master);
+			if (master->mnt_group_id == origin->mnt_group_id)
+				break;
+			if (master->mnt_slave.next == &m->mnt_slave)
+				break;
+			m = master;
+		}
+		if (m == origin)
+			return NULL;
 	}
-	/* slave of the earlier, then */
-	*type = CL_SLAVE;
-	/* beginning of peer group among the slaves? */
-	if (IS_MNT_SHARED(dest))
-		*type |= CL_MAKE_SHARED;
-	return last_src;
+}
+
+/* all accesses are serialized by namespace_sem */
+static struct vfsmount *last_dest, *last_source, *dest_master;
+static struct dentry *mp_dentry;
+static struct list_head *list;
+
+static int propagate_one(struct vfsmount *m)
+{
+	struct vfsmount *child;
+	int type;
+	/* skip ones added by this propagate_mnt() */
+	if (IS_MNT_NEW(m))
+		return 0;
+	/* skip if mountpoint isn't covered by it */
+	if (!is_subdir(mp_dentry, m->mnt_root))
+		return 0;
+	if (m->mnt_group_id == last_dest->mnt_group_id) {
+		type = CL_MAKE_SHARED;
+	} else {
+		struct vfsmount *n, *p;
+		for (n = m; ; n = p) {
+			p = n->mnt_master;
+			if (p == dest_master || IS_MNT_MARKED(p)) {
+				while (last_dest->mnt_master != p) {
+					last_source = last_source->mnt_master;
+					last_dest = last_source->mnt_parent;
+				}
+				if (n->mnt_group_id != last_dest->mnt_group_id) {
+					last_source = last_source->mnt_master;
+					last_dest = last_source->mnt_parent;
+				}
+				break;
+			}
+		}
+		type = CL_SLAVE;
+		/* beginning of peer group among the slaves? */
+		if (IS_MNT_SHARED(m))
+			type |= CL_MAKE_SHARED;
+	}
+		
+	child = copy_tree(last_source, last_source->mnt_root, type);
+	if (IS_ERR(child))
+		return PTR_ERR(child);
+	mnt_set_mountpoint(m, mp_dentry, child);
+	last_dest = m;
+	last_source = child;
+	if (m->mnt_master != dest_master) {
+		br_write_lock(vfsmount_lock);
+		SET_MNT_MARK(m->mnt_master);
+		br_write_unlock(vfsmount_lock);
+	}
+	list_add_tail(&child->mnt_hash, list);
+	return 0;
 }
 
 /*
@@ -236,50 +280,47 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 		    struct vfsmount *source_mnt, struct list_head *tree_list)
 {
-	struct vfsmount *m, *child;
+	struct vfsmount *m, *n;
 	int ret = 0;
-	struct vfsmount *prev_dest_mnt = dest_mnt;
-	struct vfsmount *prev_src_mnt  = source_mnt;
-	LIST_HEAD(tmp_list);
-	LIST_HEAD(umount_list);
 
-	for (m = propagation_next(dest_mnt, dest_mnt); m;
-			m = propagation_next(m, dest_mnt)) {
-		int type;
-		struct vfsmount *source;
+	/*
+	 * we don't want to bother passing tons of arguments to
+	 * propagate_one(); everything is serialized by namespace_sem,
+	 * so globals will do just fine.
+	 */
+	last_dest = dest_mnt;
+	last_source = source_mnt;
+	mp_dentry = dest_dentry;
+	list = tree_list;
+	dest_master = dest_mnt->mnt_master;
 
-		if (IS_MNT_NEW(m))
-			continue;
-
-		source =  get_source(m, prev_dest_mnt, prev_src_mnt, &type);
-
-		if (!(child = copy_tree(source, source->mnt_root, type))) {
-			ret = -ENOMEM;
-			list_splice(tree_list, tmp_list.prev);
+	/* all peers of dest_mnt, except dest_mnt itself */
+	for (n = next_peer(dest_mnt); n != dest_mnt; n = next_peer(n)) {
+		ret = propagate_one(n);
+		if (ret)
 			goto out;
-		}
+	}
 
-		if (is_subdir(dest_dentry, m->mnt_root)) {
-			mnt_set_mountpoint(m, dest_dentry, child);
-			list_add_tail(&child->mnt_hash, tree_list);
-		} else {
-			/*
-			 * This can happen if the parent mount was bind mounted
-			 * on some subdirectory of a shared/slave mount.
-			 */
-			list_add_tail(&child->mnt_hash, &tmp_list);
-		}
-		prev_dest_mnt = m;
-		prev_src_mnt  = child;
+	/* all slave groups */
+	for (m = next_group(dest_mnt, dest_mnt); m;
+			m = next_group(m, dest_mnt)) {
+		/* everything in that slave group */
+		n = m;
+		do {
+			ret = propagate_one(n);
+			if (ret)
+				goto out;
+			n = next_peer(n);
+		} while (n != m);
 	}
 out:
 	br_write_lock(vfsmount_lock);
-	while (!list_empty(&tmp_list)) {
-		child = list_first_entry(&tmp_list, struct vfsmount, mnt_hash);
-		umount_tree(child, 0, &umount_list);
+	list_for_each_entry(n, tree_list, mnt_hash) {
+		m = n->mnt_parent;
+		if (m->mnt_master != dest_mnt->mnt_master)
+			CLEAR_MNT_MARK(m->mnt_master);
 	}
 	br_write_unlock(vfsmount_lock);
-	release_mounts(&umount_list);
 	return ret;
 }
 

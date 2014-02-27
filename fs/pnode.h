@@ -16,6 +16,10 @@
 #define IS_MNT_NEW(mnt)  (!mnt->mnt_ns)
 #define CLEAR_MNT_SHARED(mnt) (mnt->mnt_flags &= ~MNT_SHARED)
 #define IS_MNT_UNBINDABLE(mnt) (mnt->mnt_flags & MNT_UNBINDABLE)
+#define IS_MNT_MARKED(m) ((m)->mnt_flags & MNT_MARKED)
+#define SET_MNT_MARK(m) ((m)->mnt_flags |= MNT_MARKED)
+#define CLEAR_MNT_MARK(m) ((m)->mnt_flags &= ~MNT_MARKED)
+
 
 #define CL_EXPIRE    		0x01
 #define CL_SLAVE     		0x02
