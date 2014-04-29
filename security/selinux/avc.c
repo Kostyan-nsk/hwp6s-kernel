@@ -502,7 +502,7 @@ static inline int avc_xperms_audit(u32 ssid, u32 tsid, u16 tclass,
 	if (likely(!audited))
 		return 0;
 	return slow_avc_audit(ssid, tsid, tclass, requested,
-			audited, denied, ad, 0);
+			audited, denied, result, ad, 0);
 }
 
 static void avc_node_free(struct rcu_head *rhead)
@@ -937,7 +937,7 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 
 /* This is the slow part of avc audit with big stack footprint */
 noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
-		u32 requested, u32 audited, u32 denied,
+		u32 requested, u32 audited, u32 denied, int result,
 		struct common_audit_data *a,
 		unsigned flags)
 {
@@ -965,6 +965,7 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 	sad.tsid = tsid;
 	sad.audited = audited;
 	sad.denied = denied;
+	sad.result = result;
 
 	a->selinux_audit_data = &sad;
 	a->lsm_pre_audit = avc_audit_pre_callback;
