@@ -255,7 +255,7 @@ BSP_VOID ICC_DestroyChanDev(BSP_U32 u32ChanId)
     char buf[4];
 
     snprintf(buf, 4, "%u", u32ChanId);
-    list_for_each_entry_safe(child, child_tmp, &iccswitch_debugfs_root->d_subdirs, d_u.d_child)
+    list_for_each_entry_safe(child, child_tmp, &iccswitch_debugfs_root->d_subdirs, d_child)
     {
         if (memcmp(child->d_name.name, buf, sizeof(buf)) == 0)
         {
