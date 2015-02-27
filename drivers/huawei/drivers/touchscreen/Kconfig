@@ -1,0 +1,20 @@
+#menu "Rmi device drivers"
+#source "drivers/huawei/drivers/touchscreen/rmi/Kconfig"
+#endmenu
+
+#@menu "Cypress device drivers"
+#source "drivers/huawei/drivers/touchscreen/cypress/Kconfig"
+#endmenu
+
+menu "Cypress device drivers"
+source "drivers/huawei/drivers/touchscreen/ts/Kconfig"
+endmenu
+
+menu "Cypress and rmi device h30l drivers"
+source "drivers/huawei/drivers/touchscreen/ts_h30l/Kconfig"
+endmenu
+
+config  HUAWEI_H30L_TOUCH_CODE
+	bool "touchscreen h30l driver"
+	default n
+	

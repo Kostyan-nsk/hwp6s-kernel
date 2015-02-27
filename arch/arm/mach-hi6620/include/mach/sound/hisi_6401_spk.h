@@ -1,0 +1,12 @@
+#ifndef HISI_6401_SPK_H
+#define HISI_6401_SPK_H
+
+#define HI6401_SPK_NAME "hisi_6401_spk"
+
+#define HISI_6401_SPK_IOCTL_MAGIC 'u'
+
+#define HISI_6401_SPK_ENABLE	_IOW(HISI_6401_SPK_IOCTL_MAGIC, 0xC0, unsigned)
+#define HISI_6401_SPK_DISABLE	_IOW(HISI_6401_SPK_IOCTL_MAGIC, 0xC1, unsigned)
+
+
+#endif //TPA6132_H
