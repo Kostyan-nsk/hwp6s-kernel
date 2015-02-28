@@ -1489,10 +1489,10 @@ static unsigned int k3v2_getfreq(unsigned int cpu)
 	unsigned int rate = CPU_FREQ_MIN;
 
 	pr_debug("[%s] %d cpu\n", __func__, __LINE__);
-
+/*
 	if (cpu)
 		return 0;
-
+*/
 	ipps_get_current_freq(&ipps_client, IPPS_OBJ_CPU, &rate);
 
 	pr_debug("[%s] %d cur=%d.\n", __func__, __LINE__, rate);
@@ -1508,7 +1508,7 @@ static int k3v2_target(struct cpufreq_policy *policy,
 	int ret = 0;
 	unsigned int dest_freq = target_freq;
 
-    printk(KERN_ERR "%s target_freq:%d relation:%d\n",__func__, target_freq, relation);
+    printk(KERN_ERR "%s target_freq:%d CPU:%d relation:%d\n",__func__, target_freq, policy->cpu, relation);
 
 #if 0
 	/*check if we have limits on the cpufreqs*/
@@ -1519,9 +1519,9 @@ static int k3v2_target(struct cpufreq_policy *policy,
 		target_freq = PARAM_MIN(cpu);
 #endif
 
-	freqs.old = k3v2_getfreq(0);
+	freqs.old = k3v2_getfreq(policy->cpu);
 	freqs.new = target_freq;
-	freqs.cpu = 0;
+	freqs.cpu = policy->cpu;
 
     printk(KERN_ERR "%s old:%d new:%d\n",__func__, freqs.old, freqs.new);
 
@@ -1653,7 +1653,7 @@ static int __cpuinit k3v2_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	/*get current profile*/
-	policy->cur = k3v2_getfreq(0);
+	policy->cur = k3v2_getfreq(policy->cpu);
 	if (cpufreq_table) {
 		result = cpufreq_frequency_table_cpuinfo(policy, cpufreq_table);
 		if (!result)

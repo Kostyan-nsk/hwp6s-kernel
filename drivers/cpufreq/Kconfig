@@ -42,6 +42,14 @@ config CPU_FREQ_STAT_DETAILS
 
 	  If in doubt, say N.
 
+config CPU_FREQ_LCD_FREQ_DFS
+	bool "CPU frequency translation statistics details"
+	depends on CPU_FREQ_GOV_PEGASUSQPLUS
+	help
+	  This will enable screen-off CPU suspend.
+
+	  If in doubt, say N.
+
 choice
 	prompt "Default CPUFreq governor"
 	default CPU_FREQ_DEFAULT_GOV_USERSPACE if CPU_FREQ_SA1100 || CPU_FREQ_SA1110
@@ -121,6 +129,27 @@ config CPU_FREQ_DEFAULT_GOV_V9HOTPLUG
 	select CPU_FREQ_GOV_V9HOTPLUG
 	help
 	  Use the CPUFreq governor 'v9hotplug' as default. This allows
+	  you to get a hotplug interface.
+
+config CPU_FREQ_DEFAULT_GOV_HOTPLUGX
+	bool "hotplugx"
+	select CPU_FREQ_GOV_HOTPLUGX
+	help
+	  Use the CPUFreq governor 'hotplugx' as default. This allows
+	  you to get a hotplug interface.
+
+config CPU_FREQ_DEFAULT_GOV_ABYSSPLUGV2
+	bool "abyssplugv2"
+	select CPU_FREQ_GOV_ABYSSPLUGV2
+	help
+	  Use the CPUFreq governor 'abyssplugv2' as default. This allows
+	  you to get a hotplug interface.
+
+config CPU_FREQ_DEFAULT_GOV_PEGASUSQ
+	bool "pegasusq"
+	select CPU_FREQ_GOV_PEGASUSQ
+	help
+	  Use the CPUFreq governor 'pegasusq' as default. This allows
 	  you to get a hotplug interface.
 
 endchoice
@@ -225,6 +254,30 @@ config CPU_FREQ_GOV_K3HOTPLUG
     select CPU_FREQ_TABLE
 	help
 	  'k3hotplug' - This driver adds a cpufreq policy governor interface to k3.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_HOTPLUGX
+    tristate "'hotplugx' cpufreq governor"
+    select CPU_FREQ_TABLE
+	help
+	  'hotplugx' - This driver adds a cpufreq policy governor interface.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_ABYSSPLUGV2
+    tristate "'abyssplugv2' cpufreq governor"
+    select CPU_FREQ_TABLE
+	help
+	  'abyssplugv2' - This driver adds a cpufreq policy governor interface.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_PEGASUSQ
+    tristate "'pegasusq' cpufreq governor"
+    select CPU_FREQ_TABLE
+	help
+	  'pegasusq' - This driver adds a cpufreq policy governor interface.
 
 	  If in doubt, say N.
 

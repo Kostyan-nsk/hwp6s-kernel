@@ -367,6 +367,15 @@ extern struct cpufreq_governor cpufreq_gov_k3hotplug;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_V9HOTPLUG)
 extern struct cpufreq_governor pwrctrl_hotplug_gov;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&pwrctrl_hotplug_gov)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_HOTPLUGX)
+extern struct cpufreq_governor cpufreq_gov_hotplugx;
+#define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_hotplugx)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_ABYSSPLUGV2)
+extern struct cpufreq_governor cpufreq_gov_abyssplugv2;
+#define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_abyssplugv2)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_PEGASUSQ)
+extern struct cpufreq_governor cpufreq_gov_pegasusq;
+#define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_pegasusq)
 #endif
 
 
