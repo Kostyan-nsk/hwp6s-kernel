@@ -418,7 +418,7 @@ queue_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	if (!entry->show)
 		return -EIO;
 	mutex_lock(&q->sysfs_lock);
-	if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)) {
+	if (blk_queue_dead(q)) {
 		mutex_unlock(&q->sysfs_lock);
 		return -ENOENT;
 	}
@@ -440,7 +440,7 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	q = container_of(kobj, struct request_queue, kobj);
 	mutex_lock(&q->sysfs_lock);
-	if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)) {
+	if (blk_queue_dead(q)) {
 		mutex_unlock(&q->sysfs_lock);
 		return -ENOENT;
 	}
@@ -472,8 +472,12 @@ static void blk_release_queue(struct kobject *kobj)
 
 	blk_sync_queue(q);
 
-	if (q->elevator)
+	if (q->elevator) {
+		spin_lock_irq(q->queue_lock);
+		ioc_clear_queue(q);
+		spin_unlock_irq(q->queue_lock);
 		elevator_exit(q->elevator);
+	}
 
 	blk_throtl_exit(q);
 
@@ -487,6 +491,8 @@ static void blk_release_queue(struct kobject *kobj)
 	blk_trace_shutdown(q);
 
 	bdi_destroy(&q->backing_dev_info);
+
+	ida_simple_remove(&blk_queue_ida, q->id);
 	kmem_cache_free(blk_requestq_cachep, q);
 }
 

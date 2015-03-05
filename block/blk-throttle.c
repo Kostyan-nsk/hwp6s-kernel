@@ -313,7 +313,7 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	struct request_queue *q = td->queue;
 
 	/* no throttling for dead queue */
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+	if (unlikely(blk_queue_dead(q)))
 		return NULL;
 
 	rcu_read_lock();
@@ -341,7 +341,7 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	 * We might have slept in group allocation. Make sure queue is not
 	 * dead
 	 */
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))) {
+	if (unlikely(blk_queue_dead(q))) {
 		blk_put_queue(q);
 		if (tg)
 			kfree(tg);
