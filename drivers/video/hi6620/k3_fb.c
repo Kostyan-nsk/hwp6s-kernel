@@ -33,6 +33,9 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <hsad/config_mgr.h>
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+#include <linux/input/doubletap2wake.h>
+#endif
 
 #include "k3_fb.h"
 #include "edc_reg.h"
@@ -5690,6 +5693,7 @@ STATIC void k3_fb_shutdown(struct platform_device *pdev)
 	k3fb_logi("index=%d, exit!\n", k3fd->index);
 }
 
+#ifndef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
 #if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND)
 static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -5719,7 +5723,7 @@ static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int k3_fb_resume(struct platform_device *pdev)
 {
-	/* This resume function is called when interrupt is enabled. */
+	/* This resume function is called when interrupt is enabled.*/
 	int ret = 0;
 	struct k3_fb_data_type *k3fd = NULL;
 
@@ -5746,7 +5750,32 @@ static int k3_fb_resume(struct platform_device *pdev)
 #define k3_fb_suspend NULL
 #define k3_fb_resume NULL
 #endif
+#else
+static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	int ret;
+	struct k3_fb_data_type *k3fd = NULL;
+	struct k3_fb_panel_data *pdata = NULL;
 
+	if (dt2w_switch > 0) {
+	    k3fd = (struct k3_fb_data_type *)platform_get_drvdata(pdev);
+	    if (!k3fd)
+		return 0;
+
+	    if (k3fd->index == 0) {
+		pdata = (struct k3_fb_panel_data *)k3fd->pdev->dev.platform_data;
+		if (!pdata)
+		    return 0;
+
+		dt2w_switch = 0;
+		ret = pdata->off(k3fd->pdev);
+		k3fb_logi("pdata->off: %d\n", ret);
+	    }
+	}
+	return 0;
+}
+#define k3_fb_resume NULL
+#endif
 
 /******************************************************************************/
 
