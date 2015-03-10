@@ -31,6 +31,8 @@
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 
+#include "pwrctrl_multi_memcfg.h"
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -43,18 +45,18 @@
 
 #define DEF_SAMPLING_DOWN_FACTOR		(2)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
-#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(5)
+#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
 #define DEF_FREQUENCY_UP_THRESHOLD		(50)
 #define DEF_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(5)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
-#define DEF_SAMPLING_RATE			(50000)
+#define DEF_SAMPLING_RATE			(100000)
 #define MIN_SAMPLING_RATE			(10000)
 #define MAX_HOTPLUG_RATE			(40u)
 
 #define DEF_MAX_CPU_LOCK			(0)
 #define DEF_MIN_CPU_LOCK			(0)
-#define DEF_CPU_UP_FREQ				(798000)
+#define DEF_CPU_UP_FREQ				(1196000)
 #define DEF_CPU_DOWN_FREQ			(208000)
 #define DEF_UP_NR_CPUS				(1)
 #define DEF_CPU_UP_RATE				(5)
@@ -73,9 +75,9 @@ static int hotplug_rq[4][2] = {
 };
 
 static int hotplug_freq[4][2] = {
-	{0, 798000},
-	{208000, 798000},
-	{208000, 798000},
+	{0, 1196000},
+	{208000, 1196000},
+	{208000, 1196000},
 	{208000, 0}
 };
 
@@ -171,6 +173,7 @@ static struct dbs_tuners {
 #endif
 };
 
+static unsigned int chip_max_freq;
 
 /*
  * CPU hotplug lock interface
@@ -872,7 +875,6 @@ static int check_up(void)
 
 		freq = usage->freq;
 		rq_avg =  usage->rq_avg;
-
 		min_freq = min(min_freq, freq);
 		min_rq_avg = min(min_rq_avg, rq_avg);
 
@@ -929,8 +931,7 @@ static int check_down(void)
 		usage = &hotplug_history->usage[i];
 
 		freq = usage->freq;
-		rq_avg =  usage->rq_avg;
-
+		rq_avg = usage->rq_avg;
 		max_freq = max(max_freq, freq);
 		max_rq_avg = max(max_rq_avg, rq_avg);
 
@@ -974,12 +975,12 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	/* Because HwPowerGenieEngine can restrict min & max freqs */
 	policy->min = 208000;
-	policy->max = 1596000;
+	policy->max = chip_max_freq;
 
 	hotplug_history->usage[num_hist].freq = policy->cur;
 	hotplug_history->usage[num_hist].rq_avg = avg_nr_running();
 	++hotplug_history->num_hist;
-
+	
 	prev_wall_time = this_dbs_info->prev_cpu_wall;
 	prev_idle_time = this_dbs_info->prev_cpu_idle;
 	prev_iowait_time = this_dbs_info->prev_cpu_iowait;
@@ -1027,6 +1028,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		hotplug_history->usage[num_hist].load[cpu] = load_cpu;
 
 	/* Check for CPU hotplug */
+	if (!cpu) {
 	if (check_up()) {
 		dbs_info = &per_cpu(od_cpu_dbs_info, 0);
 //		queue_work_on(this_dbs_info->cpu, dvfs_workqueue,
@@ -1037,6 +1039,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 //		queue_work_on(this_dbs_info->cpu, dvfs_workqueue,
 		queue_work_on(0, dvfs_workqueue,
 			      &dbs_info->down_work);
+	}
 	}
 	if (hotplug_history->num_hist  == max_hotplug_rate)
 		hotplug_history->num_hist = 0;
@@ -1113,7 +1116,7 @@ static void do_dbs_timer(struct work_struct *work)
 {
 	struct cpu_dbs_info_s *dbs_info =
 		container_of(work, struct cpu_dbs_info_s, work.work);
-	int delay;
+	unsigned int delay;
 
 	mutex_lock(&dbs_info->timer_mutex);
 	dbs_check_cpu(dbs_info);
@@ -1363,8 +1366,10 @@ static int __init cpufreq_gov_dbs_init(void)
 	if (ret)
 		goto err_reg;
 
+	chip_max_freq = readl(ACPU_CHIP_MAX_FREQ);
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 10;
+	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	early_suspend.suspend = cpufreq_pegasusq_early_suspend;
 	early_suspend.resume = cpufreq_pegasusq_late_resume;
 #endif
