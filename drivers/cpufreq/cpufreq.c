@@ -1473,6 +1473,8 @@ EXPORT_SYMBOL_GPL(__cpufreq_driver_getavg);
  * when "event" is CPUFREQ_GOV_LIMITS
  */
 
+extern unsigned int intelli_plug_active;
+
 static int __cpufreq_governor(struct cpufreq_policy *policy,
 					unsigned int event)
 {
@@ -1509,7 +1511,22 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 	pr_debug("__cpufreq_governor for CPU %u, event %u\n",
 						policy->cpu, event);
 	ret = policy->governor->governor(policy, event);
-
+	/* intelli_plug */
+	if ((event == CPUFREQ_GOV_START) && !ret) {
+	    if (!strnicmp(policy->governor->name, "pwrctrl_hotplug",	CPUFREQ_NAME_LEN)
+	    || !strnicmp(policy->governor->name,  "pegasusq",		CPUFREQ_NAME_LEN)
+	    || !strnicmp(policy->governor->name,  "abyssplugv2",	CPUFREQ_NAME_LEN)) {
+		if (intelli_plug_active) {
+		    printk(KERN_DEBUG "disabling intelli_plug for governor: %s\n", policy->governor->name);
+		    intelli_plug_active = 0;
+		}
+	    }
+	    else
+		if (!intelli_plug_active) {
+		    printk(KERN_DEBUG "enabling intelli_plug for governor: %s\n", policy->governor->name);
+		    intelli_plug_active = 1;
+		}
+	}
 	/* we keep one module reference alive for
 			each CPU governed by this CPU */
 	if ((event != CPUFREQ_GOV_START) || ret)
