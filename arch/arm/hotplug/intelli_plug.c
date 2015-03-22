@@ -36,7 +36,7 @@
 #define INTELLI_PLUG_MAJOR_VERSION	4
 #define INTELLI_PLUG_MINOR_VERSION	0
 
-#define DEF_SAMPLING_MS			(268)
+#define DEF_SAMPLING_MS			(250)
 
 #define DUAL_PERSISTENCE		(2500 / DEF_SAMPLING_MS)
 #define TRI_PERSISTENCE			(1700 / DEF_SAMPLING_MS)
@@ -76,7 +76,7 @@ struct ip_cpu_info {
 
 static DEFINE_PER_CPU(struct ip_cpu_info, ip_info);
 
-static unsigned int screen_off_max = UINT_MAX;
+static unsigned int screen_off_max = 208000;
 module_param(screen_off_max, uint, 0664);
 
 #define CAPACITY_RESERVE	50
@@ -335,7 +335,7 @@ static void __ref intelli_plug_work_fn(struct work_struct *work)
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-/*
+
 static void screen_off_limit(bool on)
 {
 	unsigned int cpu;
@@ -346,92 +346,29 @@ static void screen_off_limit(bool on)
 	if (screen_off_max == UINT_MAX)
 		return;
 
-	for_each_online_cpu(cpu) {
-		l_ip_info = &per_cpu(ip_info, cpu);
-		policy = cpufreq_cpu_get(0);
+	l_ip_info = &per_cpu(ip_info, 0);
+	policy = cpufreq_cpu_get(0);
 
-		if (on) {
-			// save current instance
-			l_ip_info->cur_max = policy->max;
-			policy->max = screen_off_max;
-			policy->cpuinfo.max_freq = screen_off_max;
+	if (on) {
+		// save current instance
+		l_ip_info->cur_max = policy->max;
+		policy->max = screen_off_max;
+		policy->cpuinfo.max_freq = screen_off_max;
 #ifdef DEBUG_INTELLI_PLUG
-			pr_info("cpuinfo max is (on): %u %u\n",
-				policy->cpuinfo.max_freq, l_ip_info->sys_max);
+		pr_info("cpuinfo max is (on): %u %u\n",
+			policy->cpuinfo.max_freq, l_ip_info->sys_max);
 #endif
-		} else {
-			// restore
-			if (cpu != 0) {
-				l_ip_info = &per_cpu(ip_info, 0);
-			}
-			policy->cpuinfo.max_freq = l_ip_info->sys_max;
-			policy->max = l_ip_info->cur_max;
+	} else {
+		// restore
+		policy->cpuinfo.max_freq = l_ip_info->sys_max;
+		policy->max = l_ip_info->cur_max;
 #ifdef DEBUG_INTELLI_PLUG
-			pr_info("cpuinfo max is (off): %u %u\n",
-				policy->cpuinfo.max_freq, l_ip_info->sys_max);
+		pr_info("cpuinfo max is (off): %u %u\n",
+			policy->cpuinfo.max_freq, l_ip_info->sys_max);
 #endif
 		}
-		cpufreq_update_policy(cpu);
-	}
+		cpufreq_update_policy(0);
 }
-*/
-void __ref intelli_plug_perf_boost(bool on)
-{
-	unsigned int cpu;
-
-	if (intelli_plug_active) {
-		flush_workqueue(intelliplug_wq);
-		if (on) {
-			for_each_possible_cpu(cpu) {
-				if (!cpu_online(cpu))
-					cpu_up(cpu);
-			}
-		} else {
-			queue_delayed_work_on(0, intelliplug_wq,
-				&intelli_plug_work,
-				msecs_to_jiffies(sampling_time));
-		}
-	}
-}
-
-/* sysfs interface for performance boost (BEGIN) */
-static ssize_t intelli_plug_perf_boost_store(struct kobject *kobj,
-			struct kobj_attribute *attr, const char *buf,
-			size_t count)
-{
-
-	int boost_req;
-
-	sscanf(buf, "%du", &boost_req);
-
-	switch(boost_req) {
-		case 0:
-			intelli_plug_perf_boost(0);
-			return count;
-		case 1:
-			intelli_plug_perf_boost(1);
-			return count;
-		default:
-			return -EINVAL;
-	}
-}
-
-static struct kobj_attribute intelli_plug_perf_boost_attribute =
-	__ATTR(perf_boost, 0220,
-		NULL,
-		intelli_plug_perf_boost_store);
-
-static struct attribute *intelli_plug_perf_boost_attrs[] = {
-	&intelli_plug_perf_boost_attribute.attr,
-	NULL,
-};
-
-static struct attribute_group intelli_plug_perf_boost_attr_group = {
-	.attrs = intelli_plug_perf_boost_attrs,
-};
-
-static struct kobject *intelli_plug_perf_boost_kobj;
-/* sysfs interface for performance boost (END) */
 
 static void intelli_plug_suspend(struct early_suspend *handler)
 {
@@ -439,10 +376,9 @@ static void intelli_plug_suspend(struct early_suspend *handler)
 		int cpu;
 	
 		flush_workqueue(intelliplug_wq);
-
+		cancel_delayed_work_sync(&intelli_plug_work);
 		mutex_lock(&intelli_plug_mutex);
 		suspended = true;
-//		screen_off_limit(true);
 		mutex_unlock(&intelli_plug_mutex);
 
 		// put rest of the cores to sleep unconditionally!
@@ -450,43 +386,34 @@ static void intelli_plug_suspend(struct early_suspend *handler)
 			if (cpu != 0)
 				cpu_down(cpu);
 		}
+		screen_off_limit(true);
 	}
 }
-/*
+
 static void wakeup_boost(void)
 {
 	unsigned int cpu;
 	struct cpufreq_policy *policy;
 	struct ip_cpu_info *l_ip_info;
 
-	for_each_online_cpu(cpu) {
-		policy = cpufreq_cpu_get(0);
-		l_ip_info = &per_cpu(ip_info, 0);
-		policy->cur = l_ip_info->cur_max;
-		cpufreq_update_policy(cpu);
-	}
+	policy = cpufreq_cpu_get(0);
+	l_ip_info = &per_cpu(ip_info, 0);
+	policy->cur = l_ip_info->cur_max;
+	cpufreq_update_policy(0);
 }
-*/
+
 static void __ref intelli_plug_resume(struct early_suspend *handler)
 {
 
 	if (intelli_plug_active) {
-		int cpu;
 
 		mutex_lock(&intelli_plug_mutex);
 		/* keep cores awake long enough for faster wake up */
 		persist_count = BUSY_PERSISTENCE;
 		suspended = false;
 		mutex_unlock(&intelli_plug_mutex);
-
-		for_each_possible_cpu(cpu) {
-			if (cpu == 0)
-				continue;
-			cpu_up(cpu);
-		}
-
-//		wakeup_boost();
-//		screen_off_limit(false);
+		screen_off_limit(false);
+		wakeup_boost();
 	}
 	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
 		msecs_to_jiffies(10));
@@ -616,25 +543,13 @@ int __init intelli_plug_init(void)
 	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
 		msecs_to_jiffies(10));
 
-	intelli_plug_perf_boost_kobj
-		= kobject_create_and_add("intelli_plug", kernel_kobj);
-
-	if (!intelli_plug_perf_boost_kobj) {
-		return -ENOMEM;
-	}
-
-	rc = sysfs_create_group(intelli_plug_perf_boost_kobj,
-				&intelli_plug_perf_boost_attr_group);
-
-	if (rc)
-		kobject_put(intelli_plug_perf_boost_kobj);
-
 	return 0;
 }
 
 MODULE_AUTHOR("Paul Reioux <reioux@gmail.com>");
 MODULE_DESCRIPTION("'intell_plug' - An intelligent cpu hotplug driver for "
-	"Low Latency Frequency Transition capable processors");
+	"Low Latency Frequency Transition capable processors"
+	"Adjusted for Huawei Ascend P6s-U06 by Kostyan_nsk");
 MODULE_LICENSE("GPL");
 
 late_initcall(intelli_plug_init);
