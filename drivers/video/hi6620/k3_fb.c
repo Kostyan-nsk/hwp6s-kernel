@@ -5767,7 +5767,7 @@ static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 		if (!pdata)
 		    return 0;
 
-		dt2w_switch = 0;
+//		dt2w_switch = 0;
 		ret = pdata->off(k3fd->pdev);
 		k3fb_logi("pdata->off: %d\n", ret);
 	    }
