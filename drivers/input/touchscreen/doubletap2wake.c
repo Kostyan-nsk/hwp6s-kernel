@@ -78,9 +78,8 @@ static struct notifier_block dt2w_lcd_notif;
 #endif
 static struct input_dev * doubletap2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
-static struct workqueue_struct *dt2w_input_wq, *dt2w_switch_wq;
+static struct workqueue_struct *dt2w_input_wq;
 static struct work_struct dt2w_input_work;
-static struct delayed_work dt2w_switch_work;
 static struct wake_lock dt2w_wakelock;
 
 /* Read cmdline for dt2w */
@@ -186,13 +185,6 @@ static void dt2w_input_callback(struct work_struct *unused) {
 	detect_doubletap2wake(touch_x, touch_y, true);
 
 	return;
-}
-
-static void dt2w_switch_callback(struct work_struct *work) {
-
-    dt2w_switch = 0;
-
-    return;
 }
 
 static void dt2w_input_event(struct input_handle *handle, unsigned int type,
@@ -316,14 +308,11 @@ static int lcd_notifier_callback(struct notifier_block *this,
 static void dt2w_early_suspend(struct early_suspend *h) {
 	scr_suspended = true;
 	dt2w_prev_switch = dt2w_switch;
-	queue_delayed_work_on(0, dt2w_switch_wq, &dt2w_switch_work,
-				msecs_to_jiffies(dt2w_duration * 1000));
-	wake_lock_timeout(&dt2w_wakelock, (dt2w_duration + 1) * HZ);
+	wake_lock_timeout(&dt2w_wakelock, dt2w_duration * HZ);
 }
 
 static void dt2w_late_resume(struct early_suspend *h) {
 	scr_suspended = false;
-	cancel_delayed_work_sync(&dt2w_switch_work);
 	dt2w_switch = dt2w_prev_switch;
 	wake_unlock(&dt2w_wakelock);
 
@@ -447,13 +436,7 @@ static int __init doubletap2wake_init(void)
 		pr_err("%s: Failed to create dt2wiwq workqueue\n", __func__);
 		return -EFAULT;
 	}
-	dt2w_switch_wq = create_workqueue("dt2_switch_wq");
-	if (!dt2w_switch_wq) {
-		pr_err("%s: Failed to create dt2w_switch_wq workqueue\n", __func__);
-		return -EFAULT;
-	}
 	INIT_WORK(&dt2w_input_work, dt2w_input_callback);
-	INIT_DELAYED_WORK(&dt2w_switch_work, dt2w_switch_callback);
 	wake_lock_init(&dt2w_wakelock, WAKE_LOCK_SUSPEND, "dt2w_wakelock");
 	rc = input_register_handler(&dt2w_input_handler);
 	if (rc)
@@ -505,7 +488,6 @@ static void __exit doubletap2wake_exit(void)
 #endif
 	input_unregister_handler(&dt2w_input_handler);
 	destroy_workqueue(dt2w_input_wq);
-	destroy_workqueue(dt2w_switch_wq);
 	wake_lock_destroy(&dt2w_wakelock);
 	input_unregister_device(doubletap2wake_pwrdev);
 	input_free_device(doubletap2wake_pwrdev);
