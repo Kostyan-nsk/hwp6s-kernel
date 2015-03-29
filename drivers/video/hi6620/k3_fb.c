@@ -4803,6 +4803,9 @@ STATIC void k3_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	if (k3fd->panel_info.sbl_enable)
 		sbl_bkl_set(k3fd, bl_lvl);
 	k3_fb_set_backlight(k3fd, k3fd->bl_level);
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+	msleep(50);
+#endif
 }
 
 static struct led_classdev backlight_led = {
@@ -5753,7 +5756,7 @@ static int k3_fb_resume(struct platform_device *pdev)
 #else
 static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	int ret;
+	int i, ret;
 	struct k3_fb_data_type *k3fd = NULL;
 	struct k3_fb_panel_data *pdata = NULL;
 
@@ -5763,13 +5766,19 @@ static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 		return 0;
 
 	    if (k3fd->index == 0) {
-		pdata = (struct k3_fb_panel_data *)k3fd->pdev->dev.platform_data;
-		if (!pdata)
-		    return 0;
-
+		for (i = 0; i < 3; i++) {
+		    pdata = (struct k3_fb_panel_data *)pdev->dev.platform_data;
+		    if (!pdata)
+			return 0;
+		    if (!pdata->off)
+			return 0;
+		    pdev = pdata->next;
+		    if (!pdev)
+			return 0;
+		}
 		dt2w_switch = 0;
-		ret = pdata->off(k3fd->pdev);
-		k3fb_logi("pdata->off: %d\n", ret);
+		ret = pdata->off(pdev); /* mipi_jdi_panel_off */
+		k3fb_logi("mipi_jdi_panel_off: %d\n", ret);
 	    }
 	}
 	return 0;

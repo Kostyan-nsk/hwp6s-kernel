@@ -43,6 +43,9 @@
 #include "mipi_reg.h"
 #include <linux/lcd_tuning.h>
 
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+#include <linux/input/doubletap2wake.h>
+#endif
 
 #if defined(CONFIG_HUAWEI_H30L_TOUCH_CODE)
 #include "../touchscreen/ts_h30l/huawei_touchscreen_chips.h"
@@ -485,6 +488,19 @@ static struct dsi_cmd_desc jdi_display_off_cmds[] = {
 	{DTYPE_DCS_WRITE, 0, 120, WAIT_TYPE_MS,
 		sizeof(enter_sleep), enter_sleep},
 };
+
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+static struct dsi_cmd_desc jdi_display_off_cmds_dt2w[] = {
+	{DTYPE_DCS_WRITE1, 0, 100, WAIT_TYPE_US,
+		sizeof(bl_level), bl_level},
+	{DTYPE_DCS_WRITE1, 0, 100, WAIT_TYPE_US,
+		sizeof(bl_enable), bl_enable},
+	{DTYPE_DCS_WRITE, 0, 100, WAIT_TYPE_US,
+		sizeof(all_pixels_off), all_pixels_off},
+	{DTYPE_DCS_WRITE, 0, 30, WAIT_TYPE_US,
+		sizeof(display_off), display_off},
+};
+#endif
 
 static struct dsi_cmd_desc jdi_cabc_cmds[] = {
 	{DTYPE_GEN_WRITE2, 0, 100, WAIT_TYPE_US,
@@ -1161,6 +1177,7 @@ static int mipi_jdi_panel_off(struct platform_device *pdev)
 	struct k3_panel_info *pinfo = NULL;
 	u32 edc_base = 0;
 	int retval = 0;
+
 	BUG_ON(pdev == NULL);
 	pr_info("%s enter succ!\n",__func__);
 
@@ -1169,10 +1186,15 @@ static int mipi_jdi_panel_off(struct platform_device *pdev)
 	edc_base = k3fd->edc_base;
 	pinfo = &(k3fd->panel_info);
 
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+	if (dt2w_switch == 0)
+	    retval = ts_power_control_notify(TS_BEFORE_SUSPEND, SHORT_SYNC_TIMEOUT);
+#else
 	retval = ts_power_control_notify(TS_BEFORE_SUSPEND, SHORT_SYNC_TIMEOUT);
 	if (retval < 0) {
 		k3fb_loge("Failed to send TS_BEFORE_SUSPEND. Code: %d.\n", retval);
 	}
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 	if ((g_fb_lowpower_debug_flag & DEBUG_LCD_LOWPOWER_DISABLE) == DEBUG_LCD_LOWPOWER_DISABLE) {
@@ -1180,12 +1202,26 @@ static int mipi_jdi_panel_off(struct platform_device *pdev)
 		return 0;
 	}
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+	if (dt2w_switch > 0) {
+	    g_display_on = false;
+	    mipi_dsi_cmds_tx(jdi_display_off_cmds_dt2w, ARRAY_SIZE(jdi_display_off_cmds_dt2w));
+	}
+	else
+	    if (g_display_on || (dt2w_prev_switch > 0)) {
+		g_display_on = false;
+		mipi_dsi_cmds_tx(jdi_display_off_cmds, ARRAY_SIZE(jdi_display_off_cmds));
+		jdi_power_off(pinfo);
+	    }
+#else
 	if (g_display_on) {
 		g_display_on = false;
 		mipi_dsi_cmds_tx(jdi_display_off_cmds, ARRAY_SIZE(jdi_display_off_cmds));
 
 		jdi_power_off(pinfo);
 	}
+#endif
 	return 0;
 }
 

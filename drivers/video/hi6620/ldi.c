@@ -22,9 +22,6 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-#include <linux/input/doubletap2wake.h>
-#endif
 
 #include "k3_fb.h"
 #include "ldi_reg.h"
@@ -135,10 +132,7 @@ int ldi_off(struct platform_device *pdev)
 	int ret = 0;
 	struct k3_fb_data_type *k3fd = NULL;
 	u32 edc_base = 0;
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	if (dt2w_switch > 0)
-	    return 0;
-#endif
+
 	BUG_ON(pdev == NULL);
 
 	k3fd = platform_get_drvdata(pdev);
