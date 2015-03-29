@@ -1520,7 +1520,7 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 						policy->cpu, event);
 	ret = policy->governor->governor(policy, event);
 #ifdef CONFIG_INTELLI_PLUG
-	if ((event == CPUFREQ_GOV_START) && !ret) {
+	if ((event == CPUFREQ_GOV_START) && !ret && !policy->cpu) {
 	    if (!strnicmp(policy->governor->name, "pwrctrl_hotplug",	CPUFREQ_NAME_LEN)
 	    || !strnicmp(policy->governor->name,  "pegasusq",		CPUFREQ_NAME_LEN)
 	    || !strnicmp(policy->governor->name,  "hotplugx",		CPUFREQ_NAME_LEN)
