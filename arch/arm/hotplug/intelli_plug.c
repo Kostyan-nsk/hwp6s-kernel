@@ -46,10 +46,10 @@
 
 static DEFINE_MUTEX(intelli_plug_mutex);
 
-static struct delayed_work intelli_plug_work;
+struct delayed_work intelli_plug_work;
 static struct delayed_work intelli_plug_boost;
 
-static struct workqueue_struct *intelliplug_wq;
+struct workqueue_struct *intelliplug_wq;
 static struct workqueue_struct *intelliplug_boost_wq;
 
 unsigned int intelli_plug_active = 0;
@@ -338,7 +338,6 @@ static void __ref intelli_plug_work_fn(struct work_struct *work)
 
 static void screen_off_limit(bool on)
 {
-	unsigned int cpu;
 	struct cpufreq_policy *policy;
 	struct ip_cpu_info *l_ip_info;
 
@@ -392,7 +391,6 @@ static void intelli_plug_suspend(struct early_suspend *handler)
 
 static void wakeup_boost(void)
 {
-	unsigned int cpu;
 	struct cpufreq_policy *policy;
 	struct ip_cpu_info *l_ip_info;
 
@@ -414,9 +412,9 @@ static void __ref intelli_plug_resume(struct early_suspend *handler)
 		mutex_unlock(&intelli_plug_mutex);
 		screen_off_limit(false);
 		wakeup_boost();
+		queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
+					msecs_to_jiffies(10));
 	}
-	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
-		msecs_to_jiffies(10));
 }
 
 static struct early_suspend intelli_plug_early_suspend_driver = {
@@ -540,8 +538,8 @@ int __init intelli_plug_init(void)
 				WQ_HIGHPRI | WQ_UNBOUND, 1);
 	INIT_DELAYED_WORK(&intelli_plug_work, intelli_plug_work_fn);
 	INIT_DELAYED_WORK(&intelli_plug_boost, intelli_plug_boost_fn);
-	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
-		msecs_to_jiffies(10));
+//	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
+//		msecs_to_jiffies(10));
 
 	return 0;
 }

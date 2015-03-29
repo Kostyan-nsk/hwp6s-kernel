@@ -32,6 +32,10 @@
 
 #include <trace/events/power.h>
 
+#ifdef CONFIG_INTELLI_PLUG
+#include <linux/workqueue.h>
+#endif
+
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -1473,7 +1477,11 @@ EXPORT_SYMBOL_GPL(__cpufreq_driver_getavg);
  * when "event" is CPUFREQ_GOV_LIMITS
  */
 
+#ifdef CONFIG_INTELLI_PLUG
 extern unsigned int intelli_plug_active;
+extern struct delayed_work intelli_plug_work;
+extern struct workqueue_struct *intelliplug_wq;
+#endif
 
 static int __cpufreq_governor(struct cpufreq_policy *policy,
 					unsigned int event)
@@ -1511,22 +1519,27 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 	pr_debug("__cpufreq_governor for CPU %u, event %u\n",
 						policy->cpu, event);
 	ret = policy->governor->governor(policy, event);
-	/* intelli_plug */
+#ifdef CONFIG_INTELLI_PLUG
 	if ((event == CPUFREQ_GOV_START) && !ret) {
 	    if (!strnicmp(policy->governor->name, "pwrctrl_hotplug",	CPUFREQ_NAME_LEN)
 	    || !strnicmp(policy->governor->name,  "pegasusq",		CPUFREQ_NAME_LEN)
+	    || !strnicmp(policy->governor->name,  "hotplugx",		CPUFREQ_NAME_LEN)
 	    || !strnicmp(policy->governor->name,  "abyssplugv2",	CPUFREQ_NAME_LEN)) {
 		if (intelli_plug_active) {
 		    printk(KERN_DEBUG "disabling intelli_plug for governor: %s\n", policy->governor->name);
 		    intelli_plug_active = 0;
+		    flush_workqueue(intelliplug_wq);
+		    cancel_delayed_work_sync(&intelli_plug_work);
 		}
 	    }
 	    else
 		if (!intelli_plug_active) {
 		    printk(KERN_DEBUG "enabling intelli_plug for governor: %s\n", policy->governor->name);
 		    intelli_plug_active = 1;
+		    queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work, msecs_to_jiffies(10));
 		}
 	}
+#endif
 	/* we keep one module reference alive for
 			each CPU governed by this CPU */
 	if ((event != CPUFREQ_GOV_START) || ret)
