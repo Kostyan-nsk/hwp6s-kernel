@@ -84,10 +84,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
-#ifndef CONFIG_INTELLI_PLUG
-#define CONFIG_INTELLI_PLUG
-#endif
-
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -577,7 +573,7 @@ struct rq {
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 DEFINE_PER_CPU_SHARED_ALIGNED(struct nr_stats_s, runqueue_stats);
 #endif
 
@@ -613,7 +609,7 @@ static inline int cpu_of(struct rq *rq)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
 
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 struct nr_stats_s {
 	/* time-based average load */
 	u64 nr_last_stamp;
@@ -690,7 +686,7 @@ static void update_rq_clock(struct rq *rq)
 	update_rq_clock_task(rq, delta);
 }
 
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 static inline unsigned int do_avg_nr_running(struct rq *rq)
 {
 
@@ -1883,34 +1879,34 @@ static const struct sched_class rt_sched_class;
 
 static void inc_nr_running(struct rq *rq)
 {
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
 #endif
 
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 	write_seqcount_begin(&nr_stats->ave_seqcnt);
 	nr_stats->ave_nr_running = do_avg_nr_running(rq);
 	nr_stats->nr_last_stamp = rq->clock_task;
 #endif
 	rq->nr_running++;
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 	write_seqcount_end(&nr_stats->ave_seqcnt);
 #endif
 }
 
 static void dec_nr_running(struct rq *rq)
 {
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
 #endif
 
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 	write_seqcount_begin(&nr_stats->ave_seqcnt);
 	nr_stats->ave_nr_running = do_avg_nr_running(rq);
 	nr_stats->nr_last_stamp = rq->clock_task;
 #endif
 	rq->nr_running--;
-#ifdef CONFIG_INTELLI_PLUG
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_CPU_FREQ_GOV_PEGASUSQ)
 	write_seqcount_end(&nr_stats->ave_seqcnt);
 #endif
 }
