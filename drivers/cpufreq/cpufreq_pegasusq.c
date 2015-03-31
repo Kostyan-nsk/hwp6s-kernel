@@ -46,7 +46,7 @@
 #define DEF_SAMPLING_DOWN_FACTOR		(2)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
-#define DEF_FREQUENCY_UP_THRESHOLD		(50)
+#define DEF_FREQUENCY_UP_THRESHOLD		(60)
 #define DEF_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(5)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
@@ -60,7 +60,7 @@
 #define DEF_CPU_DOWN_FREQ			(208000)
 #define DEF_UP_NR_CPUS				(1)
 #define DEF_CPU_UP_RATE				(5)
-#define DEF_CPU_DOWN_RATE			(25)
+#define DEF_CPU_DOWN_RATE			(20)
 #define DEF_FREQ_STEP				(25)
 #define DEF_START_DELAY				(0)
 
@@ -106,8 +106,6 @@ struct cpu_dbs_info_s {
 	cputime64_t prev_cpu_nice;
 	struct cpufreq_policy *cur_policy;
 	struct delayed_work work;
-	struct work_struct up_work;
-	struct work_struct down_work;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int rate_mult;
 	int cpu;
@@ -120,7 +118,9 @@ struct cpu_dbs_info_s {
 };
 static DEFINE_PER_CPU(struct cpu_dbs_info_s, od_cpu_dbs_info);
 
-struct workqueue_struct *dvfs_workqueue;
+static struct workqueue_struct *dvfs_workqueue, *hotplug_wq;
+static struct work_struct up_work;
+static struct work_struct down_work;
 
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 
@@ -186,10 +186,8 @@ static void apply_hotplug_lock(void)
 {
 	int online, possible, lock, flag;
 	struct work_struct *work;
-	struct cpu_dbs_info_s *dbs_info;
 
 	/* do turn_on/off cpus */
-	dbs_info = &per_cpu(od_cpu_dbs_info, 0); /* from CPU0 */
 	online = num_online_cpus();
 	possible = num_possible_cpus();
 	lock = atomic_read(&g_hotplug_lock);
@@ -198,13 +196,12 @@ static void apply_hotplug_lock(void)
 	if (lock == 0 || flag == 0)
 		return;
 
-	work = flag > 0 ? &dbs_info->up_work : &dbs_info->down_work;
+	work = flag > 0 ? &up_work : &down_work;
 
 	pr_debug("%s online %d possible %d lock %d flag %d %d\n",
 		 __func__, online, possible, lock, flag, (int)abs(flag));
 
-//	queue_work_on(dbs_info->cpu, dvfs_workqueue, work);
-	queue_work_on(0, dvfs_workqueue, work);
+	queue_work_on(0, hotplug_wq, work);
 }
 
 int cpufreq_pegasusq_cpu_lock(int num_core)
@@ -246,27 +243,22 @@ int cpufreq_pegasusq_cpu_unlock(int num_core)
 void cpufreq_pegasusq_min_cpu_lock(unsigned int num_core)
 {
 	int online, flag;
-	struct cpu_dbs_info_s *dbs_info;
 
 	dbs_tuners_ins.min_cpu_lock = min(num_core, num_possible_cpus());
 
-	dbs_info = &per_cpu(od_cpu_dbs_info, 0); /* from CPU0 */
 	online = num_online_cpus();
 	flag = (int)num_core - online;
 	if (flag <= 0)
 		return;
-//	queue_work_on(dbs_info->cpu, dvfs_workqueue, &dbs_info->up_work);
-	queue_work_on(0, dvfs_workqueue, &dbs_info->up_work);
+	queue_work_on(0, hotplug_wq, &up_work);
 }
 
 void cpufreq_pegasusq_min_cpu_unlock(void)
 {
 	int online, lock, flag;
-	struct cpu_dbs_info_s *dbs_info;
 
 	dbs_tuners_ins.min_cpu_lock = 0;
 
-	dbs_info = &per_cpu(od_cpu_dbs_info, 0); /* from CPU0 */
 	online = num_online_cpus();
 	lock = atomic_read(&g_hotplug_lock);
 	if (lock == 0)
@@ -281,8 +273,7 @@ void cpufreq_pegasusq_min_cpu_unlock(void)
 	flag = lock - online;
 	if (flag >= 0)
 		return;
-//	queue_work_on(dbs_info->cpu, dvfs_workqueue, &dbs_info->down_work);
-	queue_work_on(0, dvfs_workqueue, &dbs_info->down_work);
+	queue_work_on(0, hotplug_wq, &down_work);
 }
 
 /*
@@ -775,10 +766,7 @@ static struct attribute_group dbs_attr_group = {
 static void cpu_up_work(struct work_struct *work)
 {
 	int cpu, online, nr_up, hotplug_lock, min_cpu_lock;
-	struct cpu_dbs_info_s *dbs_info;
 
-	dbs_info = &per_cpu(od_cpu_dbs_info, 0);
-	mutex_lock(&dbs_info->timer_mutex);
 	online = num_online_cpus();
 	nr_up = dbs_tuners_ins.up_nr_cpus;
 	min_cpu_lock = dbs_tuners_ins.min_cpu_lock;
@@ -798,7 +786,6 @@ static void cpu_up_work(struct work_struct *work)
 	    printk(KERN_INFO "CPU_UP %d\n", cpu);
 	    cpu_up(cpu);
 	}
-	mutex_unlock(&dbs_info->timer_mutex);
 }
 
 static void cpu_down_work(struct work_struct *work)
@@ -956,7 +943,6 @@ extern unsigned long avg_nr_running(void);
 static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 {
 	struct cpufreq_policy *policy;
-	struct cpu_dbs_info_s *dbs_info;
 	unsigned int cpu, index;
 	int num_hist = hotplug_history->num_hist;
 	int max_hotplug_rate = max(dbs_tuners_ins.cpu_up_rate,
@@ -1029,17 +1015,11 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	/* Check for CPU hotplug */
 	if (!cpu) {
-	if (check_up()) {
-		dbs_info = &per_cpu(od_cpu_dbs_info, 0);
-//		queue_work_on(this_dbs_info->cpu, dvfs_workqueue,
-		queue_work_on(0, dvfs_workqueue,
-			      &dbs_info->up_work);
-	} else if (check_down()) {
-		dbs_info = &per_cpu(od_cpu_dbs_info, 0);
-//		queue_work_on(this_dbs_info->cpu, dvfs_workqueue,
-		queue_work_on(0, dvfs_workqueue,
-			      &dbs_info->down_work);
-	}
+	    if (check_up())
+		queue_work_on(0, hotplug_wq, &up_work);
+	    else
+		if (check_down())
+		    queue_work_on(0, hotplug_wq, &down_work);
 	}
 	if (hotplug_history->num_hist  == max_hotplug_rate)
 		hotplug_history->num_hist = 0;
@@ -1118,25 +1098,17 @@ static void do_dbs_timer(struct work_struct *work)
 		container_of(work, struct cpu_dbs_info_s, work.work);
 	unsigned int delay;
 
-	mutex_lock(&dbs_info->timer_mutex);
 	dbs_check_cpu(dbs_info);
-	/* We want all CPUs to do sampling nearly on
-	 * same jiffy
-	 */
+
 	delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate
 				 * dbs_info->rate_mult);
 
-	if (num_online_cpus() > 1)
-		delay -= jiffies % delay;
-
-//	queue_delayed_work_on(cpu, dvfs_workqueue, &dbs_info->work, delay);
-	queue_delayed_work_on(0, dvfs_workqueue, &dbs_info->work, delay);
-	mutex_unlock(&dbs_info->timer_mutex);
+	queue_delayed_work_on(dbs_info->cpu, dvfs_workqueue,
+				&dbs_info->work, delay);
 }
 
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 {
-	/* We want all CPUs to do sampling nearly on same jiffy */
 	int delay = usecs_to_jiffies(DEF_START_DELAY * 1000 * 1000
 				     + dbs_tuners_ins.sampling_rate);
 	if (num_online_cpus() > 1)
@@ -1144,20 +1116,19 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 
 	INIT_DELAYED_WORK_DEFERRABLE(&dbs_info->work, do_dbs_timer);
 	if (!dbs_info->cpu) {
-	    INIT_WORK(&dbs_info->up_work, cpu_up_work);
-	    INIT_WORK(&dbs_info->down_work, cpu_down_work);
+	    INIT_WORK(&up_work, cpu_up_work);
+	    INIT_WORK(&down_work, cpu_down_work);
 	}
-//	queue_delayed_work_on(dbs_info->cpu, dvfs_workqueue,
-	queue_delayed_work_on(0, dvfs_workqueue,
+	queue_delayed_work_on(dbs_info->cpu, dvfs_workqueue,
 			      &dbs_info->work, delay + 2 * HZ);
 }
 
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 {
 	cancel_delayed_work_sync(&dbs_info->work);
-	if (!dbs_info->cpu) {
-	    cancel_work_sync(&dbs_info->up_work);
-	    cancel_work_sync(&dbs_info->down_work);
+	if (!dbs_enable) {
+	    cancel_work_sync(&up_work);
+	    cancel_work_sync(&down_work);
 	}
 }
 
@@ -1259,20 +1230,20 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		dbs_tuners_ins.min_freq = policy->min;
 		hotplug_history->num_hist = 0;
 
-		mutex_lock(&dbs_mutex);
-
-		dbs_enable++;
-
 		this_dbs_info->cur_policy = policy;
+		this_dbs_info->cpu = cpu;
 
 		this_dbs_info->prev_cpu_idle = get_cpu_idle_time(cpu,
 				&this_dbs_info->prev_cpu_wall);
 		if (dbs_tuners_ins.ignore_nice) 
 		    this_dbs_info->prev_cpu_nice = kstat_cpu(cpu).cpustat.nice;
 
-		this_dbs_info->cpu = cpu;
 		this_dbs_info->freq_table = cpufreq_frequency_get_table(cpu);
 		this_dbs_info->rate_mult = 1;
+
+		mutex_lock(&dbs_mutex);
+
+		dbs_enable++;
 		/*
 		 * Start the timerschedule work, when this governor
 		 * is used for first time
@@ -1288,42 +1259,36 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			min_sampling_rate = MIN_SAMPLING_RATE;
 			dbs_tuners_ins.sampling_rate = DEF_SAMPLING_RATE;
 			dbs_tuners_ins.io_is_busy = 0;
-		}
-		mutex_unlock(&dbs_mutex);
 
-		mutex_init(&this_dbs_info->timer_mutex);
-		dbs_timer_init(this_dbs_info);
-
-		if (dbs_enable == 1) {
-		    register_reboot_notifier(&reboot_notifier);
-//#if !EARLYSUSPEND_HOTPLUGLOCK
-		    register_pm_notifier(&pm_notifier);
-//#endif
+			register_pm_notifier(&pm_notifier);
+			register_reboot_notifier(&reboot_notifier);
 #ifdef CONFIG_HAS_EARLYSUSPEND
-		    register_early_suspend(&early_suspend);
+			register_early_suspend(&early_suspend);
 #endif
 		}
+		dbs_timer_init(this_dbs_info);
+		mutex_unlock(&dbs_mutex);
+		mutex_init(&this_dbs_info->timer_mutex);
 		break;
 
 	case CPUFREQ_GOV_STOP:
 		printk(KERN_INFO "[%s] GOV_STOP CPU:%d", __func__, cpu);
-		dbs_timer_exit(this_dbs_info);
 
 		mutex_lock(&dbs_mutex);
-		dbs_enable--;
-		mutex_unlock(&dbs_mutex);
 
+		dbs_enable--;
+		dbs_timer_exit(this_dbs_info);
 		if (!dbs_enable) {
 			sysfs_remove_group(cpufreq_global_kobject,
 					   &dbs_attr_group);
-		    unregister_reboot_notifier(&reboot_notifier);
+
+			unregister_pm_notifier(&pm_notifier);
+			unregister_reboot_notifier(&reboot_notifier);
 #ifdef CONFIG_HAS_EARLYSUSPEND
-		    unregister_early_suspend(&early_suspend);
+			unregister_early_suspend(&early_suspend);
 #endif
-//#if !EARLYSUSPEND_HOTPLUGLOCK
-		    unregister_pm_notifier(&pm_notifier);
-//#endif
 		}
+		mutex_unlock(&dbs_mutex);
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
@@ -1355,8 +1320,15 @@ static int __init cpufreq_gov_dbs_init(void)
 		goto err_hist;
 	}
 
-	dvfs_workqueue = create_workqueue("kpegasusq");
+	dvfs_workqueue = alloc_workqueue("kpegasusq", WQ_UNBOUND | WQ_HIGHPRI, 1);
 	if (!dvfs_workqueue) {
+		pr_err("%s cannot create workqueue\n", __func__);
+		ret = -ENOMEM;
+		goto err_queue;
+	}
+
+	hotplug_wq = alloc_workqueue("khotplug_wq", WQ_UNBOUND | WQ_HIGHPRI, 1);
+	if (!hotplug_wq) {
 		pr_err("%s cannot create workqueue\n", __func__);
 		ret = -ENOMEM;
 		goto err_queue;
@@ -1378,6 +1350,7 @@ static int __init cpufreq_gov_dbs_init(void)
 
 err_reg:
 	destroy_workqueue(dvfs_workqueue);
+	destroy_workqueue(hotplug_wq);
 err_queue:
 	kfree(hotplug_history);
 err_hist:
@@ -1388,12 +1361,13 @@ static void __exit cpufreq_gov_dbs_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_pegasusq);
 	destroy_workqueue(dvfs_workqueue);
+	destroy_workqueue(hotplug_wq);
 	kfree(hotplug_history);
 }
 
 MODULE_AUTHOR("ByungChang Cha <bc.cha@samsung.com>");
 MODULE_DESCRIPTION("'cpufreq_pegasusq' - A dynamic cpufreq/cpuhotplug governor"
-"Modified\ported for P6S-U06 by Kostyan_nsk");
+		   "Modified\ported for P6S-U06 by Kostyan_nsk");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_PEGASUSQ
