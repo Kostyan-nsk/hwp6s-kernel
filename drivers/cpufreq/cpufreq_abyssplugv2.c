@@ -26,6 +26,7 @@
 #include <linux/tick.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
+#include <linux/suspend.h>
 #include <linux/earlysuspend.h>
 #include <linux/io.h>
 
@@ -516,7 +517,7 @@ static void do_dbs_timer(struct work_struct *work)
 	/* We want all CPUs to do sampling nearly on same jiffy */
 	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 
-	delay -= jiffies % delay;
+//	delay -= jiffies % delay;
 
 	dbs_check_cpu(dbs_info);
 
@@ -537,6 +538,41 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 {
 	cancel_delayed_work_sync(&dbs_info->work);
 }
+
+static int pm_notifier_call(struct notifier_block *this,
+			    unsigned long event, void *ptr)
+{
+	struct cpu_dbs_info_s *dbs_info;
+	struct cpufreq_policy *policy;
+
+	dbs_info = &per_cpu(cs_cpu_dbs_info, 0);
+
+	switch (event) {
+	case PM_SUSPEND_PREPARE:
+		policy = dbs_info->cur_policy;
+		policy->min = 208000;
+
+		dbs_timer_exit(dbs_info);
+
+		if (policy->cur != policy->min)
+		    __cpufreq_driver_target(policy, policy->min,
+					CPUFREQ_RELATION_L);
+		printk(KERN_INFO "[pegasusq] enter suspend\n");
+		return NOTIFY_OK;
+
+	case PM_POST_RESTORE:
+
+	case PM_POST_SUSPEND:
+		dbs_timer_init(dbs_info);
+		printk(KERN_INFO "[pegasusq] exit suspend\n");
+		return NOTIFY_OK;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block pm_notifier = {
+	.notifier_call = pm_notifier_call,
+};
 
 static void powersave_early_suspend(struct early_suspend *handler)
 {
@@ -619,6 +655,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		    boost_awake = dbs_tuners_ins.boost;
 
 		    register_early_suspend(&_powersave_early_suspend);
+		    register_pm_notifier(&pm_notifier);
 		}
 		mutex_unlock(&dbs_mutex);
 		mutex_init(&this_dbs_info->timer_mutex);
@@ -628,6 +665,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 	case CPUFREQ_GOV_STOP:
 		cancel_delayed_work(&this_dbs_info->work);
+		mutex_destroy(&this_dbs_info->timer_mutex);
 		printk(KERN_INFO"[%s] GOV STOP CPU:%u\n", __func__, cpu);
 		mutex_lock(&dbs_mutex);
 
@@ -640,6 +678,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		    sysfs_remove_group(cpufreq_global_kobject,
 					&dbs_attr_group);
 
+		    unregister_pm_notifier(&pm_notifier);
 		    unregister_early_suspend(&_powersave_early_suspend);
 		}
 		mutex_unlock(&dbs_mutex);
