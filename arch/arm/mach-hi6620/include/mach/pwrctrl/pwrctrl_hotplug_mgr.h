@@ -51,7 +51,7 @@ extern "C" {
 #define CPU_LOCK_FLAG  (0xFF)
 
 #define CPU_HOTPLUG_TIMER_US  50000
-#define CPU_HOTPLUG_BOOT_DELAY 60000000
+#define CPU_HOTPLUG_BOOT_DELAY 0
 
 
 #define CPU_LOCK_CHECK                                   \
