@@ -643,7 +643,6 @@ static void acm_port_down(struct acm *acm)
 		acm->control->needs_remote_wakeup = 0;
 		usb_autopm_put_interface(acm->control);
 	}
-	mutex_unlock(&open_mutex);
 }
 
 static void acm_tty_hangup(struct tty_struct *tty)
@@ -657,6 +656,7 @@ static void acm_tty_hangup(struct tty_struct *tty)
 
 	tty_port_hangup(&acm->port);
 	acm_port_down(acm);
+
 out:
 	mutex_unlock(&open_mutex);
 }
