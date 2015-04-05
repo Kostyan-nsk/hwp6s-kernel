@@ -152,6 +152,12 @@ config CPU_FREQ_DEFAULT_GOV_PEGASUSQ
 	  Use the CPUFreq governor 'pegasusq' as default. This allows
 	  you to get a hotplug interface.
 
+config CPU_FREQ_DEFAULT_GOV_INTELLIACTIVE
+	bool "intelliactive"
+	select CPU_FREQ_GOV_INTELLIACTIVE
+	help
+	  Use the CPUFreq governor 'intelliactive' as default.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -278,6 +284,14 @@ config CPU_FREQ_GOV_PEGASUSQ
     select CPU_FREQ_TABLE
 	help
 	  'pegasusq' - This driver adds a cpufreq policy governor interface.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_INTELLIACTIVE
+    tristate "'intelliactive' cpufreq governor"
+    select CPU_FREQ_TABLE
+	help
+	  'intelliactive' - This driver adds a cpufreq policy governor interface.
 
 	  If in doubt, say N.
 
