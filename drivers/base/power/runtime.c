@@ -401,9 +401,9 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 			 * is a new autosuspend expiration time, automatically
 			 * reschedule another autosuspend.
 			 */
-			if ((rpmflags & RPM_AUTO) &&
+/*			if ((rpmflags & RPM_AUTO) &&
 			    pm_runtime_autosuspend_expiration(dev) != 0)
-				goto repeat;
+				goto repeat; */
 		} else {
 			pm_runtime_cancel_pending(dev);
 		}
