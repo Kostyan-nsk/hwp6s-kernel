@@ -569,7 +569,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		}
 
 		/* Try isolate the page */
-		if (__isolate_lru_page(page, ISOLATE_BOTH | ISOLATE_UNEVICTABLE, 0) != 0) //qijiwen add ISOLATE_UNEVICTABLE
+		if (__isolate_lru_page(page, ISOLATE_ACTIVE|ISOLATE_INACTIVE | ISOLATE_UNEVICTABLE, 0) != 0) //qijiwen add ISOLATE_UNEVICTABLE
 			continue;
 
 		VM_BUG_ON(PageTransCompound(page));
