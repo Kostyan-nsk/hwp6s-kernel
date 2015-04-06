@@ -230,8 +230,7 @@ static long madvise_remove(struct vm_area_struct *vma,
         */
         get_file(f);
 	up_read(&current->mm->mmap_sem);
-	error = do_fallocate(f,FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                             offset, end - start);
+	error = vmtruncate_range(mapping->host, offset, endoff);
 	fput(f);
 	down_read(&current->mm->mmap_sem);
 	return error;
