@@ -1,6 +1,6 @@
 /*
  * Automatically generated C config: don't edit
- * Linux/arm 3.0.8 Kernel Configuration
+ * Linux/arm 3.0.70 Kernel Configuration
  */
 /* ld script to make ARM Linux kernel
  * taken from the i386 version by Russell King
