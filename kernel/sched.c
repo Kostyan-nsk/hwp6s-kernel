@@ -5142,11 +5142,6 @@ int idle_cpu_relaxed(int cpu)
 	if (cpu_relaxed_read_long(&rq->nr_running))
 		return 0;
 
-#ifdef CONFIG_SMP
-	if (!llist_empty_relaxed(&rq->wake_list))
-		return 0;
-#endif
-
 	return 1;
 }
 
