@@ -19,8 +19,6 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 		switch (old->data_type) {
 		case (FSNOTIFY_EVENT_PATH):
 
-/*http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/
-  commit/fs/notify/fanotify?id=03a1cec1f17ac1a6041996b3e40f96b5a2f90e1b*/
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 			/* dont merge two permission events */
 			if ((old->mask & FAN_ALL_PERM_EVENTS) &&
