@@ -67,7 +67,8 @@ MODULE_LICENSE("GPLv2");
 #define DT2W_TIME		500
 
 /* Resources */
-int dt2w_switch = DT2W_DEFAULT, dt2w_prev_switch = 0;
+int dt2w_switch = DT2W_DEFAULT;
+static int dt2w_prev_switch;
 static unsigned int dt2w_duration = DT2W_DUR_DEFAULT;
 static cputime64_t tap_time_pre = 0;
 static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0;

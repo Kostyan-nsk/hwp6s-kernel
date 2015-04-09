@@ -1166,10 +1166,8 @@ static int mipi_jdi_panel_off(struct platform_device *pdev)
 	int retval = 0;
 
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	if (dt2w_switch > 0) {
-	    g_display_on = false;
+	if (dt2w_switch > 0)
 	    return 0;
-	}
 #endif
 	BUG_ON(pdev == NULL);
 	pr_info("%s enter succ!\n",__func__);
@@ -1190,11 +1188,8 @@ static int mipi_jdi_panel_off(struct platform_device *pdev)
 		return 0;
 	}
 #endif
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	if (g_display_on || (!dt2w_switch && (dt2w_prev_switch > 0))) {
-#else
+
 	if (g_display_on) {
-#endif
 		g_display_on = false;
 		mipi_dsi_cmds_tx(jdi_display_off_cmds, ARRAY_SIZE(jdi_display_off_cmds));
 

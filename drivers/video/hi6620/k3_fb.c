@@ -5759,25 +5759,35 @@ static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	int i, ret;
 	struct k3_fb_data_type *k3fd = NULL;
 	struct k3_fb_panel_data *pdata = NULL;
+	struct platform_device *prev_pdev;
 
 	if (dt2w_switch > 0) {
 	    k3fd = (struct k3_fb_data_type *)platform_get_drvdata(pdev);
-	    if (!k3fd)
+	    if (!k3fd) {
+		k3fb_loge("[%s] !k3fd\n", __func__);
 		return 0;
+	    }
 
 	    if (k3fd->index == 0) {
 		for (i = 0; i < 3; i++) {
 		    pdata = (struct k3_fb_panel_data *)pdev->dev.platform_data;
-		    if (!pdata)
+		    if (!pdata) {
+			k3fb_loge("[%s] !pdata, i = %d\n", __func__, i);
 			return 0;
-		    if (!pdata->off)
+		    }
+		    if (!pdata->off) {
+			k3fb_loge("[%s] !pdata->off, i = %d\n", __func__, i);
 			return 0;
+		    }
+		    prev_pdev = pdev;
 		    pdev = pdata->next;
-		    if (!pdev)
+		    if (!pdev && i < 2) {
+			k3fb_loge("[%s] !pdev, i = %d\n", __func__, i);
 			return 0;
+		    }
 		}
 		dt2w_switch = 0;
-		ret = pdata->off(pdev); /* mipi_jdi_panel_off */
+		ret = pdata->off(prev_pdev); /* mipi_jdi_panel_off */
 		k3fb_logi("mipi_jdi_panel_off: %d\n", ret);
 	    }
 	}
