@@ -37,6 +37,7 @@
 #endif
 #include <linux/hrtimer.h>
 #include <asm-generic/cputime.h>
+#include <hsad/config_mgr.h>
 
 /* uncomment since no touchscreen defines android touch, do that here */
 //#define ANDROID_TOUCH_DECLARED
@@ -58,7 +59,7 @@ MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPLv2");
 
 /* Tuneables */
-#define DT2W_DEBUG		1
+#define DT2W_DEBUG		0
 #define DT2W_DEFAULT		0
 #define DT2W_DUR_DEFAULT	60
 
@@ -66,9 +67,14 @@ MODULE_LICENSE("GPLv2");
 #define DT2W_FEATHER		100
 #define DT2W_TIME		500
 
+/* Regions */
+#define DT2W_TOP_HALF		2
+#define DT2W_BOTTOM_HALF	3
+#define DT2W_NAVBAR		4
+
 /* Resources */
 int dt2w_switch = DT2W_DEFAULT;
-static int dt2w_prev_switch;
+static int dt2w_prev_switch, y_res;
 static unsigned int dt2w_duration = DT2W_DUR_DEFAULT;
 static cputime64_t tap_time_pre = 0;
 static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0;
@@ -199,13 +205,7 @@ static void dt2w_input_event(struct input_handle *handle, unsigned int type,
 #endif
 	if (!scr_suspended || dt2w_switch == 0)
 		return;
-/*
-	if (code == ABS_MT_SLOT) {
-		doubletap2wake_reset();
-		return;
-	}
-*/
-//	if (code == ABS_MT_TRACKING_ID && value == -1) {
+
 	if (code == BTN_TOUCH && value == 1) {
 		touch_cnt = true;
 		return;
@@ -217,11 +217,31 @@ static void dt2w_input_event(struct input_handle *handle, unsigned int type,
 	}
 
 	if (code == ABS_MT_POSITION_Y) {
+	    switch (dt2w_switch) {
+	    case DT2W_TOP_HALF:
+		if (value > y_res / 2)
+		    return;
+		break;
+	    case DT2W_BOTTOM_HALF:
+		if (value < y_res / 2)
+		    return;
+		break;
+	    case DT2W_NAVBAR:
+		switch (y_res) {
+		case 1280:
+		    if (value < y_res - 100)
+			return;
+		    break;
+		case 1920:
+		    if (value < y_res - 145)
+			return;
+		    break;
+		}
+	    }
 		touch_y = value;
 		touch_y_called = true;
 	}
 
-//	if (touch_x_called || touch_y_called) {
 	if (touch_x_called && touch_y_called && touch_cnt) {
 		touch_x_called = false;
 		touch_y_called = false;
@@ -352,6 +372,8 @@ static ssize_t dt2w_doubletap2wake_dump(struct device *dev,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 	    return -EINVAL;
+	if ((input > 1 && y_res == 0) || input > 4)
+	    input = 1;
 	if (scr_suspended)
 	    dt2w_prev_switch = input;
 	else
@@ -445,6 +467,9 @@ static int __init doubletap2wake_init(void)
 	rc = input_register_handler(&dt2w_input_handler);
 	if (rc)
 		pr_err("%s: Failed to register dt2w_input_handler\n", __func__);
+
+	if (!get_hw_config_int("synaptics/y_res", &y_res, NULL))
+	    y_res = 0;
 
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	dt2w_lcd_notif.notifier_call = lcd_notifier_callback;
