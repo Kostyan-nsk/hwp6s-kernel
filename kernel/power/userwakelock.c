@@ -39,8 +39,6 @@ struct user_wake_lock {
 };
 struct rb_root user_wake_locks;
 
-static int broadcasts_wakelock;
-
 static struct user_wake_lock *lookup_wake_lock_name(
 	const char *buf, int allocate, long *timeoutptr)
 {
@@ -143,16 +141,11 @@ ssize_t wake_lock_show(
 		if (wake_lock_active(&l->wake_lock))
 			s += scnprintf(s, end - s, "%s ", l->name);
 	}
-	if (broadcasts_wakelock)
-	    s += scnprintf(s, end - s, "PowerManagerService.Broadcasts ");
-
 	s += scnprintf(s, end - s, "\n");
 
 	mutex_unlock(&tree_lock);
 	return (s - buf);
 }
-
-
 
 ssize_t wake_lock_store(
 	struct kobject *kobj, struct kobj_attribute *attr,
@@ -166,12 +159,6 @@ ssize_t wake_lock_store(
 	if (IS_ERR(l)) {
 		n = PTR_ERR(l);
 		goto bad_name;
-	}
-
-	if (!strcmp(l->name, "PowerManagerService.Broadcasts")) {
-	    broadcasts_wakelock++;
-	    pr_info("[%s] ignoring %s\n", __func__, l->name);
-	    goto bad_name;
 	}
 
 	if (debug_mask & DEBUG_ACCESS)
@@ -202,9 +189,6 @@ ssize_t wake_unlock_show(
 		if (!wake_lock_active(&l->wake_lock))
 			s += scnprintf(s, end - s, "%s ", l->name);
 	}
-	if (!broadcasts_wakelock)
-	    s += scnprintf(s, end - s, "PowerManagerService.Broadcasts ");
-
 	s += scnprintf(s, end - s, "\n");
 
 	mutex_unlock(&tree_lock);
@@ -222,11 +206,6 @@ ssize_t wake_unlock_store(
 	if (IS_ERR(l)) {
 		n = PTR_ERR(l);
 		goto not_found;
-	}
-
-	if (!strcmp(l->name, "PowerManagerService.Broadcasts")) {
-	    broadcasts_wakelock--;
-	    goto not_found;
 	}
 
 	if (debug_mask & DEBUG_ACCESS)
