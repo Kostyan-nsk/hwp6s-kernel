@@ -20,6 +20,7 @@
 #define HWCAP_VFPv3	8192
 #define HWCAP_VFPv3D16	(1 << 14)	/* also set for VFPv4-D16 */
 #define HWCAP_TLS	32768
+#define HWCAP_VFPv4	(1 << 16)
 #define HWCAP_VFPD32	(1 << 19)	/* set if VFP has 32 regs (not 16) */
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
