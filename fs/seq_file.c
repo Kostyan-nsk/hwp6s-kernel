@@ -6,12 +6,43 @@
  */
 
 #include <linux/fs.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
+
+
+/*
+ * seq_files have a buffer which can may overflow. When this happens a larger
+ * buffer is reallocated and all the data will be printed again.
+ * The overflow state is true when m->count == m->size.
+ */
+static bool seq_overflow(struct seq_file *m)
+{
+	return m->count == m->size;
+}
+
+static void seq_set_overflow(struct seq_file *m)
+{
+	m->count = m->size;
+}
+
+static void *seq_buf_alloc(unsigned long size)
+{
+	void *buf;
+
+	if (size > PAGE_SIZE)
+		buf = vmalloc(size);
+	else
+		buf = kmalloc(size, GFP_KERNEL | __GFP_NOWARN);
+
+	return buf;
+}
 
 /**
  *	seq_open -	initialize sequential file
@@ -76,7 +107,7 @@ static int traverse(struct seq_file *m, loff_t offset)
 		return 0;
 	}
 	if (!m->buf) {
-		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
+		m->buf = seq_buf_alloc(m->size = PAGE_SIZE);
 		if (!m->buf)
 			return -ENOMEM;
 	}
@@ -92,7 +123,7 @@ static int traverse(struct seq_file *m, loff_t offset)
 			error = 0;
 			m->count = 0;
 		}
-		if (m->count == m->size)
+		if (seq_overflow(m))
 			goto Eoverflow;
 		if (pos + m->count > offset) {
 			m->from = offset - pos;
@@ -115,8 +146,9 @@ static int traverse(struct seq_file *m, loff_t offset)
 
 Eoverflow:
 	m->op->stop(m, p);
-	kfree(m->buf);
-	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
+	kvfree(m->buf);
+	m->count = 0;
+	m->buf = seq_buf_alloc(m->size <<= 1);
 	return !m->buf ? -ENOMEM : -EAGAIN;
 }
 
@@ -140,21 +172,6 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 
 	mutex_lock(&m->lock);
 
-	/* Don't assume *ppos is where we left it */
-	if (unlikely(*ppos != m->read_pos)) {
-		m->read_pos = *ppos;
-		while ((err = traverse(m, *ppos)) == -EAGAIN)
-			;
-		if (err) {
-			/* With prejudice... */
-			m->read_pos = 0;
-			m->version = 0;
-			m->index = 0;
-			m->count = 0;
-			goto Done;
-		}
-	}
-
 	/*
 	 * seq_file->op->..m_start/m_stop/m_next may do special actions
 	 * or optimisations based on the file->f_version, so we want to
@@ -167,9 +184,26 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 	 * need of passing another argument to all the seq_file methods.
 	 */
 	m->version = file->f_version;
+
+	/* Don't assume *ppos is where we left it */
+	if (unlikely(*ppos != m->read_pos)) {
+		while ((err = traverse(m, *ppos)) == -EAGAIN)
+			;
+		if (err) {
+			/* With prejudice... */
+			m->read_pos = 0;
+			m->version = 0;
+			m->index = 0;
+			m->count = 0;
+			goto Done;
+		} else {
+			m->read_pos = *ppos;
+		}
+	}
+
 	/* grab buffer if we didn't have one */
 	if (!m->buf) {
-		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
+		m->buf = seq_buf_alloc(m->size = PAGE_SIZE);
 		if (!m->buf)
 			goto Enomem;
 	}
@@ -209,11 +243,11 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		if (m->count < m->size)
 			goto Fill;
 		m->op->stop(m, p);
-		kfree(m->buf);
-		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
+		kvfree(m->buf);
+		m->count = 0;
+		m->buf = seq_buf_alloc(m->size <<= 1);
 		if (!m->buf)
 			goto Enomem;
-		m->count = 0;
 		m->version = 0;
 		pos = m->index;
 		p = m->op->start(m, &pos);
@@ -232,7 +266,7 @@ Fill:
 			break;
 		}
 		err = m->op->show(m, p);
-		if (m->count == m->size || err) {
+		if (seq_overflow(m) || err) {
 			m->count = offs;
 			if (likely(err <= 0))
 				break;
@@ -306,6 +340,8 @@ loff_t seq_lseek(struct file *file, loff_t offset, int origin)
 					m->read_pos = offset;
 					retval = file->f_pos = offset;
 				}
+			} else {
+				file->f_pos = offset;
 			}
 	}
 	file->f_version = m->version;
@@ -325,7 +361,7 @@ EXPORT_SYMBOL(seq_lseek);
 int seq_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = file->private_data;
-	kfree(m->buf);
+	kvfree(m->buf);
 	kfree(m);
 	return 0;
 }
@@ -359,7 +395,7 @@ int seq_escape(struct seq_file *m, const char *s, const char *esc)
 			*p++ = '0' + (c & 07);
 			continue;
 		}
-		m->count = m->size;
+		seq_set_overflow(m);
 		return -1;
         }
 	m->count = p - m->buf;
@@ -381,7 +417,7 @@ int seq_printf(struct seq_file *m, const char *f, ...)
 			return 0;
 		}
 	}
-	m->count = m->size;
+	seq_set_overflow(m);
 	return -1;
 }
 EXPORT_SYMBOL(seq_printf);
@@ -397,7 +433,7 @@ EXPORT_SYMBOL(seq_printf);
  *      Returns pointer past last written character in @s, or NULL in case of
  *      failure.
  */
-char *mangle_path(char *s, char *p, char *esc)
+char *mangle_path(char *s, const char *p, const char *esc)
 {
 	while (s <= p) {
 		char c = *p++;
@@ -427,7 +463,7 @@ EXPORT_SYMBOL(mangle_path);
  * return the absolute path of 'path', as represented by the
  * dentry / mnt pair in the path parameter.
  */
-int seq_path(struct seq_file *m, struct path *path, char *esc)
+int seq_path(struct seq_file *m, const struct path *path, const char *esc)
 {
 	char *buf;
 	size_t size = seq_get_buf(m, &buf);
@@ -450,8 +486,8 @@ EXPORT_SYMBOL(seq_path);
 /*
  * Same as seq_path, but relative to supplied root.
  */
-int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
-		  char *esc)
+int seq_path_root(struct seq_file *m, const struct path *path,
+		  const struct path *root, const char *esc)
 {
 	char *buf;
 	size_t size = seq_get_buf(m, &buf);
@@ -480,7 +516,7 @@ int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 /*
  * returns the path of the 'dentry' from the root of its filesystem.
  */
-int seq_dentry(struct seq_file *m, struct dentry *dentry, char *esc)
+int seq_dentry(struct seq_file *m, struct dentry *dentry, const char *esc)
 {
 	char *buf;
 	size_t size = seq_get_buf(m, &buf);
@@ -510,7 +546,7 @@ int seq_bitmap(struct seq_file *m, const unsigned long *bits,
 			return 0;
 		}
 	}
-	m->count = m->size;
+	seq_set_overflow(m);
 	return -1;
 }
 EXPORT_SYMBOL(seq_bitmap);
@@ -526,7 +562,7 @@ int seq_bitmap_list(struct seq_file *m, const unsigned long *bits,
 			return 0;
 		}
 	}
-	m->count = m->size;
+	seq_set_overflow(m);
 	return -1;
 }
 EXPORT_SYMBOL(seq_bitmap_list);
@@ -566,6 +602,24 @@ int single_open(struct file *file, int (*show)(struct seq_file *, void *),
 	return res;
 }
 EXPORT_SYMBOL(single_open);
+
+int single_open_size(struct file *file, int (*show)(struct seq_file *, void *),
+		void *data, size_t size)
+{
+	char *buf = seq_buf_alloc(size);
+	int ret;
+	if (!buf)
+		return -ENOMEM;
+	ret = single_open(file, show, data);
+	if (ret) {
+		kvfree(buf);
+		return ret;
+	}
+	((struct seq_file *)file->private_data)->buf = buf;
+	((struct seq_file *)file->private_data)->size = size;
+	return 0;
+}
+EXPORT_SYMBOL(single_open_size);
 
 int single_release(struct inode *inode, struct file *file)
 {
@@ -637,10 +691,62 @@ int seq_puts(struct seq_file *m, const char *s)
 		m->count += len;
 		return 0;
 	}
-	m->count = m->size;
+	seq_set_overflow(m);
 	return -1;
 }
 EXPORT_SYMBOL(seq_puts);
+
+/*
+ * A helper routine for putting decimal numbers without rich format of printf().
+ * only 'unsigned long long' is supported.
+ * This routine will put one byte delimiter + number into seq_file.
+ * This routine is very quick when you show lots of numbers.
+ * In usual cases, it will be better to use seq_printf(). It's easier to read.
+ */
+int seq_put_decimal_ull(struct seq_file *m, char delimiter,
+			unsigned long long num)
+{
+	int len;
+
+	if (m->count + 2 >= m->size) /* we'll write 2 bytes at least */
+		goto overflow;
+
+	if (delimiter)
+		m->buf[m->count++] = delimiter;
+
+	if (num < 10) {
+		m->buf[m->count++] = num + '0';
+		return 0;
+	}
+
+	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	if (!len)
+		goto overflow;
+	m->count += len;
+	return 0;
+overflow:
+	seq_set_overflow(m);
+	return -1;
+}
+EXPORT_SYMBOL(seq_put_decimal_ull);
+
+int seq_put_decimal_ll(struct seq_file *m, char delimiter,
+			long long num)
+{
+	if (num < 0) {
+		if (m->count + 3 >= m->size) {
+			seq_set_overflow(m);
+			return -1;
+		}
+		if (delimiter)
+			m->buf[m->count++] = delimiter;
+		num = -num;
+		delimiter = '-';
+	}
+	return seq_put_decimal_ull(m, delimiter, num);
+
+}
+EXPORT_SYMBOL(seq_put_decimal_ll);
 
 /**
  * seq_write - write arbitrary data to buffer
@@ -657,7 +763,7 @@ int seq_write(struct seq_file *seq, const void *data, size_t len)
 		seq->count += len;
 		return 0;
 	}
-	seq->count = seq->size;
+	seq_set_overflow(seq);
 	return -1;
 }
 EXPORT_SYMBOL(seq_write);
