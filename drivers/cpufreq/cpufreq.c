@@ -136,7 +136,7 @@ pure_initcall(init_cpufreq_transition_notifier_list);
 static LIST_HEAD(cpufreq_governor_list);
 static DEFINE_MUTEX(cpufreq_governor_mutex);
 
-struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
+static struct cpufreq_policy *__cpufreq_cpu_get(unsigned int cpu, int sysfs)
 {
 	struct cpufreq_policy *data;
 	unsigned long flags;
@@ -160,7 +160,7 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 	if (!data)
 		goto err_out_put_module;
 
-	if (!kobject_get(&data->kobj))
+	if (!sysfs && !kobject_get(&data->kobj))
 		goto err_out_put_module;
 
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
@@ -173,13 +173,23 @@ err_out_unlock:
 err_out:
 	return NULL;
 }
+
+struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
+{
+	return __cpufreq_cpu_get(cpu, 0);
+}
 EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
 
+static void __cpufreq_cpu_put(struct cpufreq_policy *data, int sysfs)
+{
+	if (!sysfs)
+		kobject_put(&data->kobj);
+	module_put(cpufreq_driver->owner);
+}
 
 void cpufreq_cpu_put(struct cpufreq_policy *data)
 {
-	kobject_put(&data->kobj);
-	module_put(cpufreq_driver->owner);
+	__cpufreq_cpu_put(data, 0);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
 
@@ -1801,7 +1811,7 @@ int cpufreq_set_gov(char *target_gov, unsigned int cpu)
 
 	get_online_cpus();
 	if (!cpu_online(cpu)) {
-		strncpy(per_cpu(cpufreq_policy_save, cpu).gov, target_gov,
+		strncpy(per_cpu(cpufreq_cpu_governor, cpu), target_gov,
 			CPUFREQ_NAME_LEN);
 	} else {
 		cpu_policy = __cpufreq_cpu_get(cpu, 1);
@@ -1839,7 +1849,7 @@ char *cpufreq_get_gov(unsigned int cpu)
 
 	get_online_cpus();
 	if (!cpu_online(cpu)) {
-		val = per_cpu(cpufreq_policy_save, cpu).gov;
+		val = per_cpu(cpufreq_cpu_governor, cpu);
 	} else {
 		policy = __cpufreq_cpu_get(cpu, 1);
 		if (!policy) {
