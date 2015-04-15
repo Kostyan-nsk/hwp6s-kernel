@@ -161,5 +161,12 @@ config ENABLE_UART_SLEEP_CONTROL
 	help
        slect this if use additional gpio for uart sleep control
 
+config FORCE_FAST_CHARGE
+    bool "Increase input current limit to 900mA when charging via USB"
+    default n
+    help
+	A simple sysfs interface to increase input current limit to
+	900mA when charging via USB.
+
 endmenu
 

@@ -47,3 +47,4 @@ obj-y	+= memsetdev.o
 obj-y	+= hi6xxx_efuse.o
 obj-y	+= magicnum_io.o
 obj-y	+= modem_init.o
+obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o

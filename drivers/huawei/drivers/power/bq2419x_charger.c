@@ -40,6 +40,9 @@
 #include <linux/hw_dev_dec.h>
 #endif
 #include "hisi_coul_drv.h"
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
 
 struct charge_params {
     unsigned long       currentmA;
@@ -1178,8 +1181,19 @@ static void bq2419x_start_usb_charger(struct bq2419x_device_info *di)
         di->max_cin_currentmA = IINLIM_1200;
         di->max_currentmA = ICHG_1000;
     } else {
-        di->cin_limit = IINLIM_500;
-        di->currentmA = ICHG_512;
+#ifdef CONFIG_FORCE_FAST_CHARGE
+	if (force_fast_charge) {
+	    di->cin_limit = IINLIM_900;
+	    di->currentmA = ICHG_900;
+	}
+	else {
+	    di->cin_limit = IINLIM_500;
+	    di->currentmA = ICHG_512;
+	}
+#else
+	di->cin_limit = IINLIM_500;
+	di->currentmA = ICHG_512;
+#endif
     }
 
     iin_temp = di->cin_limit;
