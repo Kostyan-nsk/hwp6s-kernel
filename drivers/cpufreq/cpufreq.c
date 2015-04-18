@@ -1533,7 +1533,6 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 	if ((event == CPUFREQ_GOV_START) && !ret && !policy->cpu) {
 	    if (!strnicmp(policy->governor->name, "pwrctrl_hotplug",	CPUFREQ_NAME_LEN)
 	    || !strnicmp(policy->governor->name,  "pegasusq",		CPUFREQ_NAME_LEN)
-	    || !strnicmp(policy->governor->name,  "hotplugx",		CPUFREQ_NAME_LEN)
 	    || !strnicmp(policy->governor->name,  "abyssplugv2",	CPUFREQ_NAME_LEN)) {
 		if (intelli_plug_active) {
 		    printk(KERN_DEBUG "disabling intelli_plug for governor: %s\n", policy->governor->name);
