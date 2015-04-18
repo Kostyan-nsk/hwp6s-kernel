@@ -265,7 +265,7 @@ static unsigned int freq_to_index(struct ipps2 *ipps2, unsigned int offset, unsi
 
 	if (index && p[index].freq == 0) index--;
 
-    printk(KERN_INFO "freq:%d index:%d offset:0x%x\n", freq, index, offset);
+//    printk(KERN_INFO "freq:%d index:%d offset:0x%x\n", freq, index, offset);
 
 	return index;
 }
@@ -1035,8 +1035,8 @@ int mcu_set_param_handle(struct ipps2 *ipps2, unsigned int object, unsigned int 
     unsigned int mca_param_type=-1;
     int ret;
 
-    printk(KERN_INFO "object:0x%x param_type:0x%x\n", object, param_type);
-    printk(KERN_INFO "max:%d min:%d block:%d\n", ipps_freq->max_freq, ipps_freq->min_freq, ipps_freq->block_freq);
+//    printk(KERN_INFO "object:0x%x param_type:0x%x\n", object, param_type);
+//    printk(KERN_INFO "max:%d min:%d block:%d\n", ipps_freq->max_freq, ipps_freq->min_freq, ipps_freq->block_freq);
     if(IPPS_PARAM_MAX == param_type) {
         freq = ipps_freq->max_freq;
         mca_param_type = MCA_PARAM_MAX;

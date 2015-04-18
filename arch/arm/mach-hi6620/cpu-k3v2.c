@@ -1508,7 +1508,7 @@ static int k3v2_target(struct cpufreq_policy *policy,
 	int ret = 0;
 	unsigned int dest_freq = target_freq;
 
-    printk(KERN_ERR "%s target_freq:%d CPU:%d relation:%d\n",__func__, target_freq, policy->cpu, relation);
+//    printk(KERN_ERR "%s target_freq:%d CPU:%d relation:%d\n",__func__, target_freq, policy->cpu, relation);
 
 #if 0
 	/*check if we have limits on the cpufreqs*/
@@ -1523,7 +1523,7 @@ static int k3v2_target(struct cpufreq_policy *policy,
 	freqs.new = target_freq;
 	freqs.cpu = policy->cpu;
 
-    printk(KERN_ERR "%s old:%d new:%d\n",__func__, freqs.old, freqs.new);
+    printk(KERN_ERR "%s old:%d new:%d CPU:%d\n",__func__, freqs.old, freqs.new, freqs.cpu);
 
 #if 0
 	if (freqs.old == freqs.new)

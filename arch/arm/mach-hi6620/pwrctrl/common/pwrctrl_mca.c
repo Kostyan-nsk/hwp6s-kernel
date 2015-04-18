@@ -356,7 +356,7 @@ int mca_send(int cmd_id, union mca_udata_req *req_data, union mca_udata_rsp* p_r
         frame.udata  = *req_data;
 
         outputlen = sizeof(union mca_udata_rsp);
-        MCA_DEBUG("mca send cmd:%d\n", cmd_id);
+//        MCA_DEBUG("mca send cmd:%d\n", cmd_id);
 #if 0 //monan for new ifc
         if(BSP_OK != MB_IFC_ExtendCall( IFCP_FUNC_MCU_MCA, BSP_MAILBOX_IFC_CALL_SYNC, (void *)0,(unsigned char*)(&frame),
                 sizeof(struct mca_frame), (unsigned char*)(&outbuf[0]), &outputlen))
