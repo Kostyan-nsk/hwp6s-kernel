@@ -31,8 +31,6 @@
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 
-#include "pwrctrl_multi_memcfg.h"
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -46,7 +44,7 @@
 #define DEF_SAMPLING_DOWN_FACTOR		(2)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
-#define DEF_FREQUENCY_UP_THRESHOLD		(60)
+#define DEF_FREQUENCY_UP_THRESHOLD		(75)
 #define DEF_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(5)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
@@ -56,15 +54,13 @@
 
 #define DEF_MAX_CPU_LOCK			(0)
 #define DEF_MIN_CPU_LOCK			(0)
-#define DEF_CPU_UP_FREQ				(1196000)
-#define DEF_CPU_DOWN_FREQ			(208000)
 #define DEF_UP_NR_CPUS				(1)
 #define DEF_CPU_UP_RATE				(5)
 #define DEF_CPU_DOWN_RATE			(20)
 #define DEF_FREQ_STEP				(25)
 #define DEF_START_DELAY				(0)
 
-#define UP_THRESHOLD_AT_MIN_FREQ		(25)
+#define UP_THRESHOLD_AT_MIN_FREQ		(50)
 #define FREQ_FOR_RESPONSIVENESS			(624000)
 
 #define HOTPLUG_DOWN_INDEX			(0)
@@ -140,40 +136,37 @@ static struct dbs_tuners {
 	unsigned int freq_step;
 	unsigned int cpu_up_rate;
 	unsigned int cpu_down_rate;
-	unsigned int cpu_up_freq;
-	unsigned int cpu_down_freq;
 	unsigned int up_nr_cpus;
 	unsigned int max_cpu_lock;
 	unsigned int min_cpu_lock;
+	unsigned int up_threshold_at_min_freq;
+	unsigned int freq_for_responsiveness;
 	atomic_t hotplug_lock;
 	unsigned int dvfs_debug;
-	unsigned int max_freq;
-	unsigned int min_freq;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	int early_suspend;
 #endif
 } dbs_tuners_ins = {
+	.sampling_rate = DEF_SAMPLING_RATE,
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
 	.down_differential = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
 	.ignore_nice = 0,
-	.io_is_busy = 1,
+	.io_is_busy = 0,
 	.freq_step = DEF_FREQ_STEP,
 	.cpu_up_rate = DEF_CPU_UP_RATE,
 	.cpu_down_rate = DEF_CPU_DOWN_RATE,
-	.cpu_up_freq = DEF_CPU_UP_FREQ,
-	.cpu_down_freq = DEF_CPU_DOWN_FREQ,
 	.up_nr_cpus = DEF_UP_NR_CPUS,
 	.max_cpu_lock = DEF_MAX_CPU_LOCK,
 	.min_cpu_lock = DEF_MIN_CPU_LOCK,
+	.up_threshold_at_min_freq = UP_THRESHOLD_AT_MIN_FREQ,
+	.freq_for_responsiveness = FREQ_FOR_RESPONSIVENESS,
 	.hotplug_lock = ATOMIC_INIT(0),
 	.dvfs_debug = 0,
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	.early_suspend = -1,
 #endif
 };
-
-static unsigned int chip_max_freq;
 
 /*
  * CPU hotplug lock interface
@@ -362,12 +355,13 @@ show_one(down_differential, down_differential);
 show_one(freq_step, freq_step);
 show_one(cpu_up_rate, cpu_up_rate);
 show_one(cpu_down_rate, cpu_down_rate);
-show_one(cpu_up_freq, cpu_up_freq);
-show_one(cpu_down_freq, cpu_down_freq);
 show_one(up_nr_cpus, up_nr_cpus);
 show_one(max_cpu_lock, max_cpu_lock);
 show_one(min_cpu_lock, min_cpu_lock);
+show_one(up_threshold_at_min_freq, up_threshold_at_min_freq);
+show_one(freq_for_responsiveness, freq_for_responsiveness);
 show_one(dvfs_debug, dvfs_debug);
+
 static ssize_t show_hotplug_lock(struct kobject *kobj,
 				struct attribute *attr, char *buf)
 {
@@ -594,30 +588,6 @@ static ssize_t store_cpu_down_rate(struct kobject *a, struct attribute *b,
 	return count;
 }
 
-static ssize_t store_cpu_up_freq(struct kobject *a, struct attribute *b,
-				 const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf(buf, "%u", &input);
-	if (ret != 1)
-		return -EINVAL;
-	dbs_tuners_ins.cpu_up_freq = min(input, dbs_tuners_ins.max_freq);
-	return count;
-}
-
-static ssize_t store_cpu_down_freq(struct kobject *a, struct attribute *b,
-				   const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf(buf, "%u", &input);
-	if (ret != 1)
-		return -EINVAL;
-	dbs_tuners_ins.cpu_down_freq = max(input, dbs_tuners_ins.min_freq);
-	return count;
-}
-
 static ssize_t store_up_nr_cpus(struct kobject *a, struct attribute *b,
 				const char *buf, size_t count)
 {
@@ -690,6 +660,42 @@ static ssize_t store_hotplug_lock(struct kobject *a, struct attribute *b,
 	return count;
 }
 
+static ssize_t store_up_threshold_at_min_freq(struct kobject *a, struct attribute *b,
+						const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+	dbs_tuners_ins.up_threshold_at_min_freq = input > 100 ? 100 : input;
+
+	return count;
+}
+
+static ssize_t store_freq_for_responsiveness(struct kobject *a, struct attribute *b,
+						const char *buf, size_t count)
+{
+	struct cpufreq_policy *policy;
+	unsigned int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+	return -EINVAL;
+	policy = cpufreq_cpu_get(0);
+	if (policy) {
+	    input = max(input, policy->cpuinfo.min_freq);
+	    dbs_tuners_ins.freq_for_responsiveness = min(input, policy->cpuinfo.max_freq);
+	    cpufreq_cpu_put(policy);
+	}
+	else
+	    dbs_tuners_ins.freq_for_responsiveness = input;
+
+	return count;
+}
+
 static ssize_t store_dvfs_debug(struct kobject *a, struct attribute *b,
 				const char *buf, size_t count)
 {
@@ -711,12 +717,12 @@ define_one_global_rw(down_differential);
 define_one_global_rw(freq_step);
 define_one_global_rw(cpu_up_rate);
 define_one_global_rw(cpu_down_rate);
-define_one_global_rw(cpu_up_freq);
-define_one_global_rw(cpu_down_freq);
 define_one_global_rw(up_nr_cpus);
 define_one_global_rw(max_cpu_lock);
 define_one_global_rw(min_cpu_lock);
 define_one_global_rw(hotplug_lock);
+define_one_global_rw(up_threshold_at_min_freq);
+define_one_global_rw(freq_for_responsiveness);
 define_one_global_rw(dvfs_debug);
 define_one_global_ro(cpucore_table);
 
@@ -731,14 +737,14 @@ static struct attribute *dbs_attributes[] = {
 	&freq_step.attr,
 	&cpu_up_rate.attr,
 	&cpu_down_rate.attr,
-	&cpu_up_freq.attr,
-	&cpu_down_freq.attr,
 	&up_nr_cpus.attr,
 	/* priority: hotplug_lock > max_cpu_lock > min_cpu_lock
 	   Exception: hotplug_lock on early_suspend uses min_cpu_lock */
 	&max_cpu_lock.attr,
 	&min_cpu_lock.attr,
 	&hotplug_lock.attr,
+	&up_threshold_at_min_freq.attr,
+	&freq_for_responsiveness.attr,
 	&dvfs_debug.attr,
 	&hotplug_freq_1_1.attr,
 	&hotplug_freq_2_0.attr,
@@ -960,8 +966,10 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	    return;
 
 	/* Because HwPowerGenieEngine can restrict min & max freqs */
-	policy->min = 208000;
-	policy->max = chip_max_freq;
+	if (policy->min != policy->cpuinfo.min_freq)
+	    policy->min = policy->cpuinfo.min_freq;
+	if (policy->max != policy->cpuinfo.max_freq)
+	    policy->max = policy->cpuinfo.max_freq;
 
 	hotplug_history->usage[num_hist].freq = policy->cur;
 	hotplug_history->usage[num_hist].rq_avg = avg_nr_running();
@@ -1025,15 +1033,15 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		hotplug_history->num_hist = 0;
 
 	/* Check for frequency increase */
-	if (policy->cur < FREQ_FOR_RESPONSIVENESS) {
-		up_threshold = UP_THRESHOLD_AT_MIN_FREQ;
+	if (policy->cur < dbs_tuners_ins.freq_for_responsiveness) {
+		up_threshold = dbs_tuners_ins.up_threshold_at_min_freq;
 	}
 
 	if (load_cpu > dbs_tuners_ins.up_threshold) {
 		int inc = (policy->max * dbs_tuners_ins.freq_step) / 100;
 		int target = min(policy->max, policy->cur + inc);
 
-		if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, target, CPUFREQ_RELATION_H, &index)) {
+		if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, target, CPUFREQ_RELATION_C, &index)) {
 		    printk(KERN_ERR "%s: failed to get next highest frequency\n", __func__);
 		    return;
 		}
@@ -1045,7 +1053,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 				dbs_tuners_ins.sampling_down_factor;
 		if (policy->cur == policy->max)
 		    return;
-		__cpufreq_driver_target(policy, target, CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(policy, target, CPUFREQ_RELATION_C);
 		return;
 	}
 	/* Check for frequency decrease */
@@ -1077,12 +1085,12 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 			freq_next = policy->min;
 
 
-		down_thres = UP_THRESHOLD_AT_MIN_FREQ
+		down_thres = dbs_tuners_ins.up_threshold_at_min_freq
 			- dbs_tuners_ins.down_differential;
 
-		if (freq_next < FREQ_FOR_RESPONSIVENESS
+		if (freq_next < dbs_tuners_ins.freq_for_responsiveness
 			&& (load_cpu / freq_next) > down_thres)
-			freq_next = FREQ_FOR_RESPONSIVENESS;
+			freq_next = dbs_tuners_ins.freq_for_responsiveness;
 
 		if (policy->cur == freq_next)
 		    return;
@@ -1132,41 +1140,6 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 	}
 }
 
-static int pm_notifier_call(struct notifier_block *this,
-			    unsigned long event, void *ptr)
-{
-	struct cpu_dbs_info_s *dbs_info;
-	struct cpufreq_policy *policy;
-
-	dbs_info = &per_cpu(od_cpu_dbs_info, 0);
-
-	switch (event) {
-	case PM_SUSPEND_PREPARE:
-		policy = dbs_info->cur_policy;
-		policy->min = 208000;
-
-		dbs_timer_exit(dbs_info);
-
-		if (policy->cur != policy->min)
-		    __cpufreq_driver_target(policy, policy->min,
-					CPUFREQ_RELATION_L);
-		printk(KERN_INFO "[pegasusq] enter suspend\n");
-		return NOTIFY_OK;
-
-	case PM_POST_RESTORE:
-
-	case PM_POST_SUSPEND:
-		dbs_timer_init(dbs_info);
-		printk(KERN_INFO "[pegasusq] exit suspend\n");
-		return NOTIFY_OK;
-	}
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block pm_notifier = {
-	.notifier_call = pm_notifier_call,
-};
-
 static int reboot_notifier_call(struct notifier_block *this,
 				unsigned long code, void *_cmd)
 {
@@ -1184,6 +1157,11 @@ unsigned int prev_freq_step;
 unsigned int prev_sampling_rate;
 static void cpufreq_pegasusq_early_suspend(struct early_suspend *h)
 {
+	struct cpu_dbs_info_s *dbs_info;
+	struct cpufreq_policy *policy;
+
+	dbs_info = &per_cpu(od_cpu_dbs_info, 0);
+
 #if EARLYSUSPEND_HOTPLUGLOCK
 	dbs_tuners_ins.early_suspend =
 		atomic_read(&g_hotplug_lock);
@@ -1197,9 +1175,23 @@ static void cpufreq_pegasusq_early_suspend(struct early_suspend *h)
 	    (dbs_tuners_ins.min_cpu_lock) ? dbs_tuners_ins.min_cpu_lock : 1);
 	apply_hotplug_lock();
 #endif
+	policy = dbs_info->cur_policy;
+	policy->min = policy->cpuinfo.min_freq;
+
+	dbs_timer_exit(dbs_info);
+
+	if (policy->cur != policy->min)
+	    __cpufreq_driver_target(policy, policy->min,
+				CPUFREQ_RELATION_L);
+	pr_info("[pegasusq] enter suspend\n");
 }
+
 static void cpufreq_pegasusq_late_resume(struct early_suspend *h)
 {
+	struct cpu_dbs_info_s *dbs_info;
+
+	dbs_info = &per_cpu(od_cpu_dbs_info, 0);
+
 #if EARLYSUSPEND_HOTPLUGLOCK
 	atomic_set(&g_hotplug_lock, dbs_tuners_ins.early_suspend);
 #endif
@@ -1209,6 +1201,8 @@ static void cpufreq_pegasusq_late_resume(struct early_suspend *h)
 #if EARLYSUSPEND_HOTPLUGLOCK
 	apply_hotplug_lock();
 #endif
+	dbs_timer_init(dbs_info);
+	printk(KERN_INFO "[pegasusq] exit suspend\n");
 }
 #endif
 
@@ -1226,8 +1220,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		if ((!cpu_online(cpu)) || (!policy->cur))
 			return -EINVAL;
 
-		dbs_tuners_ins.max_freq = policy->max;
-		dbs_tuners_ins.min_freq = policy->min;
 		hotplug_history->num_hist = 0;
 
 		this_dbs_info->cur_policy = policy;
@@ -1257,10 +1249,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			}
 
 			min_sampling_rate = MIN_SAMPLING_RATE;
-			dbs_tuners_ins.sampling_rate = DEF_SAMPLING_RATE;
-			dbs_tuners_ins.io_is_busy = 0;
 
-			register_pm_notifier(&pm_notifier);
 			register_reboot_notifier(&reboot_notifier);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 			register_early_suspend(&early_suspend);
@@ -1282,7 +1271,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			sysfs_remove_group(cpufreq_global_kobject,
 					   &dbs_attr_group);
 
-			unregister_pm_notifier(&pm_notifier);
 			unregister_reboot_notifier(&reboot_notifier);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 			unregister_early_suspend(&early_suspend);
@@ -1337,8 +1325,6 @@ static int __init cpufreq_gov_dbs_init(void)
 	ret = cpufreq_register_governor(&cpufreq_gov_pegasusq);
 	if (ret)
 		goto err_reg;
-
-	chip_max_freq = readl(ACPU_CHIP_MAX_FREQ);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
