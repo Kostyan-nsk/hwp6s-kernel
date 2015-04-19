@@ -37,6 +37,10 @@
 #include <mach/gpio.h>
 #include <mach/boardid.h>
 
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+#include <linux/input/doubletap2wake.h>
+#endif
+
 #include "k3_fb.h"
 #include "k3_fb_def.h"
 #include "mipi_dsi.h"
@@ -1746,7 +1750,11 @@ static int mipi_jdi_panel_off(struct platform_device *pdev)
 	struct k3_panel_info *pinfo = NULL;
 	u32 edc_base = 0;
        int retval = 0;
-    
+
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+	if (dt2w_switch > 0)
+	    return 0;
+#endif
 	BUG_ON(pdev == NULL);
 	pr_info("%s enter succ!\n",__func__);
 
