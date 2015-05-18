@@ -3563,9 +3563,15 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
                k3fd->frc_state = K3_FB_FRC_NONE_PLAYING;
                k3fb_frc_set(k3fd);
 			}
-
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+		if (dt2w_switch > 0)
+		    ret = 0;
+		else
+		    ret = pdata->off(k3fd->pdev);
+#else
 			/* Add for set frc, end*/
 			ret = pdata->off(k3fd->pdev);
+#endif
 			if (ret != 0) {
 				k3fb_loge("failed to turn off sub devices!\n");
 				k3fd->panel_power_on = curr_pwr_state;
@@ -3573,7 +3579,9 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
 				edc_fb_suspend(info);
 				k3_fb_power_off_vote(k3fd);
 			}
-			
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+skip:
+#endif
 			spin_lock_irqsave(&k3fd->refresh_lock,flags);
 			sw_sync_timeline_inc(k3fd->timeline, 1 + k3fd->refresh);
 			k3fd->refresh = 0;
@@ -5766,29 +5774,18 @@ static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	    if (!k3fd) {
 		k3fb_loge("[%s] !k3fd\n", __func__);
 		return 0;
-	    }
 
 	    if (k3fd->index == 0) {
-		for (i = 0; i < 3; i++) {
-		    pdata = (struct k3_fb_panel_data *)pdev->dev.platform_data;
-		    if (!pdata) {
-			k3fb_loge("[%s] !pdata, i = %d\n", __func__, i);
-			return 0;
-		    }
-		    if (!pdata->off) {
-			k3fb_loge("[%s] !pdata->off, i = %d\n", __func__, i);
-			return 0;
-		    }
-		    prev_pdev = pdev;
-		    pdev = pdata->next;
-		    if (!pdev && i < 2) {
-			k3fb_loge("[%s] !pdev, i = %d\n", __func__, i);
-			return 0;
-		    }
+		pdata = (struct k3_fb_panel_data *)pdev->dev.platform_data;
+		if ((!pdata) || (!pdata->off)) {
+		    k3fb_loge("no panel operation detected!\n");
+		    return 0;
 		}
-		dt2w_switch = 0;
-		ret = pdata->off(prev_pdev); /* mipi_jdi_panel_off */
-		k3fb_logi("mipi_jdi_panel_off: %d\n", ret);
+		/* Add for set frc, end*/
+		ret = pdata->off(k3fd->pdev);
+		if (ret != 0) {
+		    k3fb_loge("failed to turn off sub devices!\n");
+		}
 	    }
 	}
 	return 0;
