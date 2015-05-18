@@ -328,18 +328,17 @@ static int lcd_notifier_callback(struct notifier_block *this,
 #else
 static void dt2w_early_suspend(struct early_suspend *h) {
 	scr_suspended = true;
+	dt2w_prev_switch = dt2w_switch;
 	if (dt2w_switch > 0) {
-	    dt2w_prev_switch = dt2w_switch;
 	    wake_lock_timeout(&dt2w_wakelock, dt2w_duration * HZ);
 	}
 }
 
 static void dt2w_late_resume(struct early_suspend *h) {
 	scr_suspended = false;
-	if (dt2w_prev_switch > 0) {
-	    dt2w_switch = dt2w_prev_switch;
+	dt2w_switch = dt2w_prev_switch;
+	if (wake_lock_active(&dt2w_wakelock))
 	    wake_unlock(&dt2w_wakelock);
-	}
 }
 
 static struct early_suspend dt2w_early_suspend_handler = {
@@ -514,6 +513,8 @@ static void __exit doubletap2wake_exit(void)
 #endif
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	lcd_unregister_client(&dt2w_lcd_notif);
+#else
+	unregister_early_suspend(&dt2w_early_suspend_handler);
 #endif
 	input_unregister_handler(&dt2w_input_handler);
 	destroy_workqueue(dt2w_input_wq);
