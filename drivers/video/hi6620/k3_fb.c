@@ -5774,7 +5774,7 @@ static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	    if (!k3fd) {
 		k3fb_loge("[%s] !k3fd\n", __func__);
 		return 0;
-
+	    }
 	    if (k3fd->index == 0) {
 		pdata = (struct k3_fb_panel_data *)pdev->dev.platform_data;
 		if ((!pdata) || (!pdata->off)) {
