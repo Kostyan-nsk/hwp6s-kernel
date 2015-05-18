@@ -42,7 +42,7 @@ static struct workqueue_struct *abyssplugv2_wq;
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_UP_THRESHOLD		(75)
+#define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_FREQUENCY_UP_THRESHOLD_HOTPLUG	(90)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(25)
 #define DEF_FREQUENCY_DOWN_THRESHOLD_HOTPLUG	(10)
@@ -77,8 +77,7 @@ struct cpu_dbs_info_s {
 	cputime64_t prev_cpu_nice;
 	struct cpufreq_policy *cur_policy;
 	struct delayed_work work;
-	unsigned int down_skip;
-	unsigned int requested_freq;
+	unsigned int rate_mult;
 	int cpu;
 	/*
 	 * percpu mutex that serializes governor limit change with
@@ -106,6 +105,7 @@ static struct dbs_tuners {
 	unsigned int down_differential;
 	unsigned int ignore_nice;
 	unsigned int boost;
+	ktime_t time_stamp;
 
 } dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
@@ -453,13 +453,12 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	struct cpufreq_policy *policy;
 	cputime64_t cur_wall_time, cur_idle_time;
 	unsigned int idle_time, wall_time;
+	unsigned int requested_freq;
 
 	policy = this_dbs_info->cur_policy;
 	cpu = this_dbs_info->cpu;
 
-	/* Because HwPowerGenieEngine can restrict min & max freqs */
-	if (policy->min != policy->cpuinfo.min_freq)
-	    policy->min = policy->cpuinfo.min_freq;
+	/* Because HwPowerGenieEngine can restrict min freq */
 	if (policy->max != policy->cpuinfo.max_freq)
 	    policy->max = policy->cpuinfo.max_freq;
 
@@ -510,17 +509,20 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	
 	/* Check for frequency increase */
 	if (load > dbs_tuners_ins.up_threshold) {
-	    this_dbs_info->down_skip = 0;
 
 	    /* if we are already at full speed then break out early */
-	    if (this_dbs_info->requested_freq == policy->max)
+	    if (policy->cur == policy->max)
 		goto cpu_up;
 
-	    this_dbs_info->requested_freq = tb_get_next_freq(policy->cur, TB_UP, load,
-							    policy->cpuinfo.max_freq);
+	    requested_freq = tb_get_next_freq(policy->cur, TB_UP, load,
+						policy->cpuinfo.max_freq);
 
-	    __cpufreq_driver_target(policy, this_dbs_info->requested_freq,
-						CPUFREQ_RELATION_C);
+	    if (requested_freq == policy->max)
+		this_dbs_info->rate_mult = dbs_tuners_ins.sampling_down_factor;
+	    else
+		this_dbs_info->rate_mult = 1;
+		
+	    __cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_C);
 	    return;
 	}
 
@@ -531,15 +533,16 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 */
 	if (load < (dbs_tuners_ins.down_threshold - dbs_tuners_ins.down_differential)) {
 
+	    if (this_dbs_info->rate_mult > 1)
+		this_dbs_info->rate_mult = 1;
+
 	    /* if we cannot reduce the frequency anymore, break out early */
 	    if (policy->cur == policy->min)
 		goto cpu_down;
 
-	    this_dbs_info->requested_freq = tb_get_next_freq(policy->cur, TB_DOWN, load,
-							    policy->cpuinfo.max_freq);
-
-	    __cpufreq_driver_target(policy, this_dbs_info->requested_freq,
-						    CPUFREQ_RELATION_C);
+	    requested_freq = tb_get_next_freq(policy->cur, TB_DOWN, load,
+						policy->cpuinfo.max_freq);
+	    __cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_C);
 	    return;
 	}
 
@@ -557,16 +560,35 @@ cpu_down:
 
 }
 
+/* Will return if we need to evaluate cpu load again or not */
+static inline bool need_load_eval(unsigned int sampling_rate) {
+
+	ktime_t time_now = ktime_get();
+	s64 delta_us = ktime_us_delta(time_now, dbs_tuners_ins.time_stamp);
+	/* Do nothing if we recently have sampled */
+	if (delta_us < (s64)(sampling_rate / 2))
+		return false;
+	else
+		dbs_tuners_ins.time_stamp = time_now;
+
+	return true;
+}
+
 static void do_dbs_timer(struct work_struct *work)
 {
+	unsigned int delay;
 	struct cpu_dbs_info_s *dbs_info =
 		container_of(work, struct cpu_dbs_info_s, work.work);
 
-	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
+	delay = dbs_tuners_ins.sampling_rate * dbs_info->rate_mult;
+	if (!need_load_eval(delay))
+	    goto max_delay;
 
 	dbs_check_cpu(dbs_info);
 
-	queue_delayed_work_on(dbs_info->cpu, abyssplugv2_wq, &dbs_info->work, delay);
+max_delay:
+	queue_delayed_work_on(dbs_info->cpu, abyssplugv2_wq, &dbs_info->work,
+						usecs_to_jiffies(delay));
 }
 
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
@@ -579,32 +601,13 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 
 static void powersave_early_suspend(struct early_suspend *handler)
 {
-	struct cpu_dbs_info_s *dbs_info;
-	struct cpufreq_policy *policy;
-	unsigned int cpu;
-
-	dbs_info = &per_cpu(cs_cpu_dbs_info, 0);
-	policy = dbs_info->cur_policy;
-	if (policy->min != policy->cpuinfo.min_freq)
-	    policy->min = policy->cpuinfo.min_freq;
-
-	cancel_delayed_work(&dbs_info->work);
-
-	for (cpu = num_online_cpus() - 1; cpu > 0; cpu--)
-	    cpu_down(cpu);
-
-	if (policy->cur != policy->min)
-	    __cpufreq_driver_target(policy, policy->min,
-				CPUFREQ_RELATION_L);
+	dbs_tuners_ins.sampling_rate *= 4;
 	pr_info("[abyssplugv2] enter suspend\n");
 }
 
 static void powersave_late_resume(struct early_suspend *handler)
 {
-	struct cpu_dbs_info_s *dbs_info;
-
-	dbs_info = &per_cpu(cs_cpu_dbs_info, 0);
-	dbs_timer_init(dbs_info);
+	dbs_tuners_ins.sampling_rate /= 4;
 	pr_info("[abyssplugv2] exit suspend\n");
 }
 
@@ -630,14 +633,12 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		this_dbs_info->cur_policy = policy;
 		this_dbs_info->cpu = cpu;
+		this_dbs_info->rate_mult = 1;
 
 		this_dbs_info->prev_cpu_idle = get_cpu_idle_time(cpu,
 					&this_dbs_info->prev_cpu_wall);
 		if (dbs_tuners_ins.ignore_nice)
 		    this_dbs_info->prev_cpu_nice = kstat_cpu(cpu).cpustat.nice;
-
-		this_dbs_info->down_skip = 0;
-		this_dbs_info->requested_freq = policy->cur;
 
 		mutex_lock(&dbs_mutex);
 
@@ -653,7 +654,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			mutex_unlock(&dbs_mutex);
 			return rc;
 		    }
-
+		    dbs_tuners_ins.time_stamp = ktime_get();
 		    register_early_suspend(&_powersave_early_suspend);
 		}
 		mutex_unlock(&dbs_mutex);
