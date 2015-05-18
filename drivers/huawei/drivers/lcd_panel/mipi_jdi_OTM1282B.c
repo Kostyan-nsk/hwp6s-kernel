@@ -43,10 +43,6 @@
 #include "mipi_reg.h"
 #include <linux/lcd_tuning.h>
 
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-#include <linux/input/doubletap2wake.h>
-#endif
-
 #if defined(CONFIG_HUAWEI_H30L_TOUCH_CODE)
 #include "../touchscreen/ts_h30l/huawei_touchscreen_chips.h"
 #else
