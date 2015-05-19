@@ -14,6 +14,7 @@ obj-$(CONFIG_CPU_FREQ_GOV_K3HOTPLUG) += cpufreq_k3hotplug.o
 obj-$(CONFIG_CPU_FREQ_GOV_ABYSSPLUGV2) += cpufreq_abyssplugv2.o
 obj-$(CONFIG_CPU_FREQ_GOV_PEGASUSQ) += cpufreq_pegasusq.o
 obj-$(CONFIG_CPU_FREQ_GOV_IMPULSE)	+= cpufreq_impulse.o
+obj-$(CONFIG_CPU_FREQ_GOV_OPTDEMAND)   += cpufreq_optdemand.o
 
 # CPUfreq cross-arch helpers
 obj-$(CONFIG_CPU_FREQ_TABLE)		+= freq_table.o

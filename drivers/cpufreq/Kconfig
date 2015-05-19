@@ -42,13 +42,13 @@ config CPU_FREQ_STAT_DETAILS
 
 	  If in doubt, say N.
 
-config CPU_FREQ_LCD_FREQ_DFS
-	bool "CPU frequency translation statistics details"
-	depends on CPU_FREQ_GOV_PEGASUSQPLUS
+config INPUT_PULSE_SUPPORT
+	bool "input pulse support"
+	depends on CPU_FREQ_GOV_INTERACTIVE || CPU_FREQ_GOV_OPTDEMAND
+	default n
 	help
-	  This will enable screen-off CPU suspend.
-
-	  If in doubt, say N.
+	  'INPUT_PULSE_SUPPORT' is used to enable 'interactive' governor to
+	  receive touch event, and set the cpu to high speed.
 
 choice
 	prompt "Default CPUFreq governor"
@@ -292,6 +292,25 @@ config CPU_FREQ_GOV_IMPULSE
 	help
 	  'impulse' - This driver adds a dynamic cpufreq policy governor
 	  designed for optimized balance between power and performance.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_OPTDEMAND
+	tristate "'optdemand' cpufreq policy governor"
+	select CPU_FREQ_TABLE
+	select CPU_FREQ_GOV_COMMON
+	help
+	  'optdemand' - This driver adds a dynamic cpufreq policy governor.
+	  The governor does a periodic polling and 
+	  changes frequency based on the CPU utilization.
+	  The support for this governor depends on CPU capability to
+	  do fast frequency switching (i.e, very low latency frequency
+	  transitions). 
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_optdemand.
+
+	  For details, take a look at linux/Documentation/cpu-freq.
 
 	  If in doubt, say N.
 
