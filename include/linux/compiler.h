@@ -157,6 +157,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define unreachable() do { } while (1)
 #endif
 
+#ifndef OPTIMIZER_HIDE_VAR
+#define OPTIMIZER_HIDE_VAR(var) barrier()
+#endif
+
 #ifndef RELOC_HIDE
 # define RELOC_HIDE(ptr, off)					\
   ({ unsigned long __ptr;					\
