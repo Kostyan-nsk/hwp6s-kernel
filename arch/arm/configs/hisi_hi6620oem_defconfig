@@ -910,8 +910,8 @@ CONFIG_HAVE_IDE=y
 #
 CONFIG_SCSI_MOD=y
 # CONFIG_RAID_ATTRS is not set
-# CONFIG_SCSI is not set
-# CONFIG_SCSI_DMA is not set
+CONFIG_SCSI=y
+CONFIG_SCSI_DMA=y
 # CONFIG_SCSI_TGT is not set
 # CONFIG_SCSI_NETLINK is not set
 # CONFIG_SCSI_PROC_FS is not set
@@ -925,11 +925,11 @@ CONFIG_BLK_DEV_SD=y
 # CONFIG_BLK_DEV_SR is not set
 # CONFIG_CHR_DEV_SG is not set
 # CONFIG_CHR_DEV_SCH is not set
-# CONFIG_SCSI_MULTI_LUN is not set
+CONFIG_SCSI_MULTI_LUN=y
 # CONFIG_SCSI_CONSTANTS is not set
 # CONFIG_SCSI_LOGGING is not set
 # CONFIG_SCSI_SCAN_ASYNC is not set
-# CONFIG_SCSI_WAIT_SCAN is not set
+CONFIG_SCSI_WAIT_SCAN=y
 
 #
 # SCSI Transports
@@ -1500,7 +1500,7 @@ CONFIG_SSB_POSSIBLE=y
 # Sonics Silicon Backplane
 #
 # CONFIG_SSB is not set
-# CONFIG_BCMA_POSSIBLE is not set
+CONFIG_BCMA_POSSIBLE=y
 
 #
 # Broadcom specific AMBA
