@@ -3567,9 +3567,8 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
 		if (dt2w_switch > 0)
 		    goto skip;
-#else
-			ret = pdata->off(k3fd->pdev);
 #endif
+			ret = pdata->off(k3fd->pdev);
 			if (ret != 0) {
 				k3fb_loge("failed to turn off sub devices!\n");
 				k3fd->panel_power_on = curr_pwr_state;
