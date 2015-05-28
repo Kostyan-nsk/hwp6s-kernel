@@ -1038,18 +1038,16 @@ out:
 static int mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_blk_data *md = mq->data;
-	struct mmc_card *card = md->queue.card;
-	int ret = 0;
 
-	ret = mmc_flush_cache(card);
-	if (ret)
-		ret = -EIO;
-
+	/*
+	 * No-op, only service this because we need REQ_FUA for reliable
+	 * writes.
+	 */
 	spin_lock_irq(&md->lock);
-	__blk_end_request_all(req, ret);
+	__blk_end_request_all(req, 0);
 	spin_unlock_irq(&md->lock);
 
-	return ret ? 0 : 1;
+	return 1;
 }
 
 /*

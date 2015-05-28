@@ -690,9 +690,6 @@ void __init mem_init(void)
 			MLK_ROUNDUP(_sdata, _edata),
 			MLK_ROUNDUP(__bss_start, __bss_stop));
 
-#undef MLK
-#undef MLM
-#undef MLK_ROUNDUP
 
 	/*
 	 * Check boundaries twice: Some fundamental inconsistencies can
@@ -703,7 +700,7 @@ void __init mem_init(void)
 	BUG_ON(VMALLOC_END				> CONSISTENT_BASE);
 
 	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
-	BUG_ON(TASK_SIZE 				> MODULES_VADDR);
+	BUG_ON(TASK_SIZE				> MODULES_VADDR);
 #endif
 
 #ifdef CONFIG_HIGHMEM
@@ -722,6 +719,9 @@ void __init mem_init(void)
 	}
 }
 
+#undef MLK
+#undef MLM
+#undef MLK_ROUNDUP
 void free_initmem(void)
 {
 #ifdef CONFIG_HAVE_TCM

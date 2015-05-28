@@ -528,7 +528,7 @@ VOS_UINT32 OMRL_AcpuHeadProc(VOS_UINT8 *pucData, VOS_UINT32 ulSize)
     {
          g_stAcpuPcToUeErrRecord.usLinkStatusErr++;
          return VOS_ERR;
-    }
+    }
 
 
     /* 普通消息，判断datatype字段是不是GU数据 */
