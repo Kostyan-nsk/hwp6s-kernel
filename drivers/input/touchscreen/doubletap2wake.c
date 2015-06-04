@@ -50,7 +50,7 @@
 /* Version, author, desc, etc */
 #define DRIVER_AUTHOR "Dennis Rassmann <showp1984@gmail.com>"
 #define DRIVER_DESCRIPTION "Doubletap2wake for almost any device\nAdjusted for Huawei Ascend P6S-U06 by Kostyan_nsk"
-#define DRIVER_VERSION "1.0.1"
+#define DRIVER_VERSION "1.1"
 #define LOGTAG "[doubletap2wake]: "
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -74,11 +74,12 @@ MODULE_LICENSE("GPLv2");
 
 /* Resources */
 int dt2w_switch = DT2W_DEFAULT;
-static int dt2w_prev_switch, y_res;
+int s2s_switch =  DT2W_DEFAULT;
+static int dt2w_prev_switch, y_res, s2s_length = INT_MAX;
 static unsigned int dt2w_duration = DT2W_DUR_DEFAULT;
 static cputime64_t tap_time_pre = 0;
-static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0;
-static bool touch_x_called = false, touch_y_called = false, touch_cnt = true;
+static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0, x0 = -1;
+static bool touch_x_called = false, touch_y_called = false, touch_cnt = false;
 static bool scr_suspended = false, exec_count = true;
 #ifndef CONFIG_HAS_EARLYSUSPEND
 static struct notifier_block dt2w_lcd_notif;
@@ -87,6 +88,7 @@ static struct input_dev * doubletap2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static struct workqueue_struct *dt2w_input_wq;
 static struct work_struct dt2w_input_work;
+static struct work_struct s2s_input_work;
 static struct wake_lock dt2w_wakelock;
 
 /* Read cmdline for dt2w */
@@ -194,6 +196,54 @@ static void dt2w_input_callback(struct work_struct *unused) {
 	return;
 }
 
+static void s2s_reset(void) {
+
+	touch_cnt = false;
+	x0 = -1;
+}
+
+static void detect_sweep2sleep (int x, int y) {
+	switch (y_res) {
+	case 1280:
+	    if (y < y_res - 100) {
+		s2s_reset();
+		return;
+	    }
+	    break;
+	case 1920:
+	    if (y < y_res - 145) {
+		s2s_reset();
+		return;
+	    }
+	    break;
+	}
+
+	if (x0 == -1) {
+	    x0 = x_pre = x;
+	    return;
+	}
+
+	if ((x0 <= x_pre && x_pre <= x) || (x0 >= x_pre && x_pre >= x)) {
+	    if (abs(x0 - x) >= s2s_length) {
+		doubletap2wake_pwrtrigger();
+		s2s_reset();
+		return;
+	    }
+	    x_pre = x;
+	}
+	else
+	    s2s_reset();
+
+	return;
+}
+
+static void s2s_input_callback(struct work_struct *unused) {
+
+	detect_sweep2sleep(touch_x, touch_y);
+
+	return;
+}
+
 static void dt2w_input_event(struct input_handle *handle, unsigned int type,
 				unsigned int code, int value) {
 #if DT2W_DEBUG
@@ -203,6 +253,33 @@ static void dt2w_input_event(struct input_handle *handle, unsigned int type,
 		(code==ABS_MT_TRACKING_ID) ? "ID" :
 		"undef"), code, value, type);
 #endif
+	if (!scr_suspended && s2s_switch > 0) {
+	    if (code == BTN_TOUCH) {
+		if (value == 1)
+		    touch_cnt = true;
+		else
+		    s2s_reset();
+		return;
+	    }
+
+	    if (!touch_cnt)
+		return;
+
+	    if (code == ABS_MT_POSITION_X) {
+		touch_x = value;
+		touch_x_called = true;
+	    }
+	    if (code == ABS_MT_POSITION_Y) {
+		touch_y = value;
+		touch_y_called = true;
+	    }
+	    if (touch_x_called && touch_y_called && touch_cnt) {
+		touch_x_called = false;
+		touch_y_called = false;
+		queue_work_on(0, dt2w_input_wq, &s2s_input_work);
+	    }
+	}
+
 	if (!scr_suspended || dt2w_switch == 0)
 		return;
 
@@ -383,6 +460,31 @@ static ssize_t dt2w_doubletap2wake_dump(struct device *dev,
 static DEVICE_ATTR(doubletap2wake, (S_IWUSR|S_IRUGO),
 	dt2w_doubletap2wake_show, dt2w_doubletap2wake_dump);
 
+static ssize_t s2s_sweep2sleep_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count;
+	    count = sprintf(buf, "%u\n", s2s_switch);
+
+	return count;
+}
+
+static ssize_t s2s_sweep2sleep_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1 || y_res ==0)
+	    return -EINVAL;
+
+	s2s_switch = input;
+	return count;
+}
+
+static DEVICE_ATTR(sweep2sleep, (S_IWUSR|S_IRUGO),
+	s2s_sweep2sleep_show, s2s_sweep2sleep_dump);
+
 static ssize_t dt2w_version_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -462,6 +564,7 @@ static int __init doubletap2wake_init(void)
 		return -EFAULT;
 	}
 	INIT_WORK(&dt2w_input_work, dt2w_input_callback);
+	INIT_WORK(&s2s_input_work, s2s_input_callback);
 	wake_lock_init(&dt2w_wakelock, WAKE_LOCK_SUSPEND, "dt2w_wakelock");
 	rc = input_register_handler(&dt2w_input_handler);
 	if (rc)
@@ -469,6 +572,15 @@ static int __init doubletap2wake_init(void)
 
 	if (!get_hw_config_int("synaptics/y_res", &y_res, NULL))
 	    y_res = 0;
+	else
+	    switch (y_res) {
+		case 1280:
+		    s2s_length = 360;
+		    break;
+		case 1980:
+		    s2s_length = 540;
+		    break;
+	    }
 
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	dt2w_lcd_notif.notifier_call = lcd_notifier_callback;
@@ -488,6 +600,10 @@ static int __init doubletap2wake_init(void)
 	rc = sysfs_create_file(android_touch_kobj, &dev_attr_doubletap2wake.attr);
 	if (rc) {
 		pr_warn("%s: sysfs_create_file failed for doubletap2wake\n", __func__);
+	}
+	rc = sysfs_create_file(android_touch_kobj, &dev_attr_sweep2sleep.attr);
+	if (rc) {
+		pr_warn("%s: sysfs_create_file failed for sweep2sleep\n", __func__);
 	}
 	rc = sysfs_create_file(android_touch_kobj, &dev_attr_dt2w_version.attr);
 	if (rc) {
