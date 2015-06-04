@@ -3565,8 +3565,10 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
 			}
 	    /* Add for set frc, end*/
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-		if (dt2w_switch > 0)
+		if (dt2w_switch > 0) {
+		    k3_fb_power_off_vote(k3fd);
 		    goto skip;
+		}
 #endif
 			ret = pdata->off(k3fd->pdev);
 			if (ret != 0) {
@@ -5782,10 +5784,8 @@ static int k3_fb_suspend(struct platform_device *pdev, pm_message_t state)
 		ret = pdata->off(k3fd->pdev);
 		if (ret != 0)
 		    k3fb_loge("failed to turn off sub devices!\n");
-		else {
+		else
 		    edc_fb_suspend(k3fd->fbi);
-		    k3_fb_power_off_vote(k3fd);
-		}
 
 		dt2w_switch = 0;
 	    }
