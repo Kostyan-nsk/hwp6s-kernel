@@ -600,7 +600,7 @@ static int __init doubletap2wake_init(void)
 		    s2s_height  = 100;
 		    s2s_feather = 50;
 		    break;
-		case 1980:
+		case 1920:
 		    s2s_length  = 270;
 		    s2s_height  = 145;
 		    s2s_feather = 70;
