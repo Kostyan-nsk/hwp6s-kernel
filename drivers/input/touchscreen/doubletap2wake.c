@@ -76,7 +76,7 @@ MODULE_LICENSE("GPLv2");
 int dt2w_switch = DT2W_DEFAULT;
 int s2s_switch =  DT2W_DEFAULT;
 static int dt2w_prev_switch, y_res, s2s_length = INT_MAX;
-static unsigned int dt2w_duration = DT2W_DUR_DEFAULT;
+static unsigned int dt2w_duration = DT2W_DUR_DEFAULT, s2s_height, s2s_feather;
 static cputime64_t tap_time_pre = 0;
 static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0, x0 = -1;
 static bool touch_x_called = false, touch_y_called = false, touch_cnt = false;
@@ -203,28 +203,22 @@ static void s2s_reset(void) {
 }
 
 static void detect_sweep2sleep (int x, int y) {
-	switch (y_res) {
-	case 1280:
-	    if (y < y_res - 100) {
-		s2s_reset();
-		return;
-	    }
-	    break;
-	case 1920:
-	    if (y < y_res - 145) {
-		s2s_reset();
-		return;
-	    }
-	    break;
+	if (y < (y_res - s2s_height - s2s_feather)) {
+	    s2s_reset();
+	    return;
 	}
 
 	if (x0 == -1) {
+	    if (y < y_res - s2s_height) {
+		s2s_reset();
+		return;
+	    }
 	    x0 = x_pre = x;
 	    return;
 	}
 
 	if ((x0 <= x_pre && x_pre <= x) || (x0 >= x_pre && x_pre >= x)) {
-	    if (abs(x0 - x) >= s2s_length) {
+	    if (abs(x0 - x) >= s2s_length && y >= y_res - s2s_height) {
 		doubletap2wake_pwrtrigger();
 		s2s_reset();
 		return;
@@ -475,7 +469,7 @@ static ssize_t s2s_sweep2sleep_dump(struct device *dev,
 	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
-	if (ret != 1 || y_res ==0)
+	if (ret != 1 || y_res == 0)
 	    return -EINVAL;
 
 	s2s_switch = input;
@@ -529,6 +523,33 @@ static ssize_t dt2w_duration_dump(struct device *dev,
 static DEVICE_ATTR(dt2w_duration, (S_IWUSR|S_IRUGO),
 	dt2w_duration_show, dt2w_duration_dump);
 
+static ssize_t s2s_length_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count;
+	    count = sprintf(buf, "%u\n", s2s_length);
+
+	return count;
+}
+
+static ssize_t s2s_length_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+	    return -EINVAL;
+	if ((y_res == 1280 && input > 720) || (y_res == 1920 && input > 1080))
+	    return -EINVAL;
+
+	s2s_length = input;
+	return count;
+}
+
+static DEVICE_ATTR(s2s_length, (S_IWUSR|S_IRUGO),
+	s2s_length_show, s2s_length_dump);
+
 /*
  * INIT / EXIT stuff below here
  */
@@ -575,10 +596,14 @@ static int __init doubletap2wake_init(void)
 	else
 	    switch (y_res) {
 		case 1280:
-		    s2s_length = 360;
+		    s2s_length  = 180;
+		    s2s_height  = 100;
+		    s2s_feather = 50;
 		    break;
 		case 1980:
-		    s2s_length = 540;
+		    s2s_length  = 270;
+		    s2s_height  = 145;
+		    s2s_feather = 70;
 		    break;
 	    }
 
@@ -612,6 +637,10 @@ static int __init doubletap2wake_init(void)
 	rc = sysfs_create_file(android_touch_kobj, &dev_attr_dt2w_duration.attr);
 	if (rc) {
 		pr_warn("%s: sysfs_create_file failed for dt2w_duration\n", __func__);
+	}
+	rc = sysfs_create_file(android_touch_kobj, &dev_attr_s2s_length.attr);
+	if (rc) {
+		pr_warn("%s: sysfs_create_file failed for s2s_length\n", __func__);
 	}
 
 err_input_dev:
