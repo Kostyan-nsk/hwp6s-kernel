@@ -3457,6 +3457,8 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
 	struct k3_fb_panel_data *pdata = NULL;
        bool curr_pwr_state = false;
 
+	/* multiresolution check first display esd booting in ROG */
+	static bool st_k3_init_esd;
 
 	BUG_ON(info == NULL);
 	k3fd = (struct k3_fb_data_type *)info->par;
@@ -3474,7 +3476,12 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		if (!k3fd->panel_power_on) {
-		    k3_fb_power_on_vote(k3fd);
+			
+			/* mark as this could be also send by initialization */
+			/* pending: check if this state can be consulted in k3fd or pdata */
+			st_k3_init_esd = true;
+				
+		  k3_fb_power_on_vote(k3fd);
 			edc_fb_resume(info);
 			ret = pdata->on(k3fd->pdev);
 			if (ret != 0) {
@@ -3565,7 +3572,7 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
 			}
 	    /* Add for set frc, end*/
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-		if (dt2w_switch > 0) {
+		if (dt2w_switch > 0 && (st_k3_init_esd)) {
 		    k3_fb_power_off_vote(k3fd);
 		    goto skip;
 		}
