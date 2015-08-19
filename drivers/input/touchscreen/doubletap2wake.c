@@ -451,7 +451,7 @@ static ssize_t dt2w_doubletap2wake_dump(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(doubletap2wake, (S_IWUSR|S_IRUGO),
+static DEVICE_ATTR(doubletap2wake, (0666),
 	dt2w_doubletap2wake_show, dt2w_doubletap2wake_dump);
 
 static ssize_t s2s_sweep2sleep_show(struct device *dev,
@@ -476,7 +476,7 @@ static ssize_t s2s_sweep2sleep_dump(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(sweep2sleep, (S_IWUSR|S_IRUGO),
+static DEVICE_ATTR(sweep2sleep, (0666),
 	s2s_sweep2sleep_show, s2s_sweep2sleep_dump);
 
 static ssize_t dt2w_version_show(struct device *dev,
@@ -489,14 +489,8 @@ static ssize_t dt2w_version_show(struct device *dev,
 	return count;
 }
 
-static ssize_t dt2w_version_dump(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	return count;
-}
-
-static DEVICE_ATTR(dt2w_version, (S_IWUSR|S_IRUGO),
-	dt2w_version_show, dt2w_version_dump);
+static DEVICE_ATTR(dt2w_version, (S_IRUGO),
+	dt2w_version_show, NULL);
 
 static ssize_t dt2w_duration_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -520,7 +514,7 @@ static ssize_t dt2w_duration_dump(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(dt2w_duration, (S_IWUSR|S_IRUGO),
+static DEVICE_ATTR(dt2w_duration, (0666),
 	dt2w_duration_show, dt2w_duration_dump);
 
 static ssize_t s2s_length_show(struct device *dev,
@@ -547,7 +541,7 @@ static ssize_t s2s_length_dump(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(s2s_length, (S_IWUSR|S_IRUGO),
+static DEVICE_ATTR(s2s_length, (0666),
 	s2s_length_show, s2s_length_dump);
 
 /*
