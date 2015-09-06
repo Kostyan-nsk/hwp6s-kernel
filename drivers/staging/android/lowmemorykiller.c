@@ -354,26 +354,22 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	}
 	if (selected) {
 		task_lock(selected);
-		if (!selected->mm) {
-			/* Already exited, cannot do mark_tsk_oom_victim() */
-			task_unlock(selected);
-			goto out;
-		}
+		send_sig(SIGKILL, selected, 0);
 		if (lowmem_dumpmem_adj >= 0 && selected_oom_score_adj <= lowmem_dumpmem_adj) {
 			dump_meminfo();
 		}
 
 		kstate(KSTATE_FREEZER_MASK, "[PID %d KILLED][SIG %d]", selected->tgid, SIGKILL);
-		set_tsk_thread_flag(selected, TIF_MEMDIE);
+		if (selected->mm)
+			set_tsk_thread_flag(selected, TIF_MEMDIE);
 		task_unlock(selected);
 		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_score_adj, selected_tasksize);
 		lowmem_deathpending_timeout = jiffies + HZ;
-		send_sig(SIGKILL, selected, 0);
 		rem -= selected_tasksize;
 	}
-out:
+
 	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
 		     sc->nr_to_scan, sc->gfp_mask, rem);
 	rcu_read_unlock();
