@@ -46,24 +46,14 @@
 #define UP_THRESHOLD				1
 #define DOWN_THRESHOLD				2
 
-static unsigned int operating_points[6][3] = {
+static unsigned int operating_points[7][3] = {
 	/* kHz   up_threshold   down_threshold */
-	{208000,	80,	0},
-	{416000,	80,	30},
-	{624000,	80,	30},
-	{798000,	85,	45},
-	{1196000,	90,	50},
-	{1596000,	100,	70},
-};
-
-static unsigned int operating_points_P7[7][3] = {
-	/* kHz   up_threshold   down_threshold */
-	{208000,	60,	0},
-	{416000,	60,	15},
-	{624000,	60,	15},
-	{798000,	85,	35},
-	{1196000,	90,	50},
-	{1596000,	95,	62},
+	{208000,	70,	0},
+	{416000,	75,	45},
+	{624000,	80,	50},
+	{798000,	85,	55},
+	{1196000,	90,	60},
+	{1596000,	95,	65},
 	{1795000,	100,	70},
 };
 
@@ -109,7 +99,7 @@ static struct cpufreq_optdemand_tunables {
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
 	.go_hispeed_load = DEF_GO_HISPEED_LOAD,
 	.boostpulse_duration = DEF_BOOST_PULSE_DURATION,
-	.num_thresholds = 6,
+	.num_thresholds = 7,
 };
 
 static DEFINE_MUTEX(dbs_mutex);
@@ -165,19 +155,11 @@ static inline u64 get_cpu_idle_time(unsigned int cpu,
 
 static unsigned int get_threshold(unsigned int freq, unsigned int threshold)
 {
-	struct cpufreq_policy *policy;
 	unsigned int i = 0;
 
-	policy = cpufreq_cpu_get(0);
+	while (i < tunables.num_thresholds && operating_points[i][0] < freq)
+	    i++;
 
-	if (policy->cpuinfo.max_freq == 1596000)
-	    while (i < 6 && operating_points[i][0] < freq)
-		i++;
-	else
-	    while (i < 7 && operating_points_P7[i][0] < freq)
-		i++;
-
-	cpufreq_cpu_put(policy);
 	return operating_points[i][threshold];
 }
 
@@ -200,7 +182,7 @@ static inline unsigned int choose_freq(struct cpufreq_optdemand_cpuinfo *pcpu,
 		if (policy->cur < policy->max)  {
 			freq = load_freq / up_threshold;
 			if (cpufreq_frequency_table_target(policy, pcpu->freq_table, freq,
-							    CPUFREQ_RELATION_H, &index))
+							    CPUFREQ_RELATION_L, &index))
 			    pr_err("%s: failed to get next frequency\n", __func__);
 			else
 			    freq = pcpu->freq_table[index].frequency;
@@ -223,7 +205,7 @@ static inline unsigned int choose_freq(struct cpufreq_optdemand_cpuinfo *pcpu,
 		if(!pcpu->rate_mult) {
 		    freq = load_freq / down_threshold;
 		    if (cpufreq_frequency_table_target(policy, pcpu->freq_table, freq,
-							CPUFREQ_RELATION_L, &index)) {
+							CPUFREQ_RELATION_H, &index)) {
 			pr_err("%s: failed to get next frequency\n", __func__);
 			return freq;
 		    }
@@ -246,7 +228,6 @@ static void optdemand_dbs_check_cpu(struct cpufreq_optdemand_cpuinfo *pcpu)
 		u64 cur_wall_time, cur_idle_time;
 		unsigned int idle_time, wall_time;
 		unsigned int load;
-		int freq_avg;
 
 		j_pcpu = &per_cpu(cpuinfo, j);
 
@@ -271,11 +252,7 @@ static void optdemand_dbs_check_cpu(struct cpufreq_optdemand_cpuinfo *pcpu)
 
 		load = 100 * (wall_time - idle_time) / wall_time;
 
-		freq_avg = __cpufreq_driver_getavg(policy, j);
-		if (freq_avg <= 0)
-			freq_avg = policy->cur;
-
-		load *= freq_avg;
+		load *= policy->cur;
 
 		if (load > max_load)
 			max_load = load;
@@ -843,7 +820,7 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 		}
 		rc = sysfs_create_group(cpufreq_global_kobject, &optdemand_attr_group);
 		if (rc) {
-//		    mutex_unlock(&dbs_mutex);
+		    mutex_unlock(&dbs_mutex);
 		    return rc;
 		}
 		tunables.time_stamp = ktime_get();

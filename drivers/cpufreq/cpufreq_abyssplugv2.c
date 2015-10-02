@@ -138,16 +138,7 @@ static struct dbs_tuners {
 #define TB_UP 1
 #define TB_DOWN 2
 
-static int tb_freqs[6][3]={
-    {1596000,1596000,1196000},
-    {1196000,1596000, 798000},
-    { 798000,1196000, 624000},
-    { 624000, 798000, 416000},
-    { 416000, 624000, 208000},
-    { 208000, 416000, 208000},
-};
-
-static int tb_freqs_P7[7][3]={
+static int tb_freqs[7][3]={
     {1795000,1795000,1596000},
     {1596000,1795000,1196000},
     {1196000,1596000, 798000},
@@ -157,16 +148,7 @@ static int tb_freqs_P7[7][3]={
     { 208000, 416000, 208000},
 };
 
-static int tb_freqs_power[6][3]={
-    {1596000,1596000,1196000},
-    {1196000,1596000, 798000},
-    { 798000,1596000, 624000},
-    { 624000,1196000, 416000},
-    { 416000, 798000, 208000},
-    { 208000, 624000, 208000},
-};
-
-static int tb_freqs_power_P7[7][3]={
+static int tb_freqs_power[7][3]={
     {1795000,1795000,1596000},
     {1596000,1795000,1196000},
     {1196000,1795000, 798000},
@@ -177,32 +159,18 @@ static int tb_freqs_power_P7[7][3]={
 };
 
 static unsigned int tb_get_next_freq(unsigned int curfreq, unsigned int updown,
-				unsigned int load, unsigned int max_freq) {
+				unsigned int load) {
     unsigned int i;
 
     if (load < dbs_tuners_ins.boost) {
-	if (max_freq == 1795000) {
-	    for(i = 0; i < 7; i++)
-		if(curfreq == tb_freqs_P7[i][TB_FREQ])
-		    return tb_freqs_P7[i][updown];
-	}
-	else {
-	    for(i = 0; i < 6; i++)
-		if(curfreq == tb_freqs[i][TB_FREQ])
-		    return tb_freqs[i][updown];
-	}
+	for(i = 0; i < 7; i++)
+	    if(curfreq == tb_freqs[i][TB_FREQ])
+		return tb_freqs[i][updown];
     }
     else {
-	if (max_freq == 1795000) {
-	    for(i = 0; i < 7; i++)
-		if(curfreq == tb_freqs_power_P7[i][TB_FREQ])
-		    return tb_freqs_power_P7[i][updown];
-	}
-	else {
-	    for(i = 0; i < 6; i++)
-		if(curfreq == tb_freqs_power[i][TB_FREQ])
-		    return tb_freqs_power[i][updown];
-	}
+	for(i = 0; i < 7; i++)
+	    if(curfreq == tb_freqs_power[i][TB_FREQ])
+		return tb_freqs_power[i][updown];
     }
     return (curfreq);
 }
@@ -514,8 +482,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	    if (policy->cur == policy->max)
 		goto cpu_up;
 
-	    requested_freq = tb_get_next_freq(policy->cur, TB_UP, load,
-						policy->cpuinfo.max_freq);
+	    requested_freq = tb_get_next_freq(policy->cur, TB_UP, load);
 
 	    if (requested_freq == policy->max)
 		this_dbs_info->rate_mult = dbs_tuners_ins.sampling_down_factor;
@@ -540,8 +507,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	    if (policy->cur == policy->min)
 		goto cpu_down;
 
-	    requested_freq = tb_get_next_freq(policy->cur, TB_DOWN, load,
-						policy->cpuinfo.max_freq);
+	    requested_freq = tb_get_next_freq(policy->cur, TB_DOWN, load);
 	    __cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_C);
 	    return;
 	}
