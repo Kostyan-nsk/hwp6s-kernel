@@ -1821,11 +1821,11 @@ static int __init k3v2_cpufreq_init(void)
 	    iowrite32(1795000, p + 0x00017EC8);
 	    iowrite32(7, p + 0x00017EE4);
 	    iounmap(p);
+	    iowrite32(1795000, ACPU_CHIP_MAX_FREQ);
 release:
 	    sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
 	    sc_ctrl1 |= 0xc000c000;
 	    iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
-	    iowrite32(1795000, ACPU_CHIP_MAX_FREQ);
 	}
 /******************************************************************************/
 
