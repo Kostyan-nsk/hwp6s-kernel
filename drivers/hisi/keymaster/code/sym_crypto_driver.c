@@ -21,21 +21,21 @@
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_SYM_DRIVER
 #define ZERO_BLOCK_DEFINED
 
-#include "../include/bsp.h"
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_sem.h"
-#include "../include/cc_plat.h"
-#include "../include/sym_crypto_driver.h"
-#include "../include/dx_error.h"
-#include "../include/hw_queue.h"
-#include "../include/sep_ctx.h"
-#include "../include/cipher.h"
-#include "../include/aead.h"
-#include "../include/hash.h"
-#include "../include/hmac.h"
-#include "../include/rc4.h"
-#include "../include/bypass.h"
-#include "../include/combined.h"
+#include "bsp.h"
+#include "dx_pal_types.h"
+#include "dx_pal_sem.h"
+#include "cc_plat.h"
+#include "sym_crypto_driver.h"
+#include "dx_error.h"
+#include "hw_queue.h"
+#include "sep_ctx.h"
+#include "cipher.h"
+#include "aead.h"
+#include "hash.h"
+#include "hmac.h"
+#include "rc4.h"
+#include "bypass.h"
+#include "combined.h"
 
 /* A buffer with 0s for algorithms which require using 0 valued block */
 const DxUint32_t ZeroBlock[SEP_AES_BLOCK_SIZE_WORDS] DX_SRAM_CONST;

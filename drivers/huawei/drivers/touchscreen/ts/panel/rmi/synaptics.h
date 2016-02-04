@@ -292,7 +292,7 @@ struct synaptics_rmi4_glove {
 	unsigned char offset;
 };
 
-struct synaptics_rmi4_feature{
+struct synaptics_rmi4_feature {
 	struct synaptics_rmi4_glove glove_feature;
 	unsigned char f12_ctrl_base_addr;
 	unsigned char f12_data_base_addr;

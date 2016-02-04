@@ -86,6 +86,9 @@
 #include <net/pwrtmg_aegis.h>
 #endif
 
+#ifdef CONFIG_HW_WIFIPRO
+#include "wifipro_tcp_monitor.h"
+#endif
 int sysctl_tcp_tw_reuse __read_mostly;
 int sysctl_tcp_low_latency __read_mostly;
 EXPORT_SYMBOL(sysctl_tcp_low_latency);
@@ -740,6 +743,10 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 		      &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
+
+#ifdef CONFIG_HW_WIFIPRO
+    wifipro_update_tcp_statistics(skb->sk, TCP_MIB_OUTSEGS, 1);
+#endif
 }
 
 static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
@@ -1340,6 +1347,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq->rmt_addr = saddr;
 	ireq->no_srccheck = inet_sk(sk)->transparent;
 	ireq->opt = tcp_v4_save_options(sk, skb);
+	ireq->ir_mark = inet_request_mark(sk, skb);
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
@@ -1687,6 +1695,10 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	sk = __inet_lookup_skb(&tcp_hashinfo, skb, th->source, th->dest);
 	if (!sk)
 		goto no_tcp_socket;
+
+    #ifdef CONFIG_HW_WIFIPRO
+    wifipro_update_tcp_statistics(sk, WIFIPRO_TCP_MIB_INSEGS, 1);
+    #endif
 
 process:
 	if (sk->sk_state == TCP_TIME_WAIT)

@@ -605,6 +605,11 @@ enum nl80211_commands {
 	NL80211_CMD_SCHED_SCAN_RESULTS,
 	NL80211_CMD_SCHED_SCAN_STOPPED,
 
+	/* because of disagreement with nl80211_copy.h in wpa_supplicant code,
+	this private command is defined as a larger number, you should
+	add new commands below in order to not conflict with this one */
+	NL80211_CMD_DHD_REOPEN = 110,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */

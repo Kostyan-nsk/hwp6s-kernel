@@ -4,7 +4,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: bcmsdbus.h 387187 2013-02-24 09:19:34Z $
+ * $Id: bcmsdbus.h 408158 2013-06-17 22:15:35Z $
  */
 
 #ifndef	_sdio_api_h_
@@ -28,30 +28,27 @@
 #define SDIOH_DATA_PIO          0       /* PIO mode */
 #define SDIOH_DATA_DMA          1       /* DMA mode */
 
-#ifdef BCMSDIOH_TXGLOM
 /* Max number of glommed pkts */
 #ifdef CUSTOM_MAX_TXGLOM_SIZE
 #define SDPCM_MAXGLOM_SIZE  CUSTOM_MAX_TXGLOM_SIZE
 #else
-#define SDPCM_MAXGLOM_SIZE	10
+#define SDPCM_MAXGLOM_SIZE	40
 #endif /* CUSTOM_MAX_TXGLOM_SIZE */
 
 #define SDPCM_TXGLOM_CPY 0			/* SDIO 2.0 should use copy mode */
 #define SDPCM_TXGLOM_MDESC	1		/* SDIO 3.0 should use multi-desc mode */
 
-#ifdef BCMSDIOH_TXGLOM_HIGHSPEED
-#define SDPCM_DEFGLOM_MODE	SDPCM_TXGLOM_MDESC
-#ifdef CUSTOM_TXGLOM_SIZE
-#define SDPCM_DEFGLOM_SIZE  CUSTOM_TXGLOM_SIZE
+#ifdef CUSTOM_DEF_TXGLOM_SIZE
+#define SDPCM_DEFGLOM_SIZE  CUSTOM_DEF_TXGLOM_SIZE
 #else
-#define SDPCM_DEFGLOM_SIZE  10
-#endif /* CUSTOM_TXGLOM_SIZE */
-#else
-#define SDPCM_DEFGLOM_MODE	SDPCM_TXGLOM_CPY
-#define SDPCM_DEFGLOM_SIZE  3
-#endif /* BCMSDIOH_TXGLOM_HIGHSPEED */
-#endif /* BCMSDIOH_TXGLOM */
+#define SDPCM_DEFGLOM_SIZE SDPCM_MAXGLOM_SIZE
+#endif /* CUSTOM_DEF_TXGLOM_SIZE */
 
+#if SDPCM_DEFGLOM_SIZE > SDPCM_MAXGLOM_SIZE
+#warning "SDPCM_DEFGLOM_SIZE cannot be higher than SDPCM_MAXGLOM_SIZE!!"
+#undef SDPCM_DEFGLOM_SIZE
+#define SDPCM_DEFGLOM_SIZE SDPCM_MAXGLOM_SIZE
+#endif
 
 typedef int SDIOH_API_RC;
 
@@ -61,12 +58,6 @@ typedef struct sdioh_info sdioh_info_t;
 /* callback function, taking one arg */
 typedef void (*sdioh_cb_fn_t)(void *);
 
-/* attach, return handler on success, NULL if failed.
- *  The handler shall be provided by all subsequent calls. No local cache
- *  cfghdl points to the starting address of pci device mapped memory
- */
-extern sdioh_info_t * sdioh_attach(osl_t *osh, void *cfghdl, uint irq);
-extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *si);
 extern SDIOH_API_RC sdioh_interrupt_register(sdioh_info_t *si, sdioh_cb_fn_t fn, void *argh);
 extern SDIOH_API_RC sdioh_interrupt_deregister(sdioh_info_t *si);
 
@@ -92,18 +83,6 @@ extern SDIOH_API_RC sdioh_request_buffer(sdioh_info_t *si, uint pio_dma, uint fi
 	uint rw, uint fnc_num, uint32 addr, uint regwidth, uint32 buflen, uint8 *buffer,
 	void *pkt);
 
-#ifdef BCMSDIOH_TXGLOM
-extern void	sdioh_glom_post(sdioh_info_t *sd, uint8 *frame, void *pkt, uint len);
-extern void sdioh_glom_clear(sdioh_info_t *sd);
-extern uint sdioh_set_mode(sdioh_info_t *sd, uint mode);
-extern bool sdioh_glom_enabled(void);
-#else
-#define sdioh_glom_post(a, b, c, d)
-#define sdioh_glom_clear(a)
-#define sdioh_set_mode(a) (0)
-#define sdioh_glom_enabled() (FALSE)
-#endif
-
 /* get cis data */
 extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, uint8 *cis, uint32 length);
 
@@ -124,19 +103,16 @@ extern int sdioh_abort(sdioh_info_t *si, uint fnc);
 extern int sdioh_start(sdioh_info_t *si, int stage);
 extern int sdioh_stop(sdioh_info_t *si);
 
-/* fix sdio cmd timeout begin */
-extern void sdioh_power_off(void);
-extern void sdioh_power_on(void);
-/* fix sdio cmd timeout end */
+#ifdef HW_WIFI_SDIO_LOWPOWER
+extern int sdioh_power_on(sdioh_info_t *sd);
+extern int sdioh_power_off(sdioh_info_t *sd);
+#endif
 
 /* Wait system lock free */
 extern int sdioh_waitlockfree(sdioh_info_t *si);
 
 /* Reset and re-initialize the device */
 extern int sdioh_sdio_reset(sdioh_info_t *si);
-
-/* Helper function */
-void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh);
 
 
 

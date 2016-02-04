@@ -23,21 +23,21 @@
 
 /* .............. CRYS level includes ................. */
 
-#include "../include/dx_vos_mem.h"
+#include "dx_vos_mem.h"
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rsa_error.h"
-#include "../include/crys_rsa_local.h"
-#include "../include/plat_print_dbg.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "crys_rsa_error.h"
+#include "crys_rsa_local.h"
+#include "plat_print_dbg.h"
 
-#include "../include/debug.h"
+#include "debug.h"
 #ifndef DX_OEM_FW
-#include "../include/cc_acl.h"
+#include "cc_acl.h"
 #endif
 
 
@@ -46,7 +46,7 @@
 
 #if !defined(CRYS_NO_HASH_SUPPORT) && !defined(CRYS_NO_PKI_SUPPORT)
 
-#include "../include/llf_pki_rsa.h"
+#include "llf_pki_rsa.h"
 
 #endif /* !defined(CRYS_NO_HASH_SUPPORT) && !defined(CRYS_NO_PKI_SUPPORT) */
  

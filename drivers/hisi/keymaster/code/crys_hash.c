@@ -19,17 +19,17 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_API
  
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/crys_hash.h"
-#include "../include/crys_hash_error.h"
-#include "../include/hash.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/dma_buffer.h"
-#include "../include/cc_acl.h"
-#include "../include/dx_error.h"
-#include "../include/crys_context_relocation.h"
-#include "../include/debug.h"//2012/11/13
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "crys_hash.h"
+#include "crys_hash_error.h"
+#include "hash.h"
+#include "sym_adaptor_driver.h"
+#include "dma_buffer.h"
+#include "cc_acl.h"
+#include "dx_error.h"
+#include "crys_context_relocation.h"
+#include "debug.h"//2012/11/13
 
 
 /************************ Defines ******************************/

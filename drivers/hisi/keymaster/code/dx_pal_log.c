@@ -16,8 +16,8 @@
 * Copyright Notice as well as any other notices provided           *
 * thereunder.                                                      *
 ********************************************************************/
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_log.h"
+#include "dx_pal_types.h"
+#include "dx_pal_log.h"
 
 
 int DX_PAL_logLevel = DX_PAL_MAX_LOG_LEVEL;

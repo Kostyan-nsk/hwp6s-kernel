@@ -4,70 +4,94 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <hw_wifi.h>
+#include "dhd_dbg.h"
 #include <wl_cfg80211.h>
+#ifdef HW_WIFI_WAKEUP_SRC_PARSE
+#include <linux/ip.h>
+#include <net/tcp.h>
+#include <net/udp.h>
+#include <net/icmp.h>
+#include <linux/ieee80211.h>
+#include <wl_android.h>
+#include <proto/bcmevent.h>
+#include <bcmendian.h>
+#include <linux/types.h>
+#include <linux/skbuff.h>
+#include <linux/ipv6.h>
+#endif
 
-/* Customized Locale table : OPTIONAL feature */
-const struct cntry_locales_custom hw_translate_custom_table[] = {
-/* Table should be filled out based on custom platform regulatory requirement */
-	/* Table should be filled out based
-	on custom platform regulatory requirement */
-	{"",   "XZ", 11},  /* Universal if Country code is unknown or empty */
-	{"IR", "CN", 0},  // add by huawei
-	{"CU", "CN", 0},  // add by huawei
-	{"KP", "CN", 0},   // add by huawei
-	{"PK", "CN", 0},  // add by huawei
-	{"SD", "CN", 0},  //add by huawei
-	{"SY", "CN", 0},    //add by huawei
-	{"AE", "AE", 1},
-	{"AR", "AR", 1},
-	{"AT", "AT", 1},
-	{"AU", "AU", 2},
-	{"BE", "BE", 1},
-	{"BG", "BG", 1},
-	{"BN", "BN", 1},
-	{"CA", "CA", 2},
-	{"CH", "CH", 1},
-	{"CY", "CY", 1},
-	{"CZ", "CZ", 1},
-	{"DE", "DE", 3},
-	{"DK", "DK", 1},
-	{"EE", "EE", 1},
-	{"ES", "ES", 1},
-	{"FI", "FI", 1},
-	{"FR", "FR", 1},
-	{"GB", "GB", 1},
-	{"GR", "GR", 1},
-	{"HR", "HR", 1},
-	{"HU", "HU", 1},
-	{"IE", "IE", 1},
-	{"IS", "IS", 1},
-	{"IT", "IT", 1},
-	{"JP", "JP", 5},
-	{"KR", "KR", 24},
-	{"KW", "KW", 1},
-	{"LI", "LI", 1},
-	{"LT", "LT", 1},
-	{"LU", "LU", 1},
-	{"LV", "LV", 1},
-	{"MA", "MA", 1},
-	{"MT", "MT", 1},
-	{"MX", "MX", 1},
-	{"NL", "NL", 1},
-	{"NO", "NO", 1},
-	{"PL", "PL", 1},
-	{"PT", "PT", 1},
-	{"PY", "PY", 1},
-	{"RO", "RO", 1},
-	{"RU", "RU", 5},
-	{"SE", "SE", 1},
-	{"SG", "SG", 4},
-	{"SI", "SI", 1},
-	{"SK", "SK", 1},
-	{"TR", "TR", 7},
-	{"TW", "TW", 2},
-	{"US", "US", 46},
+#define HW_BCN_TIMEOUT 10
+
+#if defined(CONFIG_BCM4343)
+    #include <hw_country_code_4343.h>
+#elif defined(CONFIG_BCM4339)
+    #include <hw_country_code_4339.h>
+#else
+    #include <hw_country_code.h>
+#endif //end CONFIG_BCM4343
+
+#ifdef HW_WIFI_WAKEUP_SRC_PARSE
+#define MAX_MSG_LENGTH 30
+volatile bool g_wifi_firstwake = FALSE;
+#define IPADDR(addr) \
+        ((unsigned char*)&addr)[0], \
+        ((unsigned char*)&addr)[1], \
+        ((unsigned char*)&addr)[2], \
+        ((unsigned char*)&addr)[3]
+
+#define IPV6_ADDRESS_SIZEINBYTES 0x10
+#define IPV6_DESTOPTS_HDR_OPTIONSIZE 0x8
+
+struct ieee8021x_hdr {
+	u8 version;
+	u8 type;
+	__be16 length;
 };
 
+typedef struct IPV6RoutingHeaderFormatTag
+{
+	uint8_t ucNextHeader;
+	uint8_t ucRoutingType;
+	uint8_t ucNumAddresses;
+	uint8_t ucNextAddress;
+	uint32_t ulReserved;
+	//uint8_t aucAddressList[0];
+
+}IPV6RoutingHeader;
+
+typedef struct IPV6FragmentHeaderFormatTag
+{
+	uint8_t ucNextHeader;
+	uint8_t ucReserved;
+	uint16_t usFragmentOffset;
+	uint32_t  ulIdentification;
+}IPV6FragmentHeader;
+
+typedef struct IPV6DestOptionsHeaderFormatTag
+{
+	uint8_t ucNextHeader;
+	uint8_t ucHdrExtLen;
+	uint8_t ucDestOptions[6];
+	//uint8_t udExtDestOptions[0];
+}IPV6DestOptionsHeader;
+
+typedef struct IPV6HopByHopOptionsHeaderFormatTag
+{
+	uint8_t ucNextHeader;
+	uint8_t ucMisc[3];
+	uint32_t ulJumboPayloadLen;
+}IPV6HopByHopOptionsHeader;
+
+typedef struct IPV6AuthenticationHeaderFormatTag
+{
+	uint8_t ucNextHeader;
+	uint8_t ucLength;
+	uint16_t usReserved;
+	uint32_t  ulSecurityParametersIndex;
+	//uint8_t  ucAuthenticationData[0];
+
+}IPV6AuthenticationHeader;
+#endif
 
 /* Customized Locale convertor
 *  input : ISO 3166-1 country abbreviation
@@ -98,6 +122,61 @@ void get_customized_country_code_for_hw(char *country_iso_code, wl_country_t *cs
 	}
 	
 	return;
+}
+
+
+uint hw_get_bcn_timeout(void)
+{
+	return HW_BCN_TIMEOUT;
+}
+
+extern volatile bool hw_cfg80211_suspend;
+static volatile int g_need_enable_intr = 0;
+extern dhd_pub_t *hw_get_dhd_pub(struct net_device *dev);
+
+static int wait_for_cfg80211_resume(void) {
+	int wait_count = 10;
+	while(wait_count > 0) {
+		msleep(20);
+		if(!hw_cfg80211_suspend) {
+			HW_PRINT((WIFI_TAG"%s %d\n", __func__, wait_count));
+			return wait_count;
+		}
+		wait_count--;
+	}
+	return 0;
+}
+
+/**
+ * This function used in dhd_dpc_thread(dhd_linux.c)
+ * when sdio host is in suspend state, skip this action in dpc thread
+ * @return: 1 skip, 0 dont skip
+ */
+int hw_skip_dpc_in_suspend(void) {
+	if((!hw_cfg80211_suspend) || (wait_for_cfg80211_resume() > 0)) {
+		g_need_enable_intr = 0;
+		return 0;
+	} else {
+		g_need_enable_intr = 1;
+		HW_PRINT((WIFI_TAG"%s skip, cfg80211 is in suspend state\n", __func__));
+		return 1;
+	}
+}
+
+/**
+ * This function used in wl_cfg80211_resume(wl_cfg80211.c)
+ * when dpc thread is interrupted by suspend(see hw_skip_dpc_in_suspend), resched dpc again
+ */
+void hw_resched_dpc_ifneed(struct net_device *ndev) {
+	dhd_pub_t *pub = NULL;
+	if(g_need_enable_intr) {
+		g_need_enable_intr = 0;
+		pub = hw_get_dhd_pub(ndev);
+		if(pub && pub->up) {
+			HW_PRINT((WIFI_TAG"%s, resched dpc\n", __func__));
+			dhd_sched_dpc(pub);
+		}
+	}
 }
 
 #ifdef HW_PATCH_DISABLE_TCP_TIMESTAMPS
@@ -144,4 +223,279 @@ void hw_dhd_check_and_disable_timestamps(void)
     }
 #endif
 }
+
+#ifdef HW_WIFI_WAKEUP_SRC_PARSE
+/***************************************************************************
+*Function: 	wlan_send_nl_event
+*Description: 	send the port number to the userspace use uevent.
+*Input: 		struct net_device *net_dev: dhd net device.
+			u16 port: port number.
+*Output: 	null
+*Return:		null
+***************************************************************************/
+static void wlan_send_nl_event(struct net_device *net_dev,  u16 port)
+{
+	struct device* dev = NULL;
+	char *uevent[2];
+	char msg[MAX_MSG_LENGTH];
+
+	dev = &(net_dev->dev);
+	memset(msg, 0, sizeof(msg));
+	snprintf(msg, sizeof(msg), "WIFI_WAKE_PORT=%d",port);
+	printk("%s: send msg: %s\n", __FUNCTION__, msg);
+	uevent[0] = msg;
+	uevent[1] = NULL;
+	kobject_uevent_env(&(dev->kobj), KOBJ_CHANGE, (char**)&uevent);
+
+	return;
+}
+
+/***************************************************************************
+*Function: 	parse_ipv4_packet
+*Description: 	if the packet is tcp/ip type, print ip type, ip address, ip port.
+*Input: 		struct sk_buff *skb
+*Output: 	null
+*Return:		null
+***************************************************************************/
+static void parse_ipv4_packet(struct sk_buff *skb)
+{
+	const struct iphdr *iph;
+	int iphdr_len = 0;
+	struct tcphdr *th;
+	struct udphdr *uh;
+	struct icmphdr *icmph;
+
+	printk("receive ipv4 packet.\n");
+	iph = (struct iphdr *)skb->data;
+	iphdr_len = iph->ihl*4;
+
+	printk("src ip:%d.%d.%d.%d, dst ip:%d.%d.%d.%d\n", IPADDR(iph->saddr), IPADDR(iph->daddr));
+	if (iph->protocol == IPPROTO_UDP){
+		uh = (struct udphdr *)(skb->data + iphdr_len);
+		printk("receive UDP packet, src port:%d, dst port:%d.\n", ntohs(uh->source), ntohs(uh->dest));
+		wlan_send_nl_event(skb->dev, ntohs(uh->dest));
+	}else if(iph->protocol == IPPROTO_TCP){
+		th = (struct tcphdr *)(skb->data + iphdr_len);
+		printk("receive TCP packet, src port:%d, dst port:%d.\n", ntohs(th->source), ntohs(th->dest));
+		wlan_send_nl_event(skb->dev, ntohs(th->dest));
+	}else if(iph->protocol == IPPROTO_ICMP){
+		icmph = (struct icmphdr *)(skb->data + iphdr_len);
+		printk("receive ICMP packet, type(%d):%s, code:%d.\n", icmph->type,
+			((icmph->type == 0)?"ping reply":((icmph->type == 8)?"ping request":"other icmp pkt")), icmph->code);
+	}else if(iph->protocol == IPPROTO_IGMP){
+		printk("receive IGMP packet.\n");
+	}else{
+		printk("receive other IPv4 packet.\n");
+	}
+
+	return;
+}
+
+void dump_ipv6_addr(unsigned short *addr)
+{
+	int i =0;
+
+	for (i = 0; i < (IPV6_ADDRESS_SIZEINBYTES/2); i++) {
+		printk(":%lx", ntohs(addr[i]));
+	}
+	printk("\n");
+}
+
+static uint8_t *get_next_ipv6_chain_header(uint8_t **headerscan, uint8_t *headtype, int8_t *done, uint16_t *payload_len)
+{
+	uint16_t next_header_offset = 0;
+	uint8_t * payload_ptr = *headerscan;
+	uint8_t * return_header_ptr = *headerscan;
+
+	if(headerscan == NULL || (*payload_len == 0) || (*done)){
+		return NULL;
+	}
+	*done = 0;
+
+	switch(*headtype){
+	case NEXTHDR_HOP:
+		{
+			printk("IPv6 HopByHop Header.\n");
+			next_header_offset += sizeof(IPV6HopByHopOptionsHeader);
+		}
+		break;
+	case NEXTHDR_ROUTING:
+		{
+			IPV6RoutingHeader *pstIpv6RoutingHeader;
+			printk("IPv6 Routing Header\n");
+			pstIpv6RoutingHeader = (IPV6RoutingHeader *)payload_ptr;
+			next_header_offset += sizeof(IPV6RoutingHeader);
+			next_header_offset += pstIpv6RoutingHeader->ucNumAddresses * IPV6_ADDRESS_SIZEINBYTES;
+		}
+		break;
+	case NEXTHDR_FRAGMENT:
+		{
+			printk("IPv6 Fragmentation Header\n");
+			next_header_offset += sizeof(IPV6FragmentHeader);
+		}
+		break;
+	case NEXTHDR_DEST:
+		{
+			IPV6DestOptionsHeader *pstIpv6DestOptsHdr = (IPV6DestOptionsHeader *)payload_ptr;
+			int nTotalOptions = pstIpv6DestOptsHdr->ucHdrExtLen;
+			printk("IPv6 DestOpts Header Header\n");
+			next_header_offset += sizeof(IPV6DestOptionsHeader);
+			next_header_offset += nTotalOptions * IPV6_DESTOPTS_HDR_OPTIONSIZE ;
+		}
+		break;
+	case NEXTHDR_AUTH:
+		{
+			IPV6AuthenticationHeader *pstIpv6AuthHdr = (IPV6AuthenticationHeader *)payload_ptr;
+			int nHdrLen = pstIpv6AuthHdr->ucLength;
+			printk("IPv6 Authentication Header\n");
+			next_header_offset += nHdrLen * 4;
+		}
+		break;
+	case NEXTHDR_TCP:
+	case NEXTHDR_UDP:
+		{
+			printk("tcp/udp/icmp Header: %d.\n", *headtype);
+			*done = 1;
+		}
+		break;
+	case NEXTHDR_ICMP:
+		{
+			printk("icmp Header: %d.\n", *headtype);
+			*done = 1;
+		}
+		break;
+	default:
+		*done = 1;
+		break;
+	}
+
+	if (*done == 0) {
+		if (*payload_len <= next_header_offset) {
+			*done = TRUE;
+		} else {
+			*headtype = *payload_ptr;
+			payload_ptr += next_header_offset;
+			(*payload_len) -= next_header_offset;
+		}
+	}
+
+	*headerscan = payload_ptr;
+	return return_header_ptr;
+}
+
+static uint8_t get_ipv6_protocal_ports(uint8_t *payload, uint16_t payload_len, uint8_t next_header, uint16_t *src_port, uint16_t *des_port)
+{
+	int8_t done = 0;
+	uint8_t *headerscan = payload;
+	uint8_t *payload_header = NULL;
+	uint8_t headtype;
+
+	if(!payload || payload_len == 0)
+		return;
+
+	headtype = next_header;
+	while(!done){
+		payload_header = get_next_ipv6_chain_header(&headerscan, &headtype, &done, &payload_len);
+		if(done){
+			if(headtype == NEXTHDR_TCP || headtype == NEXTHDR_UDP){
+				*src_port = *((uint16_t *)payload_header);
+				*des_port = *((uint16_t *)(payload_header+2));
+				printk("src_port:0x%x, des_port:0x%x.\n", ntohs(*src_port), ntohs(*des_port));
+			}
+			break;
+		}
+	}
+}
+
+static void parse_ipv6_packet(struct sk_buff *skb)
+{
+	struct ipv6hdr *nh;
+	uint16_t src_port;
+	uint16_t des_port;
+	uint8_t *payload;
+
+	nh = (struct ipv6hdr *)skb->data;
+	printk("version: %d, payload length: %d, nh->nexthdr: %d. \n", nh->version, ntohs(nh->payload_len), nh->nexthdr);
+	printk("ipv6 src addr: ");
+	dump_ipv6_addr((unsigned short *)&(nh->saddr));
+	printk("ipv6 dst addr: ");
+	dump_ipv6_addr((unsigned short *)&(nh->daddr));
+	payload = nh + sizeof(struct ipv6hdr);
+
+	get_ipv6_protocal_ports(payload, nh->payload_len, nh->nexthdr, &src_port, &des_port);
+
+	return;
+}
+
+/***************************************************************************
+*Function: 	parse_arp_packet
+*Description: 	if the packet if 802.11 type, print the type name and sub type name.
+*Input: 		struct sk_buff *skb
+*Output: 	null
+*Return:		null
+***************************************************************************/
+static void parse_arp_packet(struct sk_buff *skb)
+{
+	const struct iphdr *iph;
+	int iphdr_len = 0;
+	struct arphdr *arp;
+
+	iph = (struct iphdr *)skb->data;
+	iphdr_len = iph->ihl*4;
+	arp = (struct arphdr *)(skb->data + iphdr_len);
+	//printk("receive ARP packet, hardware type:%d, protocol type:%d, opcode:%d.\n", ntohs((uint16_t)arp->ar_hrd), ntohs((uint16_t)arp->ar_pro), ntohs((uint16_t)arp->ar_op));
+
+	return;
+}
+
+/***************************************************************************
+*Function: 	parse_8021x_packet
+*Description:	if the packet if 802.1x type, print the type name and sub type name.
+*Input:		struct sk_buff *skb
+*Output: 	null
+*Return:		null
+***************************************************************************/
+static void parse_8021x_packet(struct sk_buff *skb)
+{
+	struct ieee8021x_hdr *hdr = (struct ieee8021x_hdr *)(skb->data);
+
+	printk("receive 802.1x frame: version:%d, type:%d, length:%d\n", hdr->version, hdr->type, ntohs(hdr->length));
+
+	return;
+}
+
+
+/***************************************************************************
+*Function: 	parse_packet
+*Description: 	parse the packet from sdio when system waked up by wifi. identify the packet type.
+*Input: 		struct sk_buff *skb
+*Output: 	null
+*Return:		null
+***************************************************************************/
+void parse_packet(struct sk_buff *skb)
+{
+	__be16 type;
+
+	type = skb->protocol;
+	printk(WIFI_WAKESRC_TAG"protocol type:0x%04x\n", ntohs(type));
+
+	if(type == cpu_to_be16(ETH_P_IP)){
+		parse_ipv4_packet(skb);
+	}else if (type == cpu_to_be16(ETH_P_IPV6)){
+		printk("receive ipv6 packet.\n");
+		parse_ipv6_packet(skb);
+	}else if(type == cpu_to_be16(ETH_P_ARP)){
+		parse_arp_packet(skb);
+	}else if(type == cpu_to_be16(ETHER_TYPE_BRCM)){ //same as ETH_P_LINK_CTL
+		printk("receive bcm cust packet."); //bcm cust packet is bcm event.
+	}else if(type == cpu_to_be16(ETH_P_PAE)){
+		parse_8021x_packet(skb);
+	}else{
+		printk("receive other packet.\n");
+	}
+
+	return;
+}
+#endif
+
 

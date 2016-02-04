@@ -115,7 +115,7 @@ config_pair  hw_EDGE_PLUS_UL_VB_configs [] = {
     {"memory_config/codec", (unsigned int)53248, E_CONFIG_DATA_TYPE_INT },
     {"memory_config/fb", (unsigned int)10803, E_CONFIG_DATA_TYPE_INT },
     {"memory_config/gpu", (unsigned int)13312, E_CONFIG_DATA_TYPE_INT },
-    {"memory_config/gralloc", (unsigned int)156672, E_CONFIG_DATA_TYPE_INT },
+    {"memory_config/gralloc", (unsigned int)208432, E_CONFIG_DATA_TYPE_INT },
     {"memory_config/overlay", (unsigned int)58368, E_CONFIG_DATA_TYPE_INT },
     {"memory_config/ram", (unsigned int)64, E_CONFIG_DATA_TYPE_INT },
     {"memory_config/vpp", (unsigned int)5120, E_CONFIG_DATA_TYPE_INT },

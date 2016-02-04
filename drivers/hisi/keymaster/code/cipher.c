@@ -19,19 +19,19 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_SYM_DRIVER
 
-#include "../include/bsp.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_log.h"
-#include "../include/cc_plat.h"
-#include "../include/mlli.h"
-#include "../include/sep_ctx.h"
-#include "../include/hw_queue.h"
-#include "../include/dx_error.h"
-#include "../include/cipher.h"
-#include "../include/dx_hal_plat.h"
-#include "../include/sym_crypto_driver.h"
+#include "bsp.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_log.h"
+#include "cc_plat.h"
+#include "mlli.h"
+#include "sep_ctx.h"
+#include "hw_queue.h"
+#include "dx_error.h"
+#include "cipher.h"
+#include "dx_hal_plat.h"
+#include "sym_crypto_driver.h"
 #ifdef DX_CC_SEP
-#include "../include/timing.h"
+#include "timing.h"
 #else
 #define TIMING_MARK(index)
 #endif

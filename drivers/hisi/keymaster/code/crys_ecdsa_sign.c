@@ -21,20 +21,20 @@
 /************* Include Files ****************/
 
 /* .............. CRYS level includes ................. */
-#include "../include/dx_vos_mem.h"
-#include "../include/crys.h"
-#include "../include/crys_common.h"
-#include "../include/crys_ccm.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/crys_bypass_api.h"
-#include "../include/cc_acl.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_ecpki_error.h"
-#include "../include/crys_ecpki_local.h"
-#include "../include/crys_ecpki_ecdsa.h"
+#include "dx_vos_mem.h"
+#include "crys.h"
+#include "crys_common.h"
+#include "crys_ccm.h"
+#include "plat_print_dbg.h"
+#include "crys_bypass_api.h"
+#include "cc_acl.h"
+#include "crys_common_math.h"
+#include "crys_ecpki_error.h"
+#include "crys_ecpki_local.h"
+#include "crys_ecpki_ecdsa.h"
 
 /* .............. LLF level includes ................. */
-#include "../include/llf_ecpki_export.h"
+#include "llf_ecpki_export.h"
 
 /* canceling the lint warning:
    Warning 548: else expected */

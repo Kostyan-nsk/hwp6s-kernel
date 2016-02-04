@@ -20,9 +20,9 @@
  
 
 /********************** Include Files **********************************/
-#include "../include/crys.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_common_error.h"
+#include "crys.h"
+#include "crys_common_math.h"
+#include "crys_common_error.h"
 
 /************************ Defines **************************************/
 

@@ -267,8 +267,8 @@ typedef enum tagHKADC_TEMP_PROTECT_E
     HKADC_TEMP_CAMERA1_ID,                   /*11*/
     HKADC_TEMP_DCXO0_LOW,                    /*12*/
     HKADC_TEMP_DCXO1_LOW,                    /*13*/
-	HKADC_TEMP_SCAMERA,                      /*14*/
-	HKADC_TEMP_FLASH,                        /*15*/
+    HKADC_TEMP_SCAMERA,                      /*14*/
+    HKADC_TEMP_FLASH,                        /*15*/
 
 
 	HKADC_TEMP_BUTT

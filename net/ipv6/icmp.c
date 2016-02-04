@@ -382,6 +382,7 @@ void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	int len;
 	int hlimit;
 	int err = 0;
+	u32 mark = IP6_REPLY_MARK(net, skb->mark);
 
 	if ((u8 *)hdr < skb->head ||
 	    (skb->network_header + sizeof(*hdr)) > skb->tail)
@@ -444,9 +445,10 @@ void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_proto = IPPROTO_ICMPV6;
-	ipv6_addr_copy(&fl6.daddr, &hdr->saddr);
+	fl6.daddr = hdr->saddr;
 	if (saddr)
-		ipv6_addr_copy(&fl6.saddr, saddr);
+		fl6.saddr = *saddr;
+	fl6.flowi6_mark = mark;
 	fl6.flowi6_oif = iif;
 	fl6.fl6_icmp_type = type;
 	fl6.fl6_icmp_code = code;
@@ -455,6 +457,7 @@ void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	sk = icmpv6_xmit_lock(net);
 	if (sk == NULL)
 		return;
+	sk->sk_mark = mark;
 	np = inet6_sk(sk);
 
 	if (!icmpv6_xrlim_allow(sk, type, &fl6))
@@ -529,7 +532,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct dst_entry *dst;
 	int err = 0;
 	int hlimit;
-
+    u32 mark = IP6_REPLY_MARK(net, skb->mark);
 	saddr = &ipv6_hdr(skb)->daddr;
 
 	if (!ipv6_unicast_destination(skb))
@@ -540,27 +543,34 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_proto = IPPROTO_ICMPV6;
-	ipv6_addr_copy(&fl6.daddr, &ipv6_hdr(skb)->saddr);
+	fl6.daddr = ipv6_hdr(skb)->saddr;
 	if (saddr)
-		ipv6_addr_copy(&fl6.saddr, saddr);
+		fl6.saddr = *saddr;
 	fl6.flowi6_oif = skb->dev->ifindex;
 	fl6.fl6_icmp_type = ICMPV6_ECHO_REPLY;
+	fl6.flowi6_mark = mark;
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
 	sk = icmpv6_xmit_lock(net);
-	if (sk == NULL)
-		return;
+	if (sk == NULL) {
+        return;
+	}
+	sk->sk_mark = mark;
 	np = inet6_sk(sk);
 
 	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
 		fl6.flowi6_oif = np->mcast_oif;
+	else if (!fl6.flowi6_oif)
+		fl6.flowi6_oif = np->ucast_oif;
 
 	err = ip6_dst_lookup(sk, &dst, &fl6);
-	if (err)
-		goto out;
+	if (err) {
+        goto out;
+	}
 	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), sk, 0);
-	if (IS_ERR(dst))
-		goto out;
+	if (IS_ERR(dst)) {
+        goto out;
+	}
 
 	if (ipv6_addr_is_multicast(&fl6.daddr))
 		hlimit = np->mcast_hops;
@@ -569,7 +579,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
 
-	idev = in6_dev_get(skb->dev);
+	idev = __in6_dev_get(skb->dev);
 
 	msg.skb = skb;
 	msg.offset = 0;
@@ -583,13 +593,10 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (err) {
 		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTERRORS);
 		ip6_flush_pending_frames(sk);
-		goto out_put;
+	} else {
+		err = icmpv6_push_pending_frames(sk, &fl6, &tmp_hdr,
+						 skb->len + sizeof(struct icmp6hdr));
 	}
-	err = icmpv6_push_pending_frames(sk, &fl6, &tmp_hdr, skb->len + sizeof(struct icmp6hdr));
-
-out_put:
-	if (likely(idev != NULL))
-		in6_dev_put(idev);
 	dst_release(dst);
 out:
 	icmpv6_xmit_unlock(sk);
@@ -649,7 +656,6 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	const struct ipv6hdr *orig_hdr;
 	struct icmp6hdr *hdr;
 	u8 type;
-
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 		struct sec_path *sp = skb_sec_path(skb);
 		int nh;
@@ -700,7 +706,6 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	type = hdr->icmp6_type;
 
 	ICMP6MSGIN_INC_STATS_BH(dev_net(dev), idev, type);
-
 	switch (type) {
 	case ICMPV6_ECHO_REQUEST:
 		icmpv6_echo_reply(skb);

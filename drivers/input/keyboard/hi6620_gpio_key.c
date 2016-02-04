@@ -190,6 +190,7 @@ static irqreturn_t k3v2_gpio_key_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+
 static int __devinit k3v2_gpio_key_probe(struct platform_device* pdev)
 {
 	struct k3v2_gpio_key *gpio_key = NULL;
@@ -300,6 +301,7 @@ static int __devinit k3v2_gpio_key_probe(struct platform_device* pdev)
 
 	dev_info(&pdev->dev, "k3v2 gpio key driver probes successfully!\n");
 
+
 	return 0;
 
 err_register_device:
@@ -337,6 +339,7 @@ static int __devexit k3v2_gpio_key_remove(struct platform_device* pdev)
 	platform_set_drvdata(pdev, NULL);
 	kfree(gpio_key);
 	gpio_key = NULL;
+
 	return 0;
 }
 

@@ -20,22 +20,22 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_vos_basetypes.h"
+#include "dx_vos_basetypes.h"
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
-#include "../include/crys_common_math.h"
-#include "../include/crys_common.h"
-#include "../include/llf_pki.h"
-#include "../include/llf_pki_error.h"
-#include "../include/llf_pki_priv_key_db_def.h"
+#include "crys_common_math.h"
+#include "crys_common.h"
+#include "llf_pki.h"
+#include "llf_pki_error.h"
+#include "llf_pki_priv_key_db_def.h"
 
-#include "../include/dx_vos_mem.h"
-#include "../include/dx_cc_regs.h"
-#include "../include/llf_pki_hw_defs.h"
-#include "../include/dx_hal_plat.h"
+#include "dx_vos_mem.h"
+#include "dx_cc_regs.h"
+#include "llf_pki_hw_defs.h"
+#include "dx_hal_plat.h"
 
 /************************ Defines **********************************/
 

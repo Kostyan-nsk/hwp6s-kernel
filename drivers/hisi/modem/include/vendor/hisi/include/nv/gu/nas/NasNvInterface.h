@@ -1144,6 +1144,13 @@ typedef struct
     VOS_UINT8                           uc3GPP2UplmnNotPrefFlg;                    /* ÊÇ·ñ¿ªÆô3GPP2 pref plmn */
     VOS_UINT8                           aucRsv[3];
 }NAS_MMC_NVIM_3GPP2_UPLMN_NOT_PREF_STRU;
+typedef struct
+{
+    VOS_UINT8                           ucHplmnInEplmnDisplayHomeFlg;
+    VOS_UINT8                           ucReserved1;
+    VOS_UINT8                           ucReserved2;
+    VOS_UINT8                           ucReserved3;
+}NAS_MMC_NVIM_ROAM_DISPLAY_CFG_STRU;
 
 /*****************************************************************************
   6 UNION

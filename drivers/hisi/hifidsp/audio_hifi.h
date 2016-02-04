@@ -82,8 +82,9 @@ struct misc_io_dump_buf_param {
 #define HIFI_MISC_IOCTL_TEST            _IOWR('A', 0x74, struct misc_io_senddata_sync_param)   //AP测试消息
 #define HIFI_MISC_IOCTL_WRITE_PARAMS    _IOWR('A', 0x75, struct misc_io_sync_param)            //写算法参数到HIFI
 
-#define HIFI_MISC_IOCTL_DUMP_HIFI       _IOWR('A', 0x75, struct misc_io_dump_buf_param)        //读取HIFI在DDR上的数据并传递至用户空间
-#define HIFI_MISC_IOCTL_DUMP_CODEC      _IOWR('A', 0x76, struct misc_io_dump_buf_param)        //读取CODEC寄存器并传递至用户空间
+#define HIFI_MISC_IOCTL_DUMP_HIFI       _IOWR('A', 0x76, struct misc_io_dump_buf_param)        //读取HIFI在DDR上的数据并传递至用户空间
+#define HIFI_MISC_IOCTL_DUMP_CODEC      _IOWR('A', 0x77, struct misc_io_dump_buf_param)        //读取CODEC寄存器并传递至用户空间
+#define HIFI_MISC_IOCTL_WAKEUP_THREAD   _IOW('A',  0x78, unsigned long)                        //唤醒read线程,正常退出
 
 #endif // _AUDIO_HIFI_H
 

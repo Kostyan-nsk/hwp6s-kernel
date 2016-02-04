@@ -81,7 +81,7 @@
 #define OV8858_VTS_REG_L		            0x380f
 
 #define OV8858_APERTURE_FACTOR              200 //F2.0
-//#define OV8858_EQUIVALENT_FOCUS	            0
+#define OV8858_EQUIVALENT_FOCUS	            28//27.19mm
 
 #define OV8858_AP_WRITEAE_MODE
 #define OV8858_MAX_ANALOG_GAIN	            16
@@ -1124,6 +1124,12 @@ void ov8858_get_flash_awb(flash_platform_t type, awb_gain_t *flash_awb)
 	print_info("ov8858_get_flash_awb: type 0x%x,", type);
 }
 
+static int ov8858_get_equivalent_focus(void)
+{
+    print_debug("enter %s", __func__);
+    return OV8858_EQUIVALENT_FOCUS;
+}
+
 #ifdef OV8858_OTP
 otp_group_index ov8858_check_otp_item(u16 reg_addr)
 {
@@ -1137,7 +1143,7 @@ otp_group_index ov8858_check_otp_item(u16 reg_addr)
 	ov8858_write_reg(0x3d8A, (reg_addr>>8),0x00);//partial mode OTP write end address
 	ov8858_write_reg(0x3d8B, (reg_addr&0xff),0x00);
 	ov8858_write_reg(0x3d81, 0x01,0x00); //read otp func enable
-	mdelay(5);
+	mdelay(20);
 
 	ov8858_read_reg(reg_addr, &buf);
 
@@ -1145,7 +1151,7 @@ otp_group_index ov8858_check_otp_item(u16 reg_addr)
 	if(0x01 == flag){
 		group_index = OTP_GROUP_THREE_VALID;
 		goto GROUP_SUCCESS;
-	}else if(0x10 == flag || 0x11 == flag){
+	}else if(0x02 == flag || 0x03 == flag){
 		goto GROUP_FAIL;
 	}
 
@@ -1153,7 +1159,7 @@ otp_group_index ov8858_check_otp_item(u16 reg_addr)
 	if(0x01 == flag){
 		group_index = OTP_GROUP_TWO_VALID;
 		goto GROUP_SUCCESS;
-	}else if(0x10 == flag || 0x11 == flag){
+	}else if(0x02 == flag || 0x03 == flag){
 		goto GROUP_FAIL;
 	}
 
@@ -1264,7 +1270,7 @@ static void ov8858_otp_read_id(void)
 	ov8858_write_reg(0x3d8A, (address_end>>8), 0x00);	// partial mode OTP write end address
 	ov8858_write_reg(0x3d8B, (address_end & 0xff), 0x00);
 	ov8858_write_reg(0x3d81, 0x01, 0x00);
-	mdelay(5);
+	mdelay(20);
 
 	for(i=0; i<=address_end-address_start; i++){//read reg value
 		ov8858_read_reg(address_start+i,&buf[i]);
@@ -1312,7 +1318,7 @@ static void ov8858_otp_read_awb(void)
 	ov8858_write_reg(0x3d8A, (address_end>>8), 0x00);// partial mode OTP write end address
 	ov8858_write_reg(0x3d8B, (address_end & 0xff), 0x00);
 	ov8858_write_reg(0x3d81, 0x01, 0x00);
-	mdelay(5);
+	mdelay(20);
 
 	for(i=0; i<=address_end-address_start; i++){//read reg value
 		ov8858_read_reg(address_start+i,&buf[i]);
@@ -1425,7 +1431,7 @@ static void ov8858_otp_read_lsc(void)
 	ov8858_write_reg(0x3d8A, (address_end>>8), 0x00);// partial mode OTP write end address
 	ov8858_write_reg(0x3d8B, (address_end & 0xff), 0x00);
 	ov8858_write_reg(0x3d81, 0x01, 0x00);
-	mdelay(5);
+	mdelay(20);
 
 	for(i=0; i<=address_end-address_start; i++){//read reg value
 		ov8858_read_reg(address_start+i,&ov8858_otp.lsc[i]);
@@ -1488,7 +1494,7 @@ static void ov8858_otp_read_vcm(void)
 	ov8858_write_reg(0x3d8A, (address_end>>8), 0x00);// partial mode OTP write end address
 	ov8858_write_reg(0x3d8B, (address_end & 0xff), 0x00);
 	ov8858_write_reg(0x3d81, 0x01, 0x00);
-	mdelay(5);
+	mdelay(20);
 
 	for(i=0; i<=address_end-address_start; i++){//read reg value
 		ov8858_read_reg(address_start+i,&buf[i]);
@@ -1726,7 +1732,7 @@ static void ov8858_set_default(void)
 	ov8858_sensor.sensor_iso_to_gain = ov8858_iso_to_gain;
 
 	ov8858_sensor.get_sensor_aperture = ov8858_get_sensor_aperture;
-	ov8858_sensor.get_equivalent_focus = NULL;
+	ov8858_sensor.get_equivalent_focus = ov8858_get_equivalent_focus;
 
 	ov8858_sensor.set_effect = NULL;
 

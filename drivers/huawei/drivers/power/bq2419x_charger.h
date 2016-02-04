@@ -281,6 +281,12 @@
 #define BQ2419x_NORNAL_ICHRG_VOLTAGE     (3400)
 #define CAPACITY_LEVEL_HIGH_THRESHOLD    (90)
 
+/*high temperature charge voltage*/
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+#define BQ2419x_HIGH_TEMP_RECHARGE_VOLTAGE    (4000)
+#define BQ2419x_HIGH_TEMP_STOP_CHARGE_VOLTAGE    (4100)
+#endif
+
 #define AUX_BATT    "charger/aux_batt"
 
 int bq2419x_register_notifier(struct notifier_block *nb,

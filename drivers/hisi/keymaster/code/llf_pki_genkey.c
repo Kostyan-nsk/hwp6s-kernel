@@ -21,14 +21,14 @@
 
 /************* Include Files *******************************************************/
 
-#include "../include/dx_vos_basetypes.h"
-#include "../include/crys_rsa_types.h"
-#include "../include/crys_common_math.h" 
-#include "../include/llf_pki.h" 
-#include "../include/llf_pki_error.h"
-#include "../include/llf_pki_rsa.h" 
-#include "../include/dx_vos_mem.h"
-#include "../include/llf_pki_hw_defs.h"
+#include "dx_vos_basetypes.h"
+#include "crys_rsa_types.h"
+#include "crys_common_math.h" 
+#include "llf_pki.h" 
+#include "llf_pki_error.h"
+#include "llf_pki_rsa.h" 
+#include "dx_vos_mem.h"
+#include "llf_pki_hw_defs.h"
  
 /************************ Defines **************************************************/
 

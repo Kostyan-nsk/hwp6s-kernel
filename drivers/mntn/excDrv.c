@@ -396,7 +396,7 @@ void systemError(int modId, int arg1, int arg2, char *arg3, int arg3Length)
 
         /*ÏµÍ³¸´Î»*/
         //EXC_WRITE_REG(SOC_SCtrl_SC_SYS_STAT0_ADDR(SOC_SCTRL_BASE_ADDR), 0x48698284);
-        machine_restart("bootloader");
+        machine_restart(NULL);
         return;
     }
 

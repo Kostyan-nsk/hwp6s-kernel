@@ -536,7 +536,6 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
  *	RETURNS:
  *	Pointer to sysfs_dirent if found, NULL if not.
  */
-
 struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 				       const void *ns,
 				       const unsigned char *name)

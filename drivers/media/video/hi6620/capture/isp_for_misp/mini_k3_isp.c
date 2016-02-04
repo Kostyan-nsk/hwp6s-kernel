@@ -468,6 +468,10 @@ int mini_k3_isp_enum_fmt(struct v4l2_fmtdesc *fmt, camera_state state)
 int mini_k3_isp_enum_framesizes(struct v4l2_frmsizeenum *framesizes)
 {
 	print_debug("enter %s()", __func__);
+    
+    if(NULL == isp_data.sensor){
+        return -ENODEV;
+    }
 
 	if (isp_data.sensor->enum_framesizes)
 		return isp_data.sensor->enum_framesizes(framesizes);
@@ -488,9 +492,15 @@ int mini_k3_isp_enum_framesizes(struct v4l2_frmsizeenum *framesizes)
 int mini_k3_isp_enum_frameintervals(struct v4l2_frmivalenum *fi)
 {
 	print_debug("enter %s()", __func__);
-	if (isp_data.sensor->enum_frame_intervals)
-		return isp_data.sensor->enum_frame_intervals(fi);
-	return 0;
+    if(NULL == isp_data.sensor){
+        return -ENODEV;
+    }
+
+    if (isp_data.sensor->enum_frame_intervals)
+        return isp_data.sensor->enum_frame_intervals(fi);
+
+    return 0;
+
 }
 
 /*
@@ -507,6 +517,9 @@ int mini_k3_isp_try_frameintervals(struct v4l2_frmivalenum *fi)
 {
 	print_debug("enter %s()", __func__);
 
+    if(NULL == isp_data.sensor){
+        return -ENODEV;
+    }
 	if (isp_data.sensor->try_frame_intervals)
 		return isp_data.sensor->try_frame_intervals(fi);
 
@@ -1153,6 +1166,9 @@ void mini_k3_isp_auto_focus(int flag)
 {
 	print_debug("enter %s", __func__);
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 
 	if (isp_data.sensor->af_enable) {
 		camera_tune_ops->isp_auto_focus(flag);
@@ -1162,6 +1178,9 @@ void mini_k3_isp_auto_focus(int flag)
 int mini_k3_isp_set_focus_mode(camera_focus mode)
 {
 	print_debug("enter %s", __func__);
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
 	if (isp_data.sensor->af_enable) {
 		if (-1 == camera_tune_ops->isp_set_focus_mode(mode))
@@ -1180,6 +1199,10 @@ int mini_k3_isp_get_focus_mode(void)
 int mini_k3_isp_set_focus_area(mini_focus_area_s *area)
 {
 	print_debug("enter %s", __func__);
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->af_enable) {
 		if (-1 == camera_tune_ops->isp_set_focus_area(area, isp_data.zoom))
 			return -EINVAL;
@@ -1189,6 +1212,9 @@ int mini_k3_isp_set_focus_area(mini_focus_area_s *area)
 
 void mini_k3_isp_get_focus_result(mini_focus_result_s *result)
 {
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->af_enable) {
 		camera_tune_ops->isp_get_focus_result(result);
 	} else {
@@ -1211,6 +1237,9 @@ int mini_k3_isp_set_bracket_info(int *ev)
 int mini_k3_isp_set_anti_shaking(camera_anti_shaking flag)
 {
 	int ret = 0;
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
 	print_debug("enter %s", __func__);
 	if (isp_data.sensor->isp_location == CAMERA_USE_K3ISP) {
@@ -1368,6 +1397,9 @@ int mini_k3_isp_set_gsensor_stat(mini_axis_triple *xyz)
 {
 	print_debug("enter %s", __func__);
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->isp_location == CAMERA_USE_K3ISP) {
 		return camera_tune_ops->set_gsensor_stat(xyz);
 	} else {
@@ -1472,6 +1504,9 @@ int mini_k3_isp_set_scene(camera_scene scene)
 {
 	int ret = 0;
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	print_debug("enter %s", __func__);
 	if (isp_data.sensor->isp_location == CAMERA_USE_K3ISP) {
 		ret = camera_tune_ops->set_scene(scene);
@@ -1536,8 +1571,14 @@ int mini_k3_isp_get_effect(void)
 int mini_k3_isp_set_flash_mode(camera_flash flash_mode)
 {
 	mini_camera_flashlight *flashlight = mini_get_camera_flash();
-    flash_lum_level lum_level = isp_data.sensor->effect->flash.videoflash_level;
+    flash_lum_level lum_level;
 	print_debug("enter %s", __func__);
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
+	lum_level= isp_data.sensor->effect->flash.videoflash_level;
+
 	if (isp_data.sensor->sensor_index != CAMERA_SENSOR_PRIMARY) {
 		print_error("only primary camera support flash");
 		return 0;
@@ -1711,6 +1752,9 @@ int mini_k3_isp_set_zoom_and_center(char preview_running, u32 zoom, u32 user_cen
 	u32 user_full_view_center_y_max;
 	u32 user_full_view_width_before_scale;
 	u32 user_full_view_height_before_scale;
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
 #ifdef ISP_ZSL_ZOOM_FIX
 	if (CAMERA_ZSL_ON == mini_k3_isp_get_zsl_state())
@@ -1935,6 +1979,9 @@ int mini_k3_isp_get_exposure_time(void)
 	int ret = 0;
 	print_debug("enter %s", __func__);
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
 		ret = camera_tune_ops->isp_get_exposure_time();
 	} else if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
@@ -1971,6 +2018,9 @@ int mini_k3_isp_get_actual_iso(void)
 	int ret = 0;
 	print_debug("enter %s", __func__);
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
 		ret = camera_tune_ops->isp_get_actual_iso();
 	} else if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
@@ -1991,6 +2041,9 @@ int mini_k3_isp_get_awb_gain(int withShift)
 {
 	int ret = 0;
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -2004,6 +2057,9 @@ int mini_k3_isp_get_focus_code(void)
 {
 	int ret = 0;
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -2015,6 +2071,9 @@ int mini_k3_isp_get_focus_code(void)
 int mini_k3_isp_get_focus_rect(mini_camera_rect_s *rect)
 {
 	int ret = 0;
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
@@ -2028,6 +2087,9 @@ int mini_k3_isp_get_expo_line(void)
 {
 	int ret = 0;
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -2040,6 +2102,9 @@ int mini_k3_isp_get_sensor_vts(void)
 {
 	int ret = 0;
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -2050,6 +2115,10 @@ int mini_k3_isp_get_sensor_vts(void)
 
 int mini_k3_isp_get_sensor_aperture(void)
 {
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->get_sensor_aperture) {
 		return isp_data.sensor->get_sensor_aperture();
 	}
@@ -2059,6 +2128,9 @@ int mini_k3_isp_get_sensor_aperture(void)
 
 int mini_k3_isp_get_equivalent_focus(void)
 {
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->get_equivalent_focus) {
 		return isp_data.sensor->get_equivalent_focus();
 	}
@@ -2069,6 +2141,9 @@ int mini_k3_isp_get_equivalent_focus(void)
 int mini_k3_isp_get_current_ccm_rgain(void)
 {
 	int ret = 0;
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
@@ -2081,6 +2156,9 @@ int mini_k3_isp_get_current_ccm_rgain(void)
 int mini_k3_isp_get_current_ccm_bgain(void)
 {
 	int ret = 0;
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
@@ -2357,6 +2435,9 @@ int mini_k3_isp_set_hflip(int flip)
 {
 	print_debug("enter %s", __func__);
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->set_hflip)
 		return isp_data.sensor->set_hflip(flip);
 
@@ -2366,6 +2447,9 @@ int mini_k3_isp_get_hflip(void)
 {
 	print_debug("enter %s()", __func__);
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->get_hflip)
 		return isp_data.sensor->get_hflip();
 	return 0;
@@ -2374,6 +2458,9 @@ int mini_k3_isp_set_vflip(int flip)
 {
 	print_debug("enter %s", __func__);
 
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	if (isp_data.sensor->set_vflip)
 		return isp_data.sensor->set_vflip(flip);
 	return 0;
@@ -2381,6 +2468,9 @@ int mini_k3_isp_set_vflip(int flip)
 int mini_k3_isp_get_vflip(void)
 {
 	print_debug("enter %s()", __func__);
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
 	if (isp_data.sensor->get_vflip)
 		return isp_data.sensor->get_vflip();
@@ -2404,17 +2494,29 @@ void mini_k3_isp_set_pm_mode(u8 pm_mode)
 int mini_k3_isp_get_current_vts(void)
 {
 	print_debug("enter %s()", __func__);
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	return isp_hw_ctl->isp_get_current_vts(isp_data.sensor);
 }
 
 int mini_k3_isp_get_current_fps(void)
 {
 	print_debug("enter %s()", __func__);
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	return isp_hw_ctl->isp_get_current_fps(isp_data.sensor);
 }
 int mini_k3_isp_get_band_threshold(void)
 {
 	print_debug("enter %s()", __func__);
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
+
 	return isp_hw_ctl->isp_get_band_threshold(isp_data.sensor, isp_data.anti_banding);
 }
 
@@ -2500,6 +2602,9 @@ int mini_k3_isp_set_zsl_cap_raw(u8 raw_buf_cnt,struct v4l2_pix_format *pixfmt,mi
 {
     u8                                  cnt = 0;
     int                                 ret = 0;
+
+	if(NULL == isp_data.sensor)
+		return -ENODEV;
 
     if (CAMERA_ZSL_ON != mini_k3_isp_get_zsl_state()){
         print_error("%s:zsl_state is off.",__func__);
@@ -3279,4 +3384,8 @@ void mini_k3_isp_cancel_cpuidle_vote(void)
     print_info("%s, remove cpu int latency for cpu idle.", __func__);
 }
 
+void *mini_get_sensor()
+{
+	return (void*)isp_data.sensor;
+}
 /************************ END **************************/

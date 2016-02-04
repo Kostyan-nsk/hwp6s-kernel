@@ -19,14 +19,14 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_INFRA
 
-#include "../include/crys_aes.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/key_buffer.h"
-#include "../include/crys_aes_error.h"
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_macros.h"
-#include "../include/cipher.h"
+#include "crys_aes.h"
+#include "sym_adaptor_driver.h"
+#include "key_buffer.h"
+#include "crys_aes_error.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "dx_macros.h"
+#include "cipher.h"
 
 
 #if (DX_DSCRPTR_QUEUE0_WORD3_NS_BIT_BIT_SHIFT != DX_DSCRPTR_QUEUE0_WORD1_NS_BIT_BIT_SHIFT) || (DX_DSCRPTR_QUEUE0_WORD1_DIN_VIRTUAL_HOST_BIT_SHIFT != DX_DSCRPTR_QUEUE0_WORD3_DOUT_VIRTUAL_HOST_BIT_SHIFT)

@@ -1561,6 +1561,9 @@ typedef struct
     VOS_UINT32                          ulLinkCid;
     APP_ESM_IP_ADDR_STRU                stPDNAddrInfo;
 
+    /* 给APP上报RELEASE IND时(RELEASE CNF不填);    */
+    VOS_UINT32                          ulEpsbId;
+
 }APP_ESM_PDP_RELEASE_CNF_STRU;
 
 typedef APP_ESM_PDP_RELEASE_CNF_STRU APP_ESM_PDP_RELEASE_IND_STRU;

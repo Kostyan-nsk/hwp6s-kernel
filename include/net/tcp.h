@@ -247,6 +247,7 @@ extern int sysctl_tcp_cookie_size;
 extern int sysctl_tcp_thin_linear_timeouts;
 extern int sysctl_tcp_thin_dupack;
 extern int sysctl_tcp_challenge_ack_limit;
+extern int sysctl_tcp_default_init_rwnd;
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -307,6 +308,13 @@ extern struct proto tcp_prot;
 #define TCP_ADD_STATS_USER(net, field, val) SNMP_ADD_STATS_USER((net)->mib.tcp_statistics, field, val)
 #define TCP_ADD_STATS(net, field, val)	SNMP_ADD_STATS((net)->mib.tcp_statistics, field, val)
 
+#ifdef CONFIG_HW_WIFIPRO
+#define WIFIPRO_TCP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.wifipro_tcp_statistics, field)
+#define WIFIPRO_TCP_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.wifipro_tcp_statistics, field)
+#define WIFIPRO_TCP_DEC_STATS(net, field)	SNMP_DEC_STATS((net)->mib.wifipro_tcp_statistics, field)
+#define WIFIPRO_TCP_ADD_STATS_USER(net, field, val) SNMP_ADD_STATS_USER((net)->mib.wifipro_tcp_statistics, field, val)
+#define WIFIPRO_TCP_ADD_STATS(net, field, val)	SNMP_ADD_STATS((net)->mib.wifipro_tcp_statistics, field, val)
+#endif
 extern void tcp_v4_err(struct sk_buff *skb, u32);
 
 extern void tcp_shutdown (struct sock *sk, int how);

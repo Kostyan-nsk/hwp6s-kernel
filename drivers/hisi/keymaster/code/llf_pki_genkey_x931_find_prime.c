@@ -21,15 +21,15 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_vos_basetypes.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/crys_rsa_types.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rnd.h"
-#include "../include/llf_pki.h"
-#include "../include/llf_pki_error.h"
-#include "../include/llf_rnd.h"
-#include "../include/dx_vos_mem.h"
+#include "dx_vos_basetypes.h"
+#include "plat_print_dbg.h"
+#include "crys_rsa_types.h"
+#include "crys_common_math.h"
+#include "crys_rnd.h"
+#include "llf_pki.h"
+#include "llf_pki_error.h"
+#include "llf_rnd.h"
+#include "dx_vos_mem.h"
 
 
 /************************ Defines ******************************/

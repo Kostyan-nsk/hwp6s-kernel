@@ -70,6 +70,7 @@ config_pair  hw_H30_L02_VB_configs [] = {
     {"cypress/slave_address", (unsigned int)26, E_CONFIG_DATA_TYPE_INT },
     {"ddr/type", (unsigned int)0, E_CONFIG_DATA_TYPE_INT },
     {"flash/lm3642", (unsigned int)3, E_CONFIG_DATA_TYPE_INT },
+    {"gas_gauge/battery_is_removable", (unsigned int)1, E_CONFIG_DATA_TYPE_INT },
     {"gas_gauge/bq27510_enable", (unsigned int)0, E_CONFIG_DATA_TYPE_INT },
     {"gas_gauge/charger_enable", (unsigned int)1, E_CONFIG_DATA_TYPE_INT },
     {"gas_gauge/current_offset_a", (unsigned int)1000532, E_CONFIG_DATA_TYPE_INT },

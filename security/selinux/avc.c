@@ -32,6 +32,10 @@
 #include "avc.h"
 #include "avc_ss.h"
 #include "classmap.h"
+#include <linux/log_exception.h>
+#include <linux/timer.h>
+#include <linux/rtc.h>
+#include "audit.h"
 
 #define AVC_CACHE_SLOTS			512
 #define AVC_DEF_CACHE_THRESHOLD		512
@@ -75,6 +79,20 @@ struct avc_callback_node {
 	u32 perms;
 	struct avc_callback_node *next;
 };
+
+#ifdef CONFIG_SECURITY_SELINUX_AVC_APR
+struct avc_denied_node {
+    struct list_head list;
+    u32 ssid;
+    u32 tsid;
+    u16 tclass;
+    u32 requested;
+};
+
+static struct avc_denied_node avc_denied_list_head;
+static int denied_node_count = 0;
+static const int MAX_DENIED_NODE_COUNT = 3;
+#endif
 
 /* Exported via selinufs */
 unsigned int avc_cache_threshold = AVC_DEF_CACHE_THRESHOLD;
@@ -177,6 +195,10 @@ void __init avc_init(void)
 
 	avc_node_cachep = kmem_cache_create("avc_node", sizeof(struct avc_node),
 					     0, SLAB_PANIC, NULL);
+
+#ifdef CONFIG_SECURITY_SELINUX_AVC_APR
+    INIT_LIST_HEAD(&(avc_denied_list_head.list));
+#endif
 
 	audit_log(current->audit_context, GFP_KERNEL, AUDIT_KERNEL, "AVC INITIALIZED\n");
 }
@@ -442,6 +464,173 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 	audit_log_format(ab, " for ");
 }
 
+#ifdef CONFIG_SECURITY_SELINUX_AVC_APR
+static void get_time_stamp(char* timestamp_buf,unsigned int len)
+{
+   struct timeval tv;
+   struct rtc_time tm;
+
+   if(NULL == timestamp_buf) {
+       return;
+   }
+   memset(&tv, 0, sizeof(struct timeval));
+   memset(&tm, 0, sizeof(struct rtc_time));
+   do_gettimeofday(&tv);
+   tv.tv_sec -= sys_tz.tz_minuteswest * 60;
+   rtc_time_to_tm(tv.tv_sec, &tm);
+   snprintf(timestamp_buf,len, "%04d%02d%02d%02d%02d%02d",
+            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
+static int write_log_to_file(const char* contents, const char* path) {
+   struct file *filp = NULL;
+   mm_segment_t old_fs;
+
+   if (NULL == contents || NULL == path) {
+       printk("%s: invalid parameter\n", __FUNCTION__);
+       return -1;
+   }
+
+   filp = filp_open(path, O_RDWR | O_CREAT, 0644);
+   if (IS_ERR(filp)) {
+      printk("%s: filp_open(%s) error, filp=%d\n", __FUNCTION__, path, (int)filp);
+      return -1;
+   }
+
+   old_fs = get_fs();
+   set_fs(KERNEL_DS);
+
+   filp->f_op->write(filp, contents, strlen(contents), &filp->f_pos);
+
+   set_fs(old_fs);
+   filp_close(filp, NULL);
+
+   return 0;
+}
+
+void selinux_apr_client_notify(const char* path) {
+    char cmd[256];
+    char time_buf[16];
+    int ret = 0;
+
+    memset(time_buf, 0, sizeof(time_buf));
+    get_time_stamp(time_buf, sizeof(time_buf));
+
+    memset(cmd, 0, sizeof(cmd));
+    snprintf(cmd, sizeof(cmd), "%s%s%s%s%s%s%s","archive -i ",path,
+             " -o ", time_buf, "_", "SelinuxErr", " -z zip");
+
+    ret = log_to_exception("selinux",cmd);
+    if(ret < 0)
+    {
+       printk("%s : log_to_exception fail\n",__FUNCTION__);
+    }
+}
+
+static char * selinux_black_list [] = {
+    "u:r:shell:s0", // scontext=u:r:shell:s0 don't upload dsm
+    "u:r:adbd:s0", // scontext=u:r:adbd:s0 don't upload dsm
+    "u:r:init:s0", // scontext=u:r:init:s0 don't upload dsm
+};
+
+int selinux_apr_black_list(struct common_audit_data *a)
+{
+    u32 denied = a->selinux_audit_data.denied;
+    u32 ssid   = a->selinux_audit_data.ssid;
+
+    int rc = 0;
+    char *scontext = NULL;
+    u32 scontext_len = 0;
+
+    int index = 0;
+
+    // avc granted don't upload dsm
+    if (denied == 0) {
+       return -1;
+    }
+
+    rc = security_sid_to_context(ssid, &scontext, &scontext_len);
+
+    for (index = 0; index < sizeof(selinux_black_list)/sizeof(char *); index++) {
+        if (strcmp(scontext, selinux_black_list[index]) == 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int selinux_apr_mark(struct common_audit_data *a) {
+
+    struct avc_denied_node *node;
+    int rc = 0;
+
+    node = kmalloc(sizeof(*node), GFP_ATOMIC);
+    if (!node) {
+        rc = -ENOMEM;
+        goto out;
+    }
+
+    node->ssid   = a->selinux_audit_data.ssid;
+    node->tsid   = a->selinux_audit_data.tsid;
+    node->tclass = a->selinux_audit_data.tclass;
+    node->requested  = a->selinux_audit_data.requested;
+
+    list_add_tail(&node->list, &avc_denied_list_head.list);
+ 
+    denied_node_count++;
+out:
+    return rc;
+}
+
+int selinux_apr_has_upload(struct common_audit_data *a) {
+
+    struct avc_denied_node *pnode = NULL;
+    struct list_head *pos = NULL;
+    u32 ssid       = a->selinux_audit_data.ssid;
+    u32 tsid       = a->selinux_audit_data.tsid;
+    u16 tclass     = a->selinux_audit_data.tclass;
+    u32 requested  = a->selinux_audit_data.requested;
+
+    list_for_each(pos, &avc_denied_list_head.list){
+        pnode = list_entry(pos, struct avc_denied_node, list);
+        if (NULL != pnode && ssid == pnode->ssid && tsid == pnode->tsid
+            && tclass == pnode->tclass && requested == pnode->requested) {
+              return -1;
+        }
+    }
+
+    return 0;
+}
+
+static const char* selinux_err_path = "/data/android_logs/selinux_err_log";
+void selinux_apr_upload(struct audit_buffer *ab, struct common_audit_data *a)
+{
+    char *data = NULL;
+    int ret = 0;
+
+    if (selinux_apr_black_list(a) == -1
+        || denied_node_count > MAX_DENIED_NODE_COUNT
+        || selinux_apr_has_upload(a) == -1) {
+        return;
+    }
+
+    audit_log_data(ab, &data);
+
+    if (data == NULL) {
+       return;
+    }
+
+    ret = write_log_to_file(data, selinux_err_path);
+    if (-1 == ret) {
+       return;
+    }
+
+    selinux_apr_client_notify(selinux_err_path);
+    selinux_apr_mark(a);
+}
+#endif
+
 /**
  * avc_audit_post_callback - SELinux specific information
  * will be called by generic audit code
@@ -455,6 +644,15 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 	avc_dump_query(ab, ad->selinux_audit_data.ssid,
 			   ad->selinux_audit_data.tsid,
 			   ad->selinux_audit_data.tclass);
+
+#ifdef CONFIG_SECURITY_SELINUX_AVC_APR
+   if (ad->selinux_audit_data.denied) {
+       audit_log_format(ab, " permissive=%u",
+                        ad->selinux_audit_data.result ? 0 : 1);
+   }
+
+   selinux_apr_upload(ab, ad);
+#endif
 }
 
 /**

@@ -6,7 +6,7 @@
  
   This is an AUTO GENERATED file ! DON'T MODIFY MANUAL! 
   文 件 名   : hi6620_oscar_vul_ve_iomux_blocks.h
-  生成日期   : 2015年1月6日
+  生成日期   : 2015年11月11日
   
 ******************************************************************************/
 

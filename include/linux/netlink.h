@@ -28,6 +28,11 @@
 #ifdef CONFIG_AEGIS
 #define NETLINK_AEGIS_PROTOCOL  21  /* Netlink Socket Protocol Identity */
 #endif
+
+#ifdef CONFIG_HW_WIFIPRO
+#define NETLINK_WIFIPRO_EVENT_NL  24
+#endif
+
 #define NETLINK_HW_KSTATE   30  /* kstate send event to user */
 #define NETLINK_THERMAL     31  /*thermal send event to usr*/
 #define MAX_LINKS 32		

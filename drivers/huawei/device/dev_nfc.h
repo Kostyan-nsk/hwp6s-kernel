@@ -34,13 +34,16 @@
 #define NFC_GPIO_LEVEL_LOW  0
 #define MAX_NFC_CLK_SRC_LEN     64
 #define MAX_NFC_CONF_NAME_LEN   32
+#define MAX_NFC_CHIP_TYPE_LEN   32
 
 struct pn544_i2c_platform_data {
 	unsigned int irq_gpio;
 	unsigned int ven_gpio;
 	unsigned int firm_gpio;
 	unsigned int ven_valid_level;
+	unsigned int card_num;
 	char clock_src[MAX_NFC_CLK_SRC_LEN];
 	char conf_name[MAX_NFC_CONF_NAME_LEN];
+	char chip_type[MAX_NFC_CHIP_TYPE_LEN];
 	int (*gpio_config)(struct pn544_i2c_platform_data *platform_data);
 };

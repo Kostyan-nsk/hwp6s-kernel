@@ -19,7 +19,7 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_vos_sem.h"
+#include "dx_vos_sem.h"
 
 
 

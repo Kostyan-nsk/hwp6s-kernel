@@ -133,7 +133,7 @@ extern u32 k3fd_reg_base_dsi0;
 #define BUS_DFS_FREQ  (150000)
 
 
-extern int g_debug_camerause; 
+extern int g_debug_camerause;
 #if defined(CONFIG_OVERLAY_COMPOSE)
 //channel change flow
 //#define EDC_CH_CHG_SUPPORT
@@ -205,7 +205,7 @@ enum {
 typedef union {
     struct {
         u32         bit_vsync     : 1;
-        u32         bit_display   : 1; 
+        u32         bit_display   : 1;
         u32         bit_backlight : 1;
         u32         reserved      : 29;
     } bits;
@@ -289,7 +289,7 @@ struct k3_fb_data_type {
 	struct work_struct frame_end_work;
 	struct workqueue_struct *frame_end_wq;
 
-	
+
 	bool cmd_mode_refresh;
 	bool cmd_bl_can_set;
 
@@ -443,7 +443,7 @@ extern int                              g2d_start_freq;
 */
 
 void k3_fb_set_backlight(struct k3_fb_data_type *k3fd, u32 bkl_lvl);
-int get_resolution_type(void);  //add for D2 lcd 
+int get_resolution_type(void);  //add for D2 lcd
 void get_lcd_type(struct k3_fb_data_type *k3fd);
 struct platform_device *k3_fb_add_device(struct platform_device *pdev);
 
@@ -469,4 +469,12 @@ void k3_fb_overlay_compose_data_clear(struct k3_fb_data_type *k3fd);
 #endif //CONFIG_OVERLAY_COMPOSE
 int k3_fb_overlay_fence_create(struct sw_sync_timeline *timeline,const char *fence_name,unsigned value);
 int k3_fb_overlay_fence_wait(int fenceFd,long timeout);
+
+#define DSI_BIT_CLK_473  473
+#define DSI_BIT_CLK_480  480
+#define DSI_BIT_CLK_486  486
+#define DSI_BIT_CLK_492  492
+#define DSI_BIT_CLK_499  499
+extern int hisi_fb_sysfs_create(struct platform_device *pdev);
+extern void hisi_fb_sysfs_remove(struct platform_device *pdev);
 #endif /* K3_FB_H */

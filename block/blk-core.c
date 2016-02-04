@@ -66,7 +66,8 @@ static struct workqueue_struct *kblockd_workqueue;
 
 #ifdef CONFIG_HW_SYSTEM_WR_PROTECT
 /*  system write protect flag, 0: disable(default) 1:enable */
-static volatile int ro_secure_debuggable = 0;
+static int ro_secure_debuggable_static = 0;
+static volatile int *ro_secure_debuggable = &ro_secure_debuggable_static;
 /*  system partition number is platform dependent, MUST change it according to platform */
 #define PART_SYSTEM "system"
 #endif
@@ -1803,7 +1804,7 @@ EXPORT_SYMBOL(generic_make_request);
 #ifdef CONFIG_HW_SYSTEM_WR_PROTECT
 int blk_set_ro_secure_debuggable(int state)
 {
-	ro_secure_debuggable = state;
+	*ro_secure_debuggable = state;
 	return 0;
 }
 EXPORT_SYMBOL(blk_set_ro_secure_debuggable);
@@ -1860,7 +1861,7 @@ void submit_bio(int rw, struct bio *bio)
 			 * root user: send write request to mmc driver.
 			 */
 			if (unlikely(name && strstr(name, PART_SYSTEM) != NULL) &&
-					ro_secure_debuggable) {
+					*ro_secure_debuggable) {
 
 				pr_info("[HW]: eMMC protect driver built on %s @ %s, into printk\n", __DATE__, __TIME__);
 				printk(KERN_DEBUG "[HW]:EXT4_ERR_CAPS:%s(%d)[Parent: %s(%d)]: %s block %Lu on %s (%u sectors) %d %s.\n",
@@ -1869,7 +1870,7 @@ void submit_bio(int rw, struct bio *bio)
 						(unsigned long long)bio->bi_sector,
 						name,
 						count,
-						ro_secure_debuggable,
+						*ro_secure_debuggable,
 						(strstr(saved_command_line,"fblock=locked") != NULL) ? "locked" : "unlock");
 
 				bio_endio(bio, 0);
@@ -3066,3 +3067,14 @@ int __init blk_dev_init(void)
 
 	return 0;
 }
+
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT
+int __init ro_secure_debuggable_init(void)
+{
+	ro_secure_debuggable = kzalloc(sizeof(int), GFP_KERNEL);
+	if (!ro_secure_debuggable)
+		ro_secure_debuggable = &ro_secure_debuggable_static;
+	return 0;
+}
+late_initcall(ro_secure_debuggable_init);
+#endif

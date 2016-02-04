@@ -18,11 +18,11 @@
 ********************************************************************/
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_HW_QUEUE
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_log.h"
-#include "../include/hw_queue_defs.h"
-#include "../include/dx_error.h"
-#include "../include/dx_hal.h"
+#include "dx_pal_types.h"
+#include "dx_pal_log.h"
+#include "hw_queue_defs.h"
+#include "dx_error.h"
+#include "dx_hal.h"
 
 /******************************************************************************
 *				FUNCTIONS

@@ -2,15 +2,15 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
-#include "../include/keymaster_hisi.h"
-#include "../include/crys_rsa_build.h"
-#include "../include/crys_rsa_schemes.h"
-#include "../include/crys_rsa_types.h"
-#include "../include/crys.h"
-#include "../include/crys_rsa_kg.h"
-#include "../include/crys_rsa_prim.h"
-#include "../include/dx_cclib.h"
-#include "../include/log.h"
+#include "keymaster_hisi.h"
+#include "crys_rsa_build.h"
+#include "crys_rsa_schemes.h"
+#include "crys_rsa_types.h"
+#include "crys.h"
+#include "crys_rsa_kg.h"
+#include "crys_rsa_prim.h"
+#include "dx_cclib.h"
+#include "log.h"
 
 
 

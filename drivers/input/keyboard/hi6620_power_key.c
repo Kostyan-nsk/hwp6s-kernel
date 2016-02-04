@@ -38,7 +38,9 @@
 #include <asm/irq_regs.h>
 #include <mntn/excDrv.h>
 #include <linux/wakelock.h>
-
+#ifdef CONFIG_HUAWEI_SIMU_PWK_ON
+#include <linux/proc_fs.h>
+#endif
 
 #if defined (CONFIG_ARCH_HI6620)
 #include <linux/pm_qos_params.h>
@@ -64,6 +66,12 @@ bool power_key_ps = false;
 #define MANUAL_DUMP_NV_NAME         "MANUDMP"
 #define BOOT_TO_MANUAL_DUMP_TRUE    (1)
 #define BOOT_TO_MANUAL_DUMP_FALSE   (0)
+
+#ifdef CONFIG_HUAWEI_SIMU_PWK_ON
+extern unsigned char pmussi_reg_read (unsigned int reg_addr);
+extern void pmussi_reg_write (unsigned int reg_addr, unsigned char regval);
+#endif
+
 
 struct k3v2_power_key {
 	struct input_dev *input_dev;
@@ -141,13 +149,23 @@ static irqreturn_t k3v2_power_key_irq_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+#ifdef CONFIG_HUAWEI_SIMU_PWK_ON
+static int clear_sim_pwk_flag_read_proc(char *page,	char **start,
+			off_t	offset,	int	count, int *eof, void *data)
+{
+	  pmussi_reg_write (0x1ab, pmussi_reg_read (0x1ab)&0xfe); //clear bit 0
+      return 1; //only use for clean 0x1ab bit 0  parameter 2 is meaningless
+}
+#endif
 
 static int __devinit k3v2_power_key_probe(struct platform_device* pdev)
 {
 	struct k3v2_power_key *power_key = NULL;
 	struct input_dev *input_dev = NULL;
 	int err;
-
+    #ifdef CONFIG_HUAWEI_SIMU_PWK_ON
+    struct proc_dir_entry *ent;//add by mpf
+	#endif
 	if(NULL == pdev) {
 		printk(KERN_ERR "[Pwrkey]parameter error!\n");
 		err = -EINVAL;
@@ -232,6 +250,14 @@ static int __devinit k3v2_power_key_probe(struct platform_device* pdev)
 	platform_set_drvdata(pdev, power_key);
 	dev_info(&pdev->dev, "k3v2 power key driver probes successfully!\n");
 
+#ifdef CONFIG_HUAWEI_SIMU_PWK_ON
+	  ent = create_proc_entry("clear_sim_pwk_flag", 0664, NULL);
+    if (ent == NULL) {
+      printk("Unable to create /proc/clear_sim_pwk_flag entry\n");
+    }
+    ent->read_proc = clear_sim_pwk_flag_read_proc;
+    ent->write_proc = NULL;
+#endif
 	return 0;
 
 err_register_device:
@@ -271,7 +297,9 @@ static int __devexit k3v2_power_key_remove(struct platform_device *pdev)
 	input_unregister_device(power_key->input_dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(power_key);
-
+	#ifdef CONFIG_HUAWEI_SIMU_PWK_ON
+	remove_proc_entry("clear_sim_pwk_flag", NULL);
+	#endif
 	return 0;
 }
 

@@ -20,7 +20,7 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_pal_types.h"
+#include "dx_pal_types.h"
 
 /************************ Defines ******************************/
 

@@ -21,6 +21,9 @@ enum HISI_COULOMETER_TYPE {
 };
 
 struct battery_charge_param_s{
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    unsigned int      design_capacity;
+#endif
     unsigned int      max_currentmA;
     unsigned int      max_voltagemV;
     unsigned int      max_cin_currentmA;

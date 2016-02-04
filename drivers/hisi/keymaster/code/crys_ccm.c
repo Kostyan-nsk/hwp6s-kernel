@@ -23,11 +23,11 @@
 
 /* .............. CRYS level includes ................. */
 
-#include "../include/dx_vos_mem.h"
+#include "dx_vos_mem.h"
 
-#include "../include/crys.h"
-#include "../include/crys_ccm.h"
-#include "../include/crys_ccm_error.h"
+#include "crys.h"
+#include "crys_ccm.h"
+#include "crys_ccm_error.h"
 
 
 /************************ Defines ******************************/

@@ -38,7 +38,7 @@
 
 extern unsigned int get_boot_into_recovery_flag(void);
 extern int nve_direct_access(struct nve_info_user * user_info);
-static int read_nogui_flag(void)
+int read_nogui_flag(void)
 {
     int ret;
     struct nve_info_user user_info;
@@ -115,9 +115,6 @@ module_exit(name ## _mntn_exit);
 
 CALLER_DECLARE(mcu_freeze_sh, mcu_freeze, "/system/etc/log/mcu_freeze.sh", himntn_gobal_resetlog)
 CALLER_DECLARE(mcu_panic_sh, mcu_panic, "/system/etc/log/mcu_panic.sh", HIMNTN_ALWAYS_RESETLOG)
-CALLER_DECLARE(modem_panic_sh, modem_panic, "/system/etc/log/modem_panic.sh", himntn_modem_resetlog)
-CALLER_DECLARE(modem_reboot_sh, modem_reboot, "/system/etc/log/modem_reboot.sh", himntn_modem_resetlog)
-CALLER_DECLARE(modem_freeze_sh, modem_freeze, "/system/etc/log/modem_freeze.sh", himntn_modem_resetlog)
 CALLER_DECLARE(hifi_freeze_sh, hifi_freeze, "/system/etc/log/hifi_freeze.sh", himntn_hifi_resetlog)
 CALLER_DECLARE(android_freeze_sh, android_freeze, "/system/etc/log/android_freeze.sh", himntn_gobal_resetlog)
 CALLER_DECLARE(android_reboot_sh, android_reboot, "/system/etc/log/android_reboot.sh", himntn_gobal_resetlog)

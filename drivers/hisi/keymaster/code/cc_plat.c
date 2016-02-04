@@ -17,12 +17,12 @@
 * thereunder.                                                      *
 ********************************************************************/
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_log.h"
-#include "../include/dx_cclib.h"
-#include "../include/dx_hal.h"
-#include "../include/cc_plat.h"
-#include "../include/dx_cc_regs.h"
+#include "dx_pal_types.h"
+#include "dx_pal_log.h"
+#include "dx_cclib.h"
+#include "dx_hal.h"
+#include "cc_plat.h"
+#include "dx_cc_regs.h"
 
 /****************************************************************************************/
 /**

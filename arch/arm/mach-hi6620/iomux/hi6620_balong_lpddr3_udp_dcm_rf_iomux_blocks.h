@@ -6,7 +6,7 @@
  
   This is an AUTO GENERATED file ! DON'T MODIFY MANUAL! 
   文 件 名   : hi6620_balong_lpddr3_udp_dcm_rf_iomux_blocks.h
-  生成日期   : 2015年1月6日
+  生成日期   : 2015年11月11日
   
 ******************************************************************************/
 

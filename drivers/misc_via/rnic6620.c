@@ -42,7 +42,7 @@
 #include <linux/timer.h>
 #include <linux/skbuff.h>
 
-#include "../hisi/modem/include/vendor/hisi/include/taf/RnicConfigInterface.h"
+#include <RnicConfigInterface.h>
 
 #define DRIVER_VERSION        "1.0.0"
 

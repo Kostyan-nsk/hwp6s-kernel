@@ -18,18 +18,18 @@
 ********************************************************************/
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_COMPLETION
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_abort.h"
-#include "../include/dx_error.h"
-#include "../include/dx_pal_log.h"
-#include "../include/cc_plat.h"
-#include "../include/bsp.h"
-#include "../include/compiler.h"
-#include "../include/completion.h"
-#include "../include/hw_queue.h"
-#include "../include/dx_hal.h"
-#include "../include/debug.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_abort.h"
+#include "dx_error.h"
+#include "dx_pal_log.h"
+#include "cc_plat.h"
+#include "bsp.h"
+#include "compiler.h"
+#include "completion.h"
+#include "hw_queue.h"
+#include "dx_hal.h"
+#include "debug.h"
 
 
 /******************************************************************************

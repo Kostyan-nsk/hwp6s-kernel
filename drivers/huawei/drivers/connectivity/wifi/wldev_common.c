@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wldev_common.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 $
+ * $Id: wldev_common.c 467328 2014-04-03 01:23:40Z $
  */
 
 #include <osl.h>
@@ -15,17 +15,17 @@
 #include <bcmutils.h>
 #include <hw_wifi.h>
 
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
+#define htod32(i) (i)
+#define htod16(i) (i)
+#define dtoh32(i) (i)
+#define dtoh16(i) (i)
+#define htodchanspec(i) (i)
+#define dtohchanspec(i) (i)
 
 #define	WLDEV_ERROR(args)						\
 	do {										\
-		printk(KERN_ERR "WLDEV-ERROR)BCM-%s : ", __func__);	\
-		printk args;							\
+		printf(KERN_ERR "WLDEV-ERROR) %s : ", __func__);	\
+		printf args;							\
 	} while (0)
 
 extern int dhd_ioctl_entry_local(struct net_device *net, wl_ioctl_t *ioc, int cmd);
@@ -350,14 +350,13 @@ int wldev_set_country(
 		}
 
 		cspec.rev = -1;
-		WLDEV_ERROR(("country_code :%s\n", country_code));
-		if(!strncmp(country_code, "JP", 2)){
-			cspec.rev = 5;
-			WLDEV_ERROR(("change JP to JP/5 for support HT40\n"));
-		}
 		memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
 		memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
+#ifndef HW_CUST_COUNTRY_CODE
+		dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
+#else
 		get_customized_country_code_for_hw((char *)&cspec.country_abbrev, &cspec);
+#endif
 		error = wldev_iovar_setbuf(dev, "country", &cspec, sizeof(cspec),
 			smbuf, sizeof(smbuf), NULL);
 		if (error < 0) {

@@ -19,10 +19,10 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_vos_basetypes.h"
-#include "../include/crys_defs.h"
-#include "../include/crys_version.h"
-#include "../include/crys_rsa_types.h"
+#include "dx_vos_basetypes.h"
+#include "crys_defs.h"
+#include "crys_version.h"
+#include "crys_rsa_types.h"
 
 /************************ Defines *********************************/
 

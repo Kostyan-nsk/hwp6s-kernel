@@ -19,15 +19,15 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_HW_QUEUE
 
-#include "../include/bsp.h"
-#include "../include/compiler.h"
-#include "../include/completion.h"
-#include "../include/hw_queue_defs.h"
-#include "../include/hw_queue.h"
-#include "../include/dx_error.h"
-#include "../include/dx_pal_log.h"
-#include "../include/dx_pal_abort.h"
-#include "../include/debug.h"
+#include "bsp.h"
+#include "compiler.h"
+#include "completion.h"
+#include "hw_queue_defs.h"
+#include "hw_queue.h"
+#include "dx_error.h"
+#include "dx_pal_log.h"
+#include "dx_pal_abort.h"
+#include "debug.h"
 #warning The use of "HW_DESC_LOCK_QUEUE()" macro should be completely removed from \
 	 any related code once the CC54 generic FPGA will be delivered.
 /*

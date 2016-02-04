@@ -23,16 +23,16 @@
 
 /* .............. CRYS level includes ................. */
 
-#include "../include/dx_vos_mem.h"
-#include "../include/crys.h"
-#include "../include/crys_common_math.h"
+#include "dx_vos_mem.h"
+#include "crys.h"
+#include "crys_common_math.h"
 
-#include "../include/crys_ecpki_error.h"
-#include "../include/crys_ecpki_local.h"
+#include "crys_ecpki_error.h"
+#include "crys_ecpki_local.h"
 
 /* .............. LLF level includes and definitions.............. */
-#include "../include/llf_ecpki_export.h"
-#include "../include/cc_acl.h"
+#include "llf_ecpki_export.h"
+#include "cc_acl.h"
 
 /* canceling the lint warning:
    Info 717: do ... while(0) */

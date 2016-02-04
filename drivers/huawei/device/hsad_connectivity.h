@@ -11,5 +11,7 @@ extern int hsad_get_nfc_firm_dload_id(void);
 extern int hsad_get_nfc_ven_valid_level(void);
 extern bool hsad_get_nfc_clk_src(char *clk_src);
 extern bool hsad_get_nfc_conf_name(char *conf);
+extern bool hsad_get_nfc_chip_type(char *chip_type);
+extern int hsad_get_nfc_card_num(void);
 
 #endif /* _HSAD_DEV_H_ */

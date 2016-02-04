@@ -19,18 +19,18 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_API
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/crys_aes.h"
-#include "../include/crys_aes_error.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/cipher.h"
-#include "../include/sep_ctx.h"
-#include "../include/dma_buffer.h"
-#include "../include/key_buffer.h"
-#include "../include/cc_acl.h"
-#include "../include/dx_error.h"
-#include "../include/crys_context_relocation.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "crys_aes.h"
+#include "crys_aes_error.h"
+#include "sym_adaptor_driver.h"
+#include "cipher.h"
+#include "sep_ctx.h"
+#include "dma_buffer.h"
+#include "key_buffer.h"
+#include "cc_acl.h"
+#include "dx_error.h"
+#include "crys_context_relocation.h"
 
 
 #if ( SEP_CTX_SIZE_WORDS > CRYS_AES_USER_CTX_SIZE_IN_WORDS )

@@ -357,6 +357,7 @@ int mini_k3_isp_yuvrect_to_rawrect2(mini_camera_rect_s *yuv, mini_camera_rect_s 
 int mini_k3_isp_rawrect_to_yuvrect(mini_camera_rect_s *yuv, mini_camera_rect_s *raw);
 int mini_k3_isp_antishaking_rect_stat2out(mini_camera_rect_s *out, mini_camera_rect_s *stat);
 int mini_k3_isp_antishaking_rect_out2stat(mini_camera_rect_s *out, mini_camera_rect_s *stat);
+void *mini_get_sensor();
 
 #endif /*__K3_ISP_H__ */
 

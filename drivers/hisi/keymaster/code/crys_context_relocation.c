@@ -25,9 +25,9 @@
  */
 /*#include <stdio.h>
 #include <string.h>*/
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/crys_context_relocation.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "crys_context_relocation.h"
 
 /* Assume standard 4KB page size */
 #define PAGE_SHIFT 12

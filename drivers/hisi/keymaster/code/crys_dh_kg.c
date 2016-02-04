@@ -33,25 +33,25 @@
    */
 
 /************* Include Files ****************/
-#include "../include/dx_vos_mem.h"
-#include "../include/crys_rnd.h"
+#include "dx_vos_mem.h"
+#include "crys_rnd.h"
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/compiler.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/crys_hash.h"
-#include "../include/crys_ccm.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "compiler.h"
+#include "plat_print_dbg.h"
+#include "crys_hash.h"
+#include "crys_ccm.h"
 #ifndef CRYS_NO_PKI_SUPPORT 
-#include "../include/llf_pki_rsa.h"
+#include "llf_pki_rsa.h"
 #endif
-#include "../include/crys_dh_error.h"
-#include "../include/crys_dh.h"
-#include "../include/crys_dh_kg.h"
+#include "crys_dh_error.h"
+#include "crys_dh.h"
+#include "crys_dh_kg.h"
 
 #define RND_ROT32(x) ( (x) >> 16 | (x) << 16 )
 

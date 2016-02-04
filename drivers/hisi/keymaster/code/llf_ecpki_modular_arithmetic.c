@@ -19,17 +19,17 @@
 
  
  
-#include "../include/dx_vos_basetypes.h"
-#include "../include/dx_vos_mem.h"
-#include "../include/crys_defs.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rnd.h"
-#include "../include/llf_pki.h"
-#include "../include/llf_pki_error.h"
-#include "../include/crys_ecpki_types.h"
-#include "../include/llf_ecpki_error.h"
-#include "../include/llf_ecpki.h"
-#include "../include/llf_ecpki_modular_arithmetic.h"
+#include "dx_vos_basetypes.h"
+#include "dx_vos_mem.h"
+#include "crys_defs.h"
+#include "crys_common_math.h"
+#include "crys_rnd.h"
+#include "llf_pki.h"
+#include "llf_pki_error.h"
+#include "crys_ecpki_types.h"
+#include "llf_ecpki_error.h"
+#include "llf_ecpki.h"
+#include "llf_ecpki_modular_arithmetic.h"
 
 /* **************************************** defines ********************************* */
 

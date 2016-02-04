@@ -81,6 +81,8 @@
 #define S5K4E1GX_FOXCONN_CHIP_ID       (0x4e10)
 
 #define S5K4E1GX_FOXCONN_APERTURE_FACTOR    240   //F2.4
+#define S5K4E1GX_EQUIVALENT_FOCUS	       22//22mm
+
 #define S5K4E1GX_FOXCONN_CAM_MODULE_SKIPFRAME     4
 
 #define S5K4E1GX_FOXCONN_HFLIP    0
@@ -661,8 +663,14 @@ int s5k4e1gx_foxconn_power(camera_power_state power)
 {
 	int ret = 0;
 	int val = 0;
+	bool ret_id = 0;
 
-	get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+	ret_id = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+	if (!ret_id) {
+		val = 0;
+		print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
+	}
+
 	if (power == POWER_ON) {
 		if(1 == val){
 			k3_ispldo_power_sensor(power, S_BACKUP_CAMERA_CORE_VDD);
@@ -797,6 +805,7 @@ static int s5k4e1gx_foxconn_init(void)
 {
 	static bool s5k4e1gx_check = false;
 	int val = 0;
+	bool ret = 0;
 	print_debug("%s  ", __func__);
 
 	if (false == s5k4e1gx_check) {
@@ -809,7 +818,13 @@ static int s5k4e1gx_foxconn_init(void)
 
 	k3_ispio_power_init(S_CAMERA_ANALOG_VDD, LDO_VOLTAGE_28V, LDO_VOLTAGE_28V);	/*analog 2.85V - sec camera*/
 	//k3_ispio_power_init(S_CAMERA_IO_VDD, LDO_VOLTAGE_18V, LDO_VOLTAGE_18V);		/*IO 1.8V - sec camera*/
-	get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+
+	ret = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+	if (!ret) {
+		val = 0;
+		print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
+	}
+
 	if(1 == val){
 		k3_ispio_power_init(S_BACKUP_CAMERA_CORE_VDD, LDO_VOLTAGE_18V, LDO_VOLTAGE_18V);		/*IO 1.8V - sec camera*/
 	}else{
@@ -923,6 +938,12 @@ static void s5k4e1gx_foxconn_shut_down(void)
 	k3_ispgpio_power_sensor(&s5k4e1gx_foxconn_sensor, POWER_OFF);
 }
 
+static int s5k4e1gx_get_equivalent_focus(void)
+{
+    print_debug("enter %s", __func__);
+    return S5K4E1GX_EQUIVALENT_FOCUS;
+}
+
 /*
  **************************************************************************
  * FunctionName: s5k4e1gx_foxconn_set_default;
@@ -936,7 +957,12 @@ static void s5k4e1gx_foxconn_shut_down(void)
 static void s5k4e1gx_foxconn_set_default(void)
 {
     int val = 0;
-	get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+    bool ret = 0;
+	ret = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+	if (!ret) {
+		val = 0;
+		print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
+	}
 
 	s5k4e1gx_foxconn_sensor.init = s5k4e1gx_foxconn_init;
 	s5k4e1gx_foxconn_sensor.exit = s5k4e1gx_foxconn_exit;
@@ -1028,7 +1054,7 @@ static void s5k4e1gx_foxconn_set_default(void)
 	s5k4e1gx_foxconn_sensor.sensor_iso_to_gain = NULL;
 
 	s5k4e1gx_foxconn_sensor.get_sensor_aperture = s5k4e1gx_foxconn_get_sensor_aperture;
-	s5k4e1gx_foxconn_sensor.get_equivalent_focus = NULL;
+	s5k4e1gx_foxconn_sensor.get_equivalent_focus = s5k4e1gx_get_equivalent_focus;
 
 	s5k4e1gx_foxconn_sensor.isp_location = CAMERA_USE_K3ISP;
 	s5k4e1gx_foxconn_sensor.sensor_tune_ops = NULL;

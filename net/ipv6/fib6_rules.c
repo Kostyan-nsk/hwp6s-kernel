@@ -36,12 +36,12 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 		.lookup_ptr = lookup,
 		.flags = FIB_LOOKUP_NOREF,
 	};
-
 	fib_rules_lookup(net->ipv6.fib6_rules_ops,
 			 flowi6_to_flowi(fl6), flags, &arg);
 
-	if (arg.result)
-		return arg.result;
+	if (arg.result) {
+        return arg.result;
+	}
 
 	dst_hold(&net->ipv6.ip6_null_entry->dst);
 	return &net->ipv6.ip6_null_entry->dst;
@@ -55,7 +55,6 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 	struct fib6_table *table;
 	struct net *net = rule->fr_net;
 	pol_lookup_t lookup = arg->lookup_ptr;
-
 	switch (rule->action) {
 	case FR_ACT_TO_TBL:
 		break;
@@ -72,12 +71,12 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 	}
 
 	table = fib6_get_table(net, rule->table);
-	if (table)
-		rt = lookup(net, table, flp6, flags);
+	if (table) {
+        rt = lookup(net, table, flp6, flags);
+	}
 
 	if (rt != net->ipv6.ip6_null_entry) {
 		struct fib6_rule *r = (struct fib6_rule *)rule;
-
 		/*
 		 * If we need to find a source address for this traffic,
 		 * we check the result if it meets requirement of the rule.
@@ -85,7 +84,6 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 		if ((rule->flags & FIB_RULE_FIND_SADDR) &&
 		    r->src.plen && !(flags & RT6_LOOKUP_F_HAS_SADDR)) {
 			struct in6_addr saddr;
-
 			if (ipv6_dev_get_saddr(net,
 					       ip6_dst_idev(&rt->dst)->dev,
 					       &flp6->daddr,
@@ -95,12 +93,12 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 			if (!ipv6_prefix_equal(&saddr, &r->src.addr,
 					       r->src.plen))
 				goto again;
-			ipv6_addr_copy(&flp6->saddr, &saddr);
+			flp6->saddr = saddr;
 		}
 		goto out;
 	}
 again:
-	dst_release(&rt->dst);
+	ip6_rt_put(rt);
 	rt = NULL;
 	goto out;
 
@@ -214,14 +212,13 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->src_len = rule6->src.plen;
 	frh->tos = rule6->tclass;
 
-	if (rule6->dst.plen)
-		NLA_PUT(skb, FRA_DST, sizeof(struct in6_addr),
-			&rule6->dst.addr);
-
-	if (rule6->src.plen)
-		NLA_PUT(skb, FRA_SRC, sizeof(struct in6_addr),
-			&rule6->src.addr);
-
+	if ((rule6->dst.plen &&
+	     nla_put(skb, FRA_DST, sizeof(struct in6_addr),
+		     &rule6->dst.addr)) ||
+	    (rule6->src.plen &&
+	     nla_put(skb, FRA_SRC, sizeof(struct in6_addr),
+		     &rule6->src.addr)))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:

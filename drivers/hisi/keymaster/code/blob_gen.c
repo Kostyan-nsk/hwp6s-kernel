@@ -18,19 +18,19 @@
 * thereunder.                                                      *
 ********************************************************************/
 
-#include "../include/crys_aes.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/dx_macros.h"
-#include "../include/dx_cclib.h"
+#include "crys_aes.h"
+#include "sym_adaptor_driver.h"
+#include "dx_macros.h"
+#include "dx_cclib.h"
 
-#include "../include/dx_pal_mem.h"
+#include "dx_pal_mem.h"
 
-#include "../include/crys_aesccm.h"
-#include "../include/crys_aesccm_error.h"
-#include "../include/cc_acl.h"
-#include "../include/dx_error.h"
+#include "crys_aesccm.h"
+#include "crys_aesccm_error.h"
+#include "cc_acl.h"
+#include "dx_error.h"
 
-#include "../include/blob_gen.h"
+#include "blob_gen.h"
 
 /************************ Defines ******************************/
 

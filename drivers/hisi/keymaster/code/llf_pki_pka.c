@@ -22,26 +22,26 @@
  * All the includes that are needed for code using this module to
  * compile correctly should be #included here.
  */
-#include "../include/dx_vos_mem.h"
-#include "../include/dx_vos_memmap.h"
-#include "../include/dx_vos_basetypes.h"
+#include "dx_vos_mem.h"
+#include "dx_vos_memmap.h"
+#include "dx_vos_basetypes.h"
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
 
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/llf_pki.h"
-#include "../include/llf_pki_error.h"
-#include "../include/llf_pki_rsa.h"
-#include "../include/bsp.h"
-#include "../include/dx_cc_regs.h"
-#include "../include/llf_pki_hw_defs.h"
-#include "../include/dx_hal_plat.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "llf_pki.h"
+#include "llf_pki_error.h"
+#include "llf_pki_rsa.h"
+#include "bsp.h"
+#include "dx_cc_regs.h"
+#include "llf_pki_hw_defs.h"
+#include "dx_hal_plat.h"
 #ifdef LLF_PKI_PKA_DEBUG /* for debug goals only */
-#include "../include/plat_print_dbg.h"
+#include "plat_print_dbg.h"
 #endif
 
 

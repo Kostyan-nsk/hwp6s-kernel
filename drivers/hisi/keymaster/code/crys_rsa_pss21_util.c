@@ -27,18 +27,18 @@
  #ifndef CRYS_NO_PKI_SUPPORT                                      
 
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
 
 
-#include "../include/dx_vos_mem.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rsa_local.h"
-#include "../include/crys_rsa_error.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/crys_hash.h"
+#include "dx_vos_mem.h"
+#include "crys_common_math.h"
+#include "crys_rsa_local.h"
+#include "crys_rsa_error.h"
+#include "plat_print_dbg.h"
+#include "crys_hash.h"
  
  /* canceling the lint warning:
    Use of goto is deprecated */

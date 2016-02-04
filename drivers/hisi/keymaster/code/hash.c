@@ -19,18 +19,18 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_SYM_DRIVER
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/sym_crypto_driver.h"
-#include "../include/dx_error.h"
-#include "../include/cc_plat.h"
-#include "../include/bsp.h"
-#include "../include/mlli.h"
-#include "../include/hw_queue.h"
-#include "../include/sep_ctx.h"
-#include "../include/hash_defs.h"
-#include "../include/hash.h"
-#include "../include/completion.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "sym_crypto_driver.h"
+#include "dx_error.h"
+#include "cc_plat.h"
+#include "bsp.h"
+#include "mlli.h"
+#include "hw_queue.h"
+#include "sep_ctx.h"
+#include "hash_defs.h"
+#include "hash.h"
+#include "completion.h"
 
 
 DX_PAL_COMPILER_ASSERT(sizeof(struct sep_ctx_hash)==SEP_CTX_SIZE,"sep_ctx_hash is larger than 128 bytes!");

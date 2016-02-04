@@ -1101,38 +1101,4 @@ VOS_UINT32 atRdTbatCnf(VOS_UINT8 ucClientId, VOS_VOID *pMsgBlock)
 
     return AT_OK;
 }
-/*begin_added by s00184745 for BT TDS NOSIG*///*****************************************************************************
-// 功能描述: 设置发射机的发射功率//
-// 参数说明://   ulIndex [in] ...
-//                ...//
-// 返 回 值:
-//    TODO: ...
-//*****************************************************************************
-VOS_UINT32 atSetFPOWPara(VOS_UINT8 ucClientId)
-{
-    FTM_FPOW_REQ_STRU stFPOWSetReq = {0};
-    VOS_UINT32 ulRst = 0;
-    VOS_INT16 sPower = 0;
-    /*lint -e516*/
-    HAL_SDMLOG("-----enter:[%s] \n", __FUNCTION__);
-    /*lint -e516*/
-    // 参数检查
-    if(AT_CMD_OPT_SET_PARA_CMD != g_stATParseCmd.ucCmdOptType)    {        return AT_CME_INCORRECT_PARAMETERS;    }    if(1 != gucAtParaIndex)    {        return AT_CME_INCORRECT_PARAMETERS;    }     if(0 != gastAtParaList[0].usParaLen)    {        //sPower = (S16_T)atoi((CONST CHAR_T*)(gastAtParaList[0].aucPara));        //sPower = gastAtParaList[0].ulParaValue;        ulRst = initParaListS16((AT_PARSE_PARA_TYPE_STRU *)(&(gastAtParaList[0])),1,(VOS_INT16*)(&sPower));        if(ulRst != ERR_MSP_SUCCESS)        {            return AT_CME_INCORRECT_PARAMETERS;        }
-                if(-60 > sPower || 24 < sPower)
-        {
-            return AT_CME_INCORRECT_PARAMETERS;
-        }
-    }
-    else
-    {
-        return AT_CME_INCORRECT_PARAMETERS;
-    }
-    stFPOWSetReq.sPower = sPower;
-          //(S16_T)(gastAtParaList[0].ulParaValue);
-    HAL_SDMLOG("-----[%s]:send data to C-core \n", __FUNCTION__);    // lkf58113 @ 20110929 采用新的发送函数:atSendFtmDataMsg
-    ulRst = atSendFtmDataMsg(MSP_SYS_FTM_PID, ID_MSG_FTM_FPOW_REQ, ucClientId, (VOS_VOID*)(&stFPOWSetReq), sizeof(stFPOWSetReq));
-    if(AT_SUCCESS == ulRst)
-    {
-        // 设置当前操作类型
-        gastAtClientTab[ucClientId].CmdCurrentOpt = AT_CMD_FPOW_SET;
-        return AT_WAIT_ASYNC_RETURN;            // 返回命令处理挂起状态     }    return AT_ERROR;}VOS_UINT32 atSetFPOWParaCnfProc(VOS_UINT8 ucClientId, VOS_VOID*pMsgBlock){    OS_MSG_STRU* pEvent = NULL;    FTM_FPOW_CNF_STRU *pstCnf = NULL;    pEvent = (OS_MSG_STRU*)(((MsgBlock*)pMsgBlock)->aucValue);    pstCnf = (FTM_FPOW_CNF_STRU *)pEvent->ulParam1;    CmdErrProc(ucClientId, pstCnf->ulErrCode, 0, NULL);    return AT_FW_CLIENT_STATUS_READY;    }/*END _ADDED by s00184745 for BT TDS NOSIG*/
+//*****************************************************************************// 功能描述: 设置发射机的发射功率//// 参数说明://   ulIndex [in] ...//                ...//// 返 回 值://    TODO: ...//*****************************************************************************VOS_UINT32 atSetFPOWPara(VOS_UINT8 ucClientId){    FTM_FPOW_REQ_STRU stFPOWSetReq = {0};    VOS_UINT32 ulRst = 0;    VOS_INT16 sPower = 0;    /*lint -e516*/    HAL_SDMLOG("-----enter:[%s] \n", __FUNCTION__);    /*lint -e516*/    // 参数检查    if(AT_CMD_OPT_SET_PARA_CMD != g_stATParseCmd.ucCmdOptType)    {        return AT_CME_INCORRECT_PARAMETERS;    }    if(1 != gucAtParaIndex)    {        return AT_CME_INCORRECT_PARAMETERS;    }     if(0 != gastAtParaList[0].usParaLen)    {        //sPower = (S16_T)atoi((CONST CHAR_T*)(gastAtParaList[0].aucPara));        //sPower = gastAtParaList[0].ulParaValue;        ulRst = initParaListS16((AT_PARSE_PARA_TYPE_STRU *)(&(gastAtParaList[0])),1,(VOS_INT16*)(&sPower));        if(ulRst != ERR_MSP_SUCCESS)        {            return AT_CME_INCORRECT_PARAMETERS;        }                if(-60 > sPower || 24 < sPower)        {            return AT_CME_INCORRECT_PARAMETERS;        }    }    else    {        return AT_CME_INCORRECT_PARAMETERS;    }    stFPOWSetReq.sPower = sPower;          //(S16_T)(gastAtParaList[0].ulParaValue);    HAL_SDMLOG("-----[%s]:send data to C-core \n", __FUNCTION__);    ulRst = atSendFtmDataMsg(MSP_SYS_FTM_PID, ID_MSG_FTM_FPOW_REQ, ucClientId, (VOS_VOID*)(&stFPOWSetReq), sizeof(stFPOWSetReq));    if(AT_SUCCESS == ulRst)    {        // 设置当前操作类型        gastAtClientTab[ucClientId].CmdCurrentOpt = AT_CMD_FPOW_SET;        return AT_WAIT_ASYNC_RETURN;         }    return AT_ERROR;}VOS_UINT32 atSetFPOWParaCnfProc(VOS_UINT8 ucClientId, VOS_VOID*pMsgBlock){    OS_MSG_STRU* pEvent = NULL;    FTM_FPOW_CNF_STRU *pstCnf = NULL;    pEvent = (OS_MSG_STRU*)(((MsgBlock*)pMsgBlock)->aucValue);    pstCnf = (FTM_FPOW_CNF_STRU *)pEvent->ulParam1;    CmdErrProc(ucClientId, pstCnf->ulErrCode, 0, NULL);    return AT_FW_CLIENT_STATUS_READY;    }

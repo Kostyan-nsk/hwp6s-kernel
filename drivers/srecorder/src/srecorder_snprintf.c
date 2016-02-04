@@ -72,7 +72,7 @@ int srecorder_snprintf(char *buf, size_t size, const char *fmt, ...)
     int i = 0;
 
     va_start(args, fmt);
-    i = vscnprintf(buf, size, fmt, args);
+    i = vsnprintf(buf, size, fmt, args);
     va_end(args);
 
     return i;

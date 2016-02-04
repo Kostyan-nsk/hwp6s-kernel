@@ -10,6 +10,7 @@ static struct hisi_smartstar_product_index_map product_index_map[] = {
     {"EDGE_PLUS", SS_PRODUCT_INDEX_0},
     {"OSCAR", SS_PRODUCT_INDEX_1},
     {"SOPHIA", SS_PRODUCT_INDEX_2},
+    {"H30", SS_PRODUCT_INDEX_3},
 };
 
 

@@ -143,6 +143,7 @@ enum SYS_NV_ID_ENUM
 /*   150 */      en_NV_Item_MTC_RF_LCD_CFG = GU_SYS_NV_ID_MIN + 150,
 /*   151 */      en_NV_Item_MTC_RF_LCD_TIMER_INTERVAL_CFG = GU_SYS_NV_ID_MIN + 151,
 /*   2049*/      en_NV_Item_OM_Port_Num = GU_SYS_NV_ID_MIN + 2049,
+/*  2319 */     en_NV_Item_Roam_Display_Cfg = 2319,
 /*   8250*/      en_NV_Item_GCF_TYPE_CONTENT_ID = 8250,
 /*   8517*/      en_NV_Item_ENHANCE_SIMCARD_LOCK_STATUS = 8517,
 /*   8518*/      en_NV_Item_GENHANCE_SIMCARD_REMAIN_TIMES = 8518,

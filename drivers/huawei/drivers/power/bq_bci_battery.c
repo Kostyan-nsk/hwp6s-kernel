@@ -295,6 +295,7 @@ static int bq_force_full_timer(int curr_capacity, struct bq_bci_device_info *di)
 static int bq_capacity_pulling_filter(int curr_capacity, struct bq_bci_device_info *di)
 {
     int index = 0;
+    int i,cnt;
     di->bat_exist = is_hisi_battery_exist();
 
     if ((!di->bat_exist) || (is_fake_battery)){
@@ -303,16 +304,24 @@ static int bq_capacity_pulling_filter(int curr_capacity, struct bq_bci_device_in
     }
     index = di->capacity_filter_count%WINDOW_LEN;
 
-    capacity_sum -= capacity_filter[index];
     capacity_filter[index] = curr_capacity;
-    capacity_sum += capacity_filter[index];
 
-    if (++di->capacity_filter_count >= WINDOW_LEN) {
-        di->capacity_filter_count = 0;
+    di->capacity_filter_count++;
+
+    if (di->capacity_filter_count > WINDOW_LEN) {
+        cnt = WINDOW_LEN;
+    }
+    else {
+        cnt = di->capacity_filter_count;
+    }
+
+    capacity_sum = 0;
+    for (i=0; i<cnt; i++) {
+        capacity_sum += capacity_filter[i];
     }
 
     /*rounding-off 0.5 method*/
-    curr_capacity = (capacity_sum*10)/WINDOW_LEN;
+    curr_capacity = (capacity_sum*10)/cnt;
     curr_capacity = (curr_capacity+5)/10;
 
     return curr_capacity;
@@ -325,8 +334,23 @@ static int capacity_changed(struct bq_bci_device_info *di)
     int low_bat_flag = is_hisi_battery_reach_threshold();
     int ambient_temperature = 0;
     struct battery_charge_param_s param;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    int batt_old_exist;
 
+    batt_old_exist = di->bat_exist;
+#endif
     di->bat_exist = is_hisi_battery_exist();
+
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    if (batt_old_exist^di->bat_exist){
+        dev_info(di->dev,"Battery Present changed = %d!\n", di->bat_exist);
+        return 1;
+    }
+
+    if(!di->bat_exist){
+        di->capacity_filter_count = 0;
+    }
+#endif
 
     /* if battery is not present we assume it is on battery simulator
     *  if we are in factory mode, BAT FW is not updated yet, we use volt2Capacity
@@ -493,6 +517,11 @@ static int bq_charger_event(struct notifier_block *nb, unsigned long event,
         wake_lock(&low_power_lock);
         is_low_power_locked = 1;
         break;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    case BATTERY_MOVE:
+        di->bat_exist = is_hisi_battery_exist();
+        break;
+#endif
     default:
         dev_err(di->dev, "%s defualt run.\n", __func__);
         break;
@@ -1124,6 +1153,9 @@ static void bq_bci_battery_shutdown(struct platform_device *pdev)
         return;
     }
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    bq_unregister_notifier(&di->nb, 1);
+#endif
     cancel_delayed_work(&di->bq_bci_monitor_work);
 
     wake_lock_destroy(&low_power_lock);

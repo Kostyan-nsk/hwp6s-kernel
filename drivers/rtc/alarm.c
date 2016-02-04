@@ -68,7 +68,7 @@ static struct platform_device *alarm_platform_dev;
 struct alarm_queue alarms[ANDROID_ALARM_TYPE_COUNT];
 static bool suspended;
 
-#define ALARM_AHEAD_TIME    (60)
+#define ALARM_AHEAD_TIME    (90)
 struct rtc_wkalrm poweroff_rtc_alarm;
 static void check_rtc_alarm_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(check_rtc_work, check_rtc_alarm_work);

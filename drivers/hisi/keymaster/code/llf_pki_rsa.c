@@ -21,26 +21,26 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_vos_mem.h"
-#include "../include/dx_vos_memmap.h"
-#include "../include/dx_vos_basetypes.h"
+#include "dx_vos_mem.h"
+#include "dx_vos_memmap.h"
+#include "dx_vos_basetypes.h"
 
-#include "../include/crys_common_math.h"
+#include "crys_common_math.h"
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
-#include "../include/plat_print_dbg.h"
+#include "plat_print_dbg.h"
 
-#include "../include/crys_rsa_local.h"
-#include "../include/llf_pki.h"
-#include "../include/llf_pki_error.h"
-#include "../include/llf_pki_rsa.h"
-#include "../include/llf_pki_pub_key_db_def.h"
-#include "../include/llf_pki_priv_key_db_def.h"
-#include "../include/llf_pki_key_gen_db_def.h"
-#include "../include/dx_vos_sem.h"
+#include "crys_rsa_local.h"
+#include "llf_pki.h"
+#include "llf_pki_error.h"
+#include "llf_pki_rsa.h"
+#include "llf_pki_pub_key_db_def.h"
+#include "llf_pki_priv_key_db_def.h"
+#include "llf_pki_key_gen_db_def.h"
+#include "dx_vos_sem.h"
 
 
 /* canceling the lint warning:

@@ -18,12 +18,12 @@
 ********************************************************************/
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_SYM_DRIVER
 
-#include "../include/dx_pal_log.h"
-#include "../include/bypass.h"
-#include "../include/dx_macros.h"
-#include "../include/hw_queue_defs.h"
-#include "../include/hw_queue.h"
-#include "../include/dx_error.h"
+#include "dx_pal_log.h"
+#include "bypass.h"
+#include "dx_macros.h"
+#include "hw_queue_defs.h"
+#include "hw_queue.h"
+#include "dx_error.h"
 
 /******************************************************************************
 *				PRIVATE FUNCTIONS

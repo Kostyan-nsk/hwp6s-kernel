@@ -19,19 +19,19 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_API
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_compiler.h"
-#include "../include/crys_combined.h"
-#include "../include/crys_combined_error.h"
-#include "../include/combined.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/hw_queue_defs.h"
-#include "../include/completion.h"
-#include "../include/dma_buffer.h"
-#include "../include/cc_acl.h"
-#include "../include/dx_error.h"
-#include "../include/crys_context_relocation.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_compiler.h"
+#include "crys_combined.h"
+#include "crys_combined_error.h"
+#include "combined.h"
+#include "sym_adaptor_driver.h"
+#include "hw_queue_defs.h"
+#include "completion.h"
+#include "dma_buffer.h"
+#include "cc_acl.h"
+#include "dx_error.h"
+#include "crys_context_relocation.h"
 
 int GetHashDigestSize(enum sep_hash_mode mode, uint32_t *digestSize);
 

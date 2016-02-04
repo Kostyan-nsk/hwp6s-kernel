@@ -19,19 +19,19 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_SYM_DRIVER
 
-#include "../include/bsp.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/cc_plat.h"
-#include "../include/mlli.h"
-#include "../include/hw_queue.h"
-#include "../include/sep_ctx.h"
-#include "../include/completion.h"
-#include "../include/dx_error.h"
-#include "../include/combined.h"
-#include "../include/cipher.h"
-#include "../include/hash.h"
-#include "../include/crys_combined.h"
-#include "../include/cc_plat.h"
+#include "bsp.h"
+#include "dx_pal_mem.h"
+#include "cc_plat.h"
+#include "mlli.h"
+#include "hw_queue.h"
+#include "sep_ctx.h"
+#include "completion.h"
+#include "dx_error.h"
+#include "combined.h"
+#include "cipher.h"
+#include "hash.h"
+#include "crys_combined.h"
+#include "cc_plat.h"
 
 
 /*!

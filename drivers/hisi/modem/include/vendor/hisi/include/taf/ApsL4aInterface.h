@@ -981,7 +981,7 @@ typedef struct
     VOS_UINT32                          ulLinkCid;                              /* Linked CID */
     APS_L4A_PDP_ADDR_STRU               stIpAddrInfo;                           /* IPµÿ÷∑    */
     VOS_UINT32                          ulEsmCause;                             /* ESM Cause  */
-
+    VOS_UINT32                          ulEpsbId;
 } APS_L4A_PDP_DEACTIVATE_IND_STRU;
 
 

@@ -1141,6 +1141,8 @@ static struct device_attribute *android_usb_attributes[] = {
 	&dev_attr_state,
 	&dev_attr_portNum,
 	&dev_attr_switch_request,
+	&dev_attr_port_mode,
+	&dev_attr_switch_index,
 	NULL
 };
 

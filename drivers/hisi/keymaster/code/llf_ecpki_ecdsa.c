@@ -23,26 +23,26 @@
 /************* Include Files ****************/
 
 /* .............. CRYS level includes ................. */
-#include "../include/dx_vos_mem.h"
-#include "../include/dx_vos_memmap.h"
-#include "../include/crys_rnd.h"
-#include "../include/crys_ccm.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_ecpki_kg.h"
-#include "../include/crys_ecpki_error.h"
-#include "../include/crys_ecpki_local.h"
+#include "dx_vos_mem.h"
+#include "dx_vos_memmap.h"
+#include "crys_rnd.h"
+#include "crys_ccm.h"
+#include "plat_print_dbg.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "crys_ecpki_kg.h"
+#include "crys_ecpki_error.h"
+#include "crys_ecpki_local.h"
 
-#include "../include/llf_pki.h"
-#include "../include/llf_ecpki.h"
-#include "../include/llf_ecpki_ec_arithmetic.h"
-#include "../include/llf_ecpki_modular_arithmetic.h"
-#include "../include/llf_ecpki_defs.h"
+#include "llf_pki.h"
+#include "llf_ecpki.h"
+#include "llf_ecpki_ec_arithmetic.h"
+#include "llf_ecpki_modular_arithmetic.h"
+#include "llf_ecpki_defs.h"
 
 
 #ifndef DX_OEM_FW
-#include "../include/dx_vos_sem.h"
+#include "dx_vos_sem.h"
 #else //DX_OEM_FW
 #define DX_VOS_SemWait(SemPkaId,timeout)  CRYS_OK
 #define DX_VOS_SemGive(SemPkaId)

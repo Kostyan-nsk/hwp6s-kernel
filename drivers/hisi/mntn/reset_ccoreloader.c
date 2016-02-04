@@ -181,7 +181,6 @@ int ccorereset_loadbbebin(void)
     if(RFILE_OK != iRet)
     {
         printk(KERN_ERR "%s: read bbe16 bin fail\n", __FUNCTION__);
-        iounmap((void*)buff);
     }
 
     iounmap((void*)buff);

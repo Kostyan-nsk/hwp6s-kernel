@@ -25,7 +25,7 @@ struct drv_hkadc_map g_hkadc_chan_map[] = {
     {HKADC_TEMP_SYSTEML,    HKADC_CHAN_INVALID,   0, 0, 0, "systeml"},    
     {HKADC_TEMP_BATT_ID,    HKADC_CHAN_INVALID,   0, 0, 0, "batt_id"},    
     {HKADC_TEMP_CAMERA0_ID, HKADC_CHAN_INVALID,   0, 0, 0, "camera0_id"},
-    {HKADC_TEMP_CAMERA1_ID, HKADC_CHAN_INVALID,   0, 0, 0, "camera1_id"},    
+    {HKADC_TEMP_CAMERA1_ID, HKADC_CHAN_INVALID,   0, 0, 0, "camera1_id"},
     {HKADC_TEMP_DCXO0_LOW,  HKADC_CHAN_INVALID,   en_NV_Item_XO_LOW_TEMP_SENSOR_TABLE,  32, 0, "dcxo_0_low"},
     {HKADC_TEMP_DCXO1_LOW,  HKADC_CHAN_INVALID,   en_NV_Item_XO_TEMP_SENSOR_TABLE,  32, 1, "dcxo_1_low"},    
     {HKADC_TEMP_SCAMERA,    HKADC_CHAN_INVALID,   0, 0, 0, "scamera"},

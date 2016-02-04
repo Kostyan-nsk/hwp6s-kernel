@@ -20,9 +20,9 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_pal_init.h"
-#include "../include/dx_pal_dma_plat.h"
-#include "../include/dx_pal_log.h"
+#include "dx_pal_init.h"
+#include "dx_pal_dma_plat.h"
+#include "dx_pal_log.h"
 
 //modified by lixiaojie.1012/11/6
 #define WORKSPACE_FREE_MEM_BASE_ADR		0x10000000

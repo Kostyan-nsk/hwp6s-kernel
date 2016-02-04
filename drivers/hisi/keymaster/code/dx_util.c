@@ -19,11 +19,11 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_pal_types.h"
-#include "../include/dx_util.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/dx_error.h"
-#include "../include/crys_context_relocation.h"
+#include "dx_pal_types.h"
+#include "dx_util.h"
+#include "sym_adaptor_driver.h"
+#include "dx_error.h"
+#include "crys_context_relocation.h"
 
 
 #define DX_UTIL_BUFF_IN_WORDS	(sizeof(struct sep_ctx_cipher)/2 + 3)

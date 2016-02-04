@@ -1030,7 +1030,9 @@ STATIC void hiusb_otg_intr_work(struct work_struct *work)
             hiusb_otg_and_phy_cleanup();
             __switch_mhl_id();
             wake_unlock(&hiusb_info->dev_wakelock);
-
+            #ifdef CONFIG_HUAWEI_SIMU_PWK_ON
+	        pmussi_reg_write (0x1ab, pmussi_reg_read(0x1ab)&0xfe);//clear bit 0
+		    #endif
             if(hiusb_info->acpu_idle_remove_request)
             {
                 hiusb_info->acpu_idle_remove_request(lm_dev);

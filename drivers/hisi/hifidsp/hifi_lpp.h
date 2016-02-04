@@ -39,6 +39,7 @@ extern "C" {
 
 /* HIFI专用区 */
 #define OFFSET_HIFI_PRIV        (0x00300000)
+#define HIFI_MUSIC_DATA_SIZE	(0x100000) /* LowPowerPlayer.cpp:MEM_BUFF_SIZE */
 #define HIFI_PRIV_ADDR          (HIFI_SYS_MEM_ADDR + OFFSET_HIFI_PRIV)
 #define SIZE_PARAM_PRIV         (100 * 1024)
 
@@ -71,6 +72,62 @@ typedef enum{
   5 消息定义
 *****************************************************************************/
 
+typedef enum HIFI_MSG_ID_ {
+
+	/*DTS command id from ap*/
+	ID_AP_AUDIO_SET_DTS_ENABLE_CMD		= 0xDD36,
+	ID_AP_AUDIO_SET_DTS_DEV_CMD			= 0xDD38,
+	ID_AP_AUDIO_SET_DTS_GEQ_CMD			= 0xDD39,
+	ID_AP_AUDIO_SET_DTS_GEQ_ENABLE_CMD	= 0xDD3B,
+
+	/* Voice Record */
+	ID_AP_HIFI_VOICE_RECORD_START_CMD	= 0xDD40,
+	ID_AP_HIFI_VOICE_RECORD_STOP_CMD	= 0xDD41,
+
+	/* voicePP MSG_ID */
+	ID_AP_VOICEPP_START_REQ				= 0xDD42,						/* 启动VOICEPP通话 */
+	ID_VOICEPP_MSG_START				= ID_AP_VOICEPP_START_REQ,
+	ID_VOICEPP_AP_START_CNF				= 0xDD43,
+	ID_AP_VOICEPP_STOP_REQ				= 0xDD44,						/* 终止VOICEPP通话 */
+	ID_VOICEPP_AP_STOP_CNF				= 0xDD45,
+	ID_AP_VOICEPP_SET_DEVICE_REQ		= 0xDD46,						/* 配置输入输出设备 */
+	ID_VOICEPP_AP_SET_DEVICE_CNF		= 0xDD47,
+	ID_AP_VOICEPP_SET_WB_REQ			= 0xDD48,						/* 设置宽窄带 */
+	ID_VOICEPP_AP_SET_WB_CNF			= 0xDD49,
+	ID_VOICEPP_MSG_END					= 0xDD4A,
+
+	ID_AP_AUDIO_PLAY_START_REQ			= 0xDD51,/* AP启动Hifi audio player request命令 */
+	ID_AUDIO_AP_PLAY_START_CNF			= 0xDD52,/* Hifi启动audio player后回复AP confirm命令 */
+	ID_AP_AUDIO_PLAY_PAUSE_REQ			= 0xDD53,/* AP停止Hifi audio player request命令 */
+	ID_AUDIO_AP_PLAY_PAUSE_CNF			= 0xDD54,/* Hifi停止audio player后回复AP confirm命令 */
+	ID_AUDIO_AP_PLAY_DONE_IND			= 0xDD56,/* Hifi通知AP audio player一块数据播放完毕或者播放中断indication */
+	ID_AP_AUDIO_PLAY_UPDATE_BUF_CMD 	= 0xDD57,/* AP通知Hifi新数据块更新command */
+	ID_AP_AUDIO_PLAY_QUERY_TIME_REQ 	= 0xDD59,/* AP查询Hifi audio player播放进度request命令 */
+	ID_AP_AUDIO_PLAY_WAKEUPTHREAD_REQ	= 0xDD5A,
+	ID_AUDIO_AP_PLAY_QUERY_TIME_CNF 	= 0xDD60,/* Hifi回复AP audio player播放进度confirm命令 */
+	ID_AP_AUDIO_PLAY_QUERY_STATUS_REQ	= 0xDD61,/* AP查询Hifi audio player播放状态request命令 */
+	ID_AUDIO_AP_PLAY_QUERY_STATUS_CNF	= 0xDD62,/* Hifi回复AP audio player播放状态confirm命令 */
+	ID_AP_AUDIO_PLAY_SEEK_REQ			= 0xDD63,/* AP seek Hifi audio player到某一位置request命令 */
+	ID_AUDIO_AP_PLAY_SEEK_CNF			= 0xDD64,/* Hifi回复AP seek结果confirm命令 */
+	ID_AP_AUDIO_PLAY_SET_VOL_CMD		= 0xDD70,/* AP设置音量命令 */
+	ID_AP_AUDIO_RECORD_PCM_HOOK_CMD		= 0xDD7A,/* AP 通知HIFI开始抓取PCM数据 */
+	/* enhance msgid between ap and hifi */
+	ID_AP_HIFI_ENHANCE_START_REQ		= 0xDD81,
+	ID_HIFI_AP_ENHANCE_START_CNF		= 0xDD82,
+	ID_AP_HIFI_ENHANCE_STOP_REQ 		= 0xDD83,
+	ID_HIFI_AP_ENHANCE_STOP_CNF 		= 0xDD84,
+	ID_AP_HIFI_ENHANCE_SET_DEVICE_REQ	= 0xDD85,
+	ID_HIFI_AP_ENHANCE_SET_DEVICE_CNF	= 0xDD86,
+
+	/* audio enhance msgid between ap and hifi */
+	ID_AP_AUDIO_ENHANCE_SET_DEVICE_IND	= 0xDD91,
+	ID_AP_AUDIO_MLIB_SET_PARA_IND		= 0xDD92,
+} HIFI_MSG_ID;
+
+struct misc_recmsg_param {
+	unsigned short	msgID;
+	unsigned short	playStatus;
+};
 
 /*****************************************************************************
   6 STRUCT定义

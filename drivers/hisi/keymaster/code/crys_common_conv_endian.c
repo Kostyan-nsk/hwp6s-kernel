@@ -21,11 +21,11 @@
 
 /************* Include Files ****************/
 
-#include "../include/crys.h"
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_common_error.h"
-#include "../include/dx_pal_mem.h"
+#include "crys.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "crys_common_error.h"
+#include "dx_pal_mem.h"
 
 /************************ Defines ******************************/
 

@@ -35,13 +35,13 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_vos_mem.h"
-#include "../include/crys_ccm.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_kdf.h"
-#include "../include/crys_kdf_error.h"
-#include "../include/crys_hash.h"
-#include "../include/debug.h"
+#include "dx_vos_mem.h"
+#include "crys_ccm.h"
+#include "crys_common_math.h"
+#include "crys_kdf.h"
+#include "crys_kdf_error.h"
+#include "crys_hash.h"
+#include "debug.h"
 
 /************************ Defines *******************************/
 

@@ -25,21 +25,21 @@
 
 /* .............. CRYS level includes ................. */
 
-#include "../include/dx_vos_mem.h"
-#include "../include/crys_rnd.h"
+#include "dx_vos_mem.h"
+#include "crys_rnd.h"
 
-#include "../include/crys_ecpki_kg.h"
-#include "../include/crys_ecpki_error.h"
-#include "../include/crys_ecpki_local.h"
+#include "crys_ecpki_kg.h"
+#include "crys_ecpki_error.h"
+#include "crys_ecpki_local.h"
 
 
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
 
 /* .............. LLF level includes ................. */
-#include "../include/llf_pki.h"
-#include "../include/llf_ecpki_ec_arithmetic.h"
-#include "../include/llf_ecpki_modular_arithmetic.h"
+#include "llf_pki.h"
+#include "llf_ecpki_ec_arithmetic.h"
+#include "llf_ecpki_modular_arithmetic.h"
 
 
 /************************ Defines ******************************/

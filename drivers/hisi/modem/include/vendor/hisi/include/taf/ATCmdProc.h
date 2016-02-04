@@ -278,6 +278,8 @@ typedef TAF_UINT8   AT_MSG_DELETE_ENUM_U8;
 #define AT_QRY_PARA_TIME   (30000) /*<==A32D12429*/
 #define AT_TEST_PARA_TIME  (30000)
 
+#define AT_SET_CGLA_PARA_TIME   (90000)
+
 /* 解决2G语音和短信并发重传过程中AT命令提前结束问题: 75000 -> 105000 */
 /* 解决DCM 461-0701-0202 461-0701-0203重传过程中AT命令提前结束问题 */
 #define AT_SMS_SET_PARA_TIME   (105000) /*<==A32D12591*/

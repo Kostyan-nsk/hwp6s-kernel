@@ -1148,7 +1148,7 @@ static inline void ts_report_input(struct ts_cmd_node *in_cmd, struct ts_cmd_nod
 	input_sync(input_dev);
 
 	ts_film_touchplus(finger, finger_num, input_dev);
-	
+
 	TS_LOG_DEBUG("done\n");
 	return;
 }
@@ -2249,6 +2249,12 @@ static int ts_init(void)
 	/* detect current device successful, set the flag as present */
 	set_hw_dev_flag(DEV_I2C_TOUCH_PANEL);
 #endif
+	error = sysfs_create_link(NULL,&g_ts_data.ts_dev->dev.kobj,"touchscreen");
+	if (error) {
+		TS_LOG_ERR("%s: Fail create link error = %d\n", __func__, error);
+		goto err_firmware_update;
+	}
+	TS_LOG_INFO("ts_init called out\n");
 	goto out;
 
 err_firmware_update:

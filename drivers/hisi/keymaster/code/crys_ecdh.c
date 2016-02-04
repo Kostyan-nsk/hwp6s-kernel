@@ -22,14 +22,14 @@
 /************* Include Files ****************/
 
 /* CRYS level includes  */
-#include "../include/dx_vos_mem.h"
-#include "../include/crys_ecpki_error.h"
-#include "../include/crys_ecpki_local.h"
+#include "dx_vos_mem.h"
+#include "crys_ecpki_error.h"
+#include "crys_ecpki_local.h"
 
 /* LLF level includes  */
-#include "../include/llf_ecpki_export.h"
-#include "../include/dx_pal_log.h"
-#include "../include/cc_acl.h"
+#include "llf_ecpki_export.h"
+#include "dx_pal_log.h"
+#include "cc_acl.h"
 
 /************************ Defines *************************************/
 

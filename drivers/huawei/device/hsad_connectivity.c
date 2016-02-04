@@ -20,6 +20,7 @@
 #define HSAD_DEV_NAME_LEN 64
 #define MAX_NFC_CLK_SRC_LEN   32
 #define MAX_NFC_CONF_NAME_LEN   32
+#define MAX_NFC_CHIP_TYPE_LEN   32
 
 int hsad_connectivity_get_gpio(char *name)
 {
@@ -108,3 +109,18 @@ bool hsad_get_nfc_conf_name(char *conf)
     return false;
 }
 
+bool hsad_get_nfc_chip_type(char *chip_type)
+{
+    if(NULL == chip_type)
+        return false;
+    if(get_hw_config_string("nfc/nfc_chip_type", chip_type, MAX_NFC_CHIP_TYPE_LEN, NULL)){
+        return true;
+    }
+
+    return false;
+}
+
+int hsad_get_nfc_card_num(void)
+{
+    return hsad_connectivity_get_gpio("nfc/nfc_card_num");
+}

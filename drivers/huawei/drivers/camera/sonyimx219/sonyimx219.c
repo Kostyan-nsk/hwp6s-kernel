@@ -83,7 +83,7 @@
 #define SONYIMX219_VTS_REG_L		            0x0161
 
 #define SONYIMX219_APERTURE_FACTOR              200 //F2.0
-//#define SONYIMX219_EQUIVALENT_FOCUS	       0
+#define SONYIMX219_EQUIVALENT_FOCUS	            28//27.59mm
 
 #define SONYIMX219_AP_WRITEAE_MODE
 #define SONYIMX219_MAX_ANALOG_GAIN	            170//256/(256-232)*16
@@ -1150,6 +1150,12 @@ void sonyimx219_get_flash_awb(flash_platform_t type, awb_gain_t *flash_awb)
 	print_info("sonyimx219_get_flash_awb: type 0x%x,", type);
 }
 
+static int sonyimx219_get_equivalent_focus(void)
+{
+    print_debug("enter %s", __func__);
+    return SONYIMX219_EQUIVALENT_FOCUS;
+}
+
 #ifdef IMX219_OTP
 int sonyimx219_read_otp(u8 i2c_addr,u16 reg,u8 *buf,u16 count)
 {
@@ -1539,7 +1545,7 @@ static void sonyimx219_set_default(void)
 	sonyimx219_sensor.sensor_iso_to_gain = sonyimx219_iso_to_gain;
 
 	sonyimx219_sensor.get_sensor_aperture = sonyimx219_get_sensor_aperture;
-	sonyimx219_sensor.get_equivalent_focus = NULL;
+	sonyimx219_sensor.get_equivalent_focus = sonyimx219_get_equivalent_focus;
 
 	sonyimx219_sensor.set_effect = NULL;
 

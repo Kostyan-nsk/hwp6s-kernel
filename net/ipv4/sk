@@ -1,0 +1,2 @@
++    wifipro_update_tcp_statistics(skb->sk, TCP_MIB_OUTSEGS, 1);
++    wifipro_update_tcp_statistics(skb->sk, WIFIPRO_TCP_MIB_INSEGS, 1);

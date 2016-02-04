@@ -7,7 +7,10 @@
 #include "hisi_battery_data_lishen_2460.c"
 #include "hisi_battery_data_guangyu_4000.c"
 #include "hisi_battery_data_sunwoda_2460.c"
-
+#include "hisi_battery_data_Default_2300.c"
+#include "hisi_battery_data_Lishen_2300.c"
+#include "hisi_battery_data_Scud_2300.c"
+#include "hisi_battery_data_Sunwoda_2300.c"
 
 static struct hisi_smartstar_coul_battery_data *bat_data_array_0[BAT_DATA_ARRAR_SIZE] = {
     &sony_2000_battery_data,    // must start with default data
@@ -28,9 +31,18 @@ static struct hisi_smartstar_coul_battery_data *bat_data_array_2[BAT_DATA_ARRAR_
     0,    // must end with 0
 };
 
+static struct hisi_smartstar_coul_battery_data *bat_data_array_3[BAT_DATA_ARRAR_SIZE] = {
+    &Default_2300_battery_data,   
+    &Lishen_2300_battery_data,
+    &Scud_2300_battery_data,
+    &Sunwoda_2300_battery_data,
+    0,    // must end with 0
+};
+
 static p_bat_data_array bat_data_array_all[] = {
     bat_data_array_0,  // SS_PRODUCT_INDEX_0
     bat_data_array_1,  // SS_PRODUCT_INDEX_1
     bat_data_array_2,  // SS_PRODUCT_INDEX_2
+    bat_data_array_3,
 };
 

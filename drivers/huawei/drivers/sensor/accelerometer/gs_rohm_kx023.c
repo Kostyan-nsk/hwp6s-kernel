@@ -799,10 +799,9 @@ static int gs_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	set_bit(EV_ABS,gs->input_dev->evbit);
 	//provide by company
-	input_set_abs_params(gs->input_dev, ABS_X, -11520, 11520, 3, 3);
-	input_set_abs_params(gs->input_dev, ABS_Y, -11520, 11520, 3, 3);
-	input_set_abs_params(gs->input_dev, ABS_Z, -11520, 11520, 3, 3);
-	
+	input_set_abs_params(gs->input_dev, ABS_X, -11520, 11520, 0, 0);
+	input_set_abs_params(gs->input_dev, ABS_Y, -11520, 11520, 0, 0);
+	input_set_abs_params(gs->input_dev, ABS_Z, -11520, 11520, 0, 0);
 	set_bit(EV_SYN,gs->input_dev->evbit);
 	input_set_drvdata(gs->input_dev, gs);
 	ret = input_register_device(gs->input_dev);

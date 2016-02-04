@@ -636,3 +636,11 @@ config AEGIS
 	default y
 	---help---
 	  This is version 1.0 of aegis.
+
+config HW_WIFIPRO
+	bool "Huawei wifipro tcp monitor support"
+	default n
+
+config HW_WIFIPRO_PROC
+	bool "Huawei wifipro proc support"
+	default n

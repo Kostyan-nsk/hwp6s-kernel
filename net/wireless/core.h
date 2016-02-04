@@ -232,6 +232,7 @@ enum cfg80211_event_type {
 	EVENT_ROAMED,
 	EVENT_DISCONNECTED,
 	EVENT_IBSS_JOINED,
+	EVENT_DRV_RECOVERY,
 };
 
 struct cfg80211_event {

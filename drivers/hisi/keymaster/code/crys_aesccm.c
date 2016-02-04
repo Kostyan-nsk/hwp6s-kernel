@@ -19,18 +19,18 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_API
 
-#include "../include/crys_aesccm.h"
-#include "../include/crys_aesccm_error.h"
-#include "../include/aead.h"
-#include "../include/sep_ctx.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/crys_bypass_api.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dma_buffer.h"
-#include "../include/key_buffer.h"
-#include "../include/cc_acl.h"
-#include "../include/dx_error.h"
-#include "../include/crys_context_relocation.h"
+#include "crys_aesccm.h"
+#include "crys_aesccm_error.h"
+#include "aead.h"
+#include "sep_ctx.h"
+#include "sym_adaptor_driver.h"
+#include "crys_bypass_api.h"
+#include "dx_pal_mem.h"
+#include "dma_buffer.h"
+#include "key_buffer.h"
+#include "cc_acl.h"
+#include "dx_error.h"
+#include "crys_context_relocation.h"
 
 
 /************************ Defines ******************************/

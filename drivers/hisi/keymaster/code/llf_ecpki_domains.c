@@ -23,9 +23,9 @@
  * All the includes that are needed for code using this module to
  * compile correctly should be #included here.
  */
-#include "../include/dx_vos_basetypes.h"
-#include "../include/crys_hash.h"
-#include "../include/crys_ecpki_types.h"
+#include "dx_vos_basetypes.h"
+#include "crys_hash.h"
+#include "crys_ecpki_types.h"
 
 /* canceling the lint warning:
    Info 651: Potentially confusing initializer */

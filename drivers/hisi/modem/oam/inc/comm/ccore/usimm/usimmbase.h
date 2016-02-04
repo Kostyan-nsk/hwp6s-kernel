@@ -242,8 +242,8 @@ extern "C" {
         (USIMM_DF_FILE == ((usFileId>>0x0C)&0x01))
 
 /* 判断输入文件是否为EF文件 */
-#define USIMM_IS_EF_FILE(usFileId) \
-        (USIMM_EF_FILE == ((usFileId>>0x0C)&0x01))
+//#define USIMM_IS_EF_FILE(usFileId) \
+//        (USIMM_EF_FILE == ((usFileId>>0x0C)&0x01))
 
 #define USIMM_FILE_PATH_MAX_LEN         100
 
@@ -1397,6 +1397,7 @@ extern VOS_BOOL USIMM_IsCLEnable(VOS_VOID);
 
 extern VOS_UINT8 USIMM_GetRATMode(VOS_VOID);
 
+extern VOS_UINT32 USIMM_IS_EF_FILE(VOS_UINT16 usFileId);
 
 
 /*POOL操作函数*/

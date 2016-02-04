@@ -853,11 +853,10 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 			fn = next;
 			continue;
 		}
-
 		break;
 	}
 
-	while(fn) {
+	while (fn) {
 		if (FIB6_SUBTREE(fn) || fn->fn_flags & RTN_RTINFO) {
 			struct rt6key *key;
 
@@ -875,7 +874,7 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 					fn = sfn;
 				}
 #endif
-				if (fn->fn_flags & RTN_RTINFO)
+				if (!fn || fn->fn_flags & RTN_RTINFO)
 					return fn;
 			}
 		}

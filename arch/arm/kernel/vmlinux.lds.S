@@ -89,6 +89,13 @@ SECTIONS
 	__init_end = .;
 #endif
 
+    . = ALIGN(32);
+    __start_hwlog_tag = .;
+    __start_hwlog_tag : {
+        *(__hwlog_tag)
+    }
+    __stop_hwlog_tag = .;
+
 	/*
 	 * unwind exit sections must be discarded before the rest of the
 	 * unwind sections get included.

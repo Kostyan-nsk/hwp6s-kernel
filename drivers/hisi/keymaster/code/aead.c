@@ -19,14 +19,14 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_SYM_DRIVER
 
-#include "../include/bsp.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/cc_plat.h"
-#include "../include/mlli.h"
-#include "../include/hw_queue.h"
-#include "../include/completion.h"
-#include "../include/dx_error.h"
-#include "../include/aead.h"
+#include "bsp.h"
+#include "dx_pal_mem.h"
+#include "cc_plat.h"
+#include "mlli.h"
+#include "hw_queue.h"
+#include "completion.h"
+#include "dx_error.h"
+#include "aead.h"
 
 
 DX_PAL_COMPILER_ASSERT(sizeof(struct sep_ctx_aead)==SEP_CTX_SIZE,"sep_ctx_aead is larger than 128 bytes!");

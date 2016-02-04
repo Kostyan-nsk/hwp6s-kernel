@@ -416,9 +416,9 @@ static int sock_bindtodevice(struct sock *sk, char __user *optval, int optlen)
 	int index;
 
 	/* Sorry... */
-	ret = -EPERM;
-	if (!capable(CAP_NET_RAW))
-		goto out;
+	//ret = -EPERM;
+	//if (!capable(CAP_NET_RAW))
+	//	goto out;
 
 	ret = -EINVAL;
 	if (optlen < 0)
@@ -1374,7 +1374,6 @@ EXPORT_SYMBOL(sock_rfree);
 int sock_i_uid(struct sock *sk)
 {
 	int uid;
-
 	read_lock_bh(&sk->sk_callback_lock);
 	uid = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_uid : 0;
 	read_unlock_bh(&sk->sk_callback_lock);

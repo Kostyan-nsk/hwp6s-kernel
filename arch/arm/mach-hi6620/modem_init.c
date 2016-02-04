@@ -5,6 +5,10 @@
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
 
+#include <pwrctrl_multi_dfs.h>
+#include <linux/pm_qos_params.h>
+extern int acpu_minfreq_handle(unsigned int req_value); 
+
 DECLARE_COMPLETION_ONSTACK(modem_depend_complete);
 
 #ifdef CONFIG_MACH_HI6620OEM
@@ -67,10 +71,20 @@ static void modem_init_work_func(struct work_struct *work)
 	if (ret) {
     		printk(KERN_ERR "%s rfile init fail ",__func__);
 	}
-
+	
+	ret = acpu_minfreq_handle(1795000);
+	if (ret) {
+		printk(KERN_ERR "%s acpu_minfreq_handle vote error, ret=%d ",__func__,ret);
+	}
+	
 	ret = NV_Init();
 	if (ret) {
     		printk(KERN_ERR "%s NV init fail ",__func__);
+	}
+	
+	ret = acpu_minfreq_handle(PM_QOS_PWRCTRL_DFS_DEFAULT_VALUE);
+	if (ret) {
+		printk(KERN_ERR "%s acpu_minfreq_handle release error, ret=%d ",__func__,ret);
 	}
 
 	ret = VOS_ModuleInit();

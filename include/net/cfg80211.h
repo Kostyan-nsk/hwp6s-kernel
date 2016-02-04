@@ -2997,6 +2997,17 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 			   u8 *ie, size_t ie_len, gfp_t gfp);
 
 /**
+ * cfg80211_drv_recovery - notify cfg80211 that driver should recovery
+ *
+ * @dev: network device
+ * @gfp: allocation flags
+ *
+ * After it calls this function, the driver should should do nothing
+ * but to wait wpa_supplicant to restart it.
+ */
+void cfg80211_drv_recovery(struct net_device *dev, gfp_t gfp);
+
+/**
  * cfg80211_ready_on_channel - notification of remain_on_channel start
  * @dev: network device
  * @cookie: the request cookie

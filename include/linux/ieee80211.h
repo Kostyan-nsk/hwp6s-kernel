@@ -1437,7 +1437,7 @@ enum ieee80211_sa_query_action {
 /*
 WAPI
 */
-#define WLAN_CIPHER_SUITE_SMS4          0x000FAC09
+#define WLAN_CIPHER_SUITE_SMS4      0x00147201
 
 /* AKM suite selectors */
 #define WLAN_AKM_SUITE_8021X		0x000FAC01
@@ -1447,7 +1447,7 @@ WAPI
 /*
 WAPI
 */
-#define WLAN_AKM_SUITE_WAPI_PSK         0x000FAC04
+#define WLAN_AKM_SUITE_WAPI_PSK         0x000FAC11
 #define WLAN_AKM_SUITE_WAPI_CERT        0x000FAC12
 
 #define WLAN_MAX_KEY_LEN		32

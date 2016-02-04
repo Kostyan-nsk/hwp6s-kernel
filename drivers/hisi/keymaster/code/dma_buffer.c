@@ -19,10 +19,10 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_INFRA
 
-#include "../include/dx_pal_log.h"
-#include "../include/dma_buffer.h"
-#include "../include/hw_queue_defs.h"
-#include "../include/dx_macros.h"
+#include "dx_pal_log.h"
+#include "dma_buffer.h"
+#include "hw_queue_defs.h"
+#include "dx_macros.h"
 
 
 #if (DX_DSCRPTR_QUEUE0_WORD3_NS_BIT_BIT_SHIFT != DX_DSCRPTR_QUEUE0_WORD1_NS_BIT_BIT_SHIFT) || (DX_DSCRPTR_QUEUE0_WORD1_DIN_VIRTUAL_HOST_BIT_SHIFT != DX_DSCRPTR_QUEUE0_WORD3_DOUT_VIRTUAL_HOST_BIT_SHIFT)

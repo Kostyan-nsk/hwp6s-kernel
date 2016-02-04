@@ -19,15 +19,15 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_API
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/crys_rc4_error.h"
-#include "../include/crys_rc4.h"
-#include "../include/cc_acl.h"
-#include "../include/rc4.h"
-#include "../include/dx_error.h"
-#include "../include/crys_context_relocation.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "sym_adaptor_driver.h"
+#include "crys_rc4_error.h"
+#include "crys_rc4.h"
+#include "cc_acl.h"
+#include "rc4.h"
+#include "dx_error.h"
+#include "crys_context_relocation.h"
 
 
 /*!

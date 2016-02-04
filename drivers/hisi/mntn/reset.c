@@ -44,6 +44,7 @@
 #include <soc_wdt_interface.h>
 #include <soc_edmac_interface.h>
 #include <mach/hisi_cortex-a9.h>
+#include "mntn_save_logdata.h"
 
 static int in_suspend_state = 0;
 static struct workqueue_struct *reset_wq = NULL;
@@ -311,11 +312,13 @@ static irqreturn_t mcu_freeze_irq(int irqno, void *param)
 }
 void modem_panic_give_semaphone(void)
 {
+    mntn_mdm_reset_save_log("modem panic ...\n");
     reset_ccore_up_semaphone();
 }
 
 void modem_reboot_give_semaphone(void)
 {
+    mntn_mdm_reset_save_log("modem reboot ...\n");
     reset_ccore_up_semaphone();
 }
 
@@ -325,6 +328,7 @@ void modem_reboot_himself(int is_normal)
 }
 void modem_freeze_give_semaphone(void)
 {
+    mntn_mdm_reset_save_log("modem freeze ...\n");
     reset_ccore_up_semaphone();
 }
 void hifi_freeze_give_semaphone(void)
@@ -535,7 +539,7 @@ static int reset_module_init(void)
 
 
     /*delay 10 second*/
-    queue_delayed_work(reset_wq, &init_reset_irq_work, 10*HZ);
+    queue_delayed_work(reset_wq, &init_reset_irq_work, 1800*HZ);
 
     return 0;
 }

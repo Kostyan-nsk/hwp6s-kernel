@@ -176,9 +176,25 @@ void pmic_poweroff_reason(void)
         }
         else if((PMIC_OCP_RECORD1_NO_PWR_REG <= reg_id)&&(PMIC_OCP_RECORD7_NO_PWR_REG >= reg_id))
         {
+#ifdef	CONFIG_HUAWEI_CHARGING_FEATURE
+            unsigned char reg_data = (unsigned char)stat_no_pwr_reg_buf[reg_id];
+#else			
             pmu_res_stat->is_exc_pd = PMIC_EXC_PD;
+#endif			
             pr_err("PMU OCP:addr 0x%x data 0x%x\n",no_pwr_base_reg_addr[reg_id],stat_no_pwr_reg_buf[reg_id]);
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+            if(PMIC_OCP_RECORD1_NO_PWR_REG == reg_id)
+            {
+                reg_data &= ~(BIT(SOC_SMART_NP_OCP_RECORD1_np_ocp_buck5_START));
+            }
+            if(reg_data)
+            {
+                pmu_res_stat->is_exc_pd = PMIC_EXC_PD;
+                snprintf(print_string_buf,PRINT_MAX_LEN,"reason OCP:addr 0x%x data 0x%x\n",no_pwr_base_reg_addr[reg_id],stat_no_pwr_reg_buf[reg_id]);
+            }
+#else			
             snprintf(print_string_buf,PRINT_MAX_LEN,"reason OCP:addr 0x%x data 0x%x\n",no_pwr_base_reg_addr[reg_id],stat_no_pwr_reg_buf[reg_id]);
+#endif
         }
         else
         {
@@ -482,7 +498,40 @@ void smart_ocp_scp_wq_hander(struct work_struct *work)
           else
           {
               unsigned char reg_data = (unsigned char)stat_reg_buf[reg_id];
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+            unsigned char scp_buck5_bit = 0;
+            unsigned char ocp_buck5_bit = 0;
+            unsigned char scp_ocp_clear_reg = 0;
+                
+            //if buck5 scp or ocp, don't reboot
+            if(SOC_SMART_SCP_RECORD1_ADDR(0) == reg_base_addr[reg_id])
+            {
+                scp_buck5_bit = reg_data&BIT(SOC_SMART_SCP_RECORD1_scp_buck5_START);
+                reg_data &= ~(BIT(SOC_SMART_SCP_RECORD1_scp_buck5_START));
+                if(scp_buck5_bit)
+                {
+                    pr_err("Chris: Buck5 SCP!!!\n");
+                }
+            }
+            if(SOC_SMART_OCP_RECORD1_ADDR(0) == reg_base_addr[reg_id])
+            {
+                ocp_buck5_bit = reg_data&BIT(SOC_SMART_OCP_RECORD1_ocp_buck5_START);
+                reg_data &= ~(BIT(SOC_SMART_OCP_RECORD1_ocp_buck5_START)); 
+                if(ocp_buck5_bit)
+                {
+                    pr_err("Chris: Buck5 OCP!!!\n");
+                }
+            }
 
+            //disable buck5; DISABLE1:write 1 disable
+            if(scp_buck5_bit || ocp_buck5_bit)
+            {
+                unsigned char disable_buck5 = 0;
+                disable_buck5 |= BIT(SOC_SMART_DISABLE1_dis_buck5_int_START);
+                pmussi_reg_write(SOC_SMART_DISABLE1_ADDR(0), disable_buck5);
+            }
+#endif			
+            
               reg_data &= ~smart_dont_ocp_mask(reg_base_addr[reg_id]);
 
               if (reg_data){

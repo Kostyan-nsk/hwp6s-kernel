@@ -650,8 +650,71 @@ static void bq2419x_config_misc_operation_reg(struct bq2419x_device_info *di)
  use REGN for usb_int,pls delete the follow fuction*/
 static void bq2419x_reset_vindpm(struct bq2419x_device_info *di)
 {
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+#define VINDPM_4200 (4200)
+#define VINDPM_4360 (4360)
+#define VINDPM_4520 (4520)
+#define VBAT_3900 (3900)
+#define VBAT_4110 (4110)
+#define HYST_GAP (100)
+#endif
     int battery_capacity = 0;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    int battery_voltage = 0;
+    unsigned int dpmmV_config = di->cin_dpmmV;
 
+    if(di->charger_source == POWER_SUPPLY_TYPE_MAINS)
+    {
+        battery_voltage = hisi_battery_voltage();
+        switch(di->cin_dpmmV)
+        {
+            case VINDPM_4200:
+                if(battery_voltage > VBAT_3900)
+                {
+                    dpmmV_config = VINDPM_4360;
+                }
+                break;
+            case VINDPM_4360:
+                if(battery_voltage > VBAT_4110)
+                {
+                    dpmmV_config = VINDPM_4520;
+                }
+                else if(battery_voltage <= (VBAT_3900 - HYST_GAP))
+                {
+                    dpmmV_config = VINDPM_4200;
+                }
+                break;
+            case VINDPM_4520:
+                battery_capacity = hisi_battery_capacity();
+                if(battery_capacity > CAPACITY_LEVEL_HIGH_THRESHOLD)
+                {
+                    dpmmV_config = VINDPM_4600;
+                }
+                else if(battery_voltage <= (VBAT_4110 - HYST_GAP))
+                {
+                    dpmmV_config = VINDPM_4360;
+                }
+                break;
+            case VINDPM_4600:
+                battery_capacity = hisi_battery_capacity();
+                if(battery_capacity <= CAPACITY_LEVEL_HIGH_THRESHOLD)
+                {
+                    dpmmV_config = VINDPM_4520;
+                }
+                break;
+            default:
+                dpmmV_config = VINDPM_4600;
+                break;
+        }
+
+        if(di->cin_dpmmV != dpmmV_config)
+        {
+            di->cin_dpmmV = dpmmV_config;
+            bq2419x_config_input_source_reg(di);
+        }
+    }
+#endif
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     if ((di->charger_source == POWER_SUPPLY_TYPE_MAINS)&&(di->cin_dpmmV != VINDPM_4600)){
          battery_capacity = hisi_battery_capacity();
          if(battery_capacity > CAPACITY_LEVEL_HIGH_THRESHOLD){
@@ -659,6 +722,7 @@ static void bq2419x_reset_vindpm(struct bq2419x_device_info *di)
              bq2419x_config_input_source_reg(di);
          }
      }
+#endif
      return;
 }
 
@@ -1044,6 +1108,7 @@ static void bq2419x_monitor_battery_ntc_charging(struct bq2419x_device_info *di)
         di->chrg_config = DIS_CHARGER;
         break;
     case BATTERY_HEALTH_TEMPERATURE_LOW:
+#ifndef  CONFIG_HUAWEI_CHARGING_FEATURE
         if (di->battery_voltage <= BQ2419x_LOW_TEMP_TERM_VOLTAGE)
             di->chrg_config = EN_CHARGER;
         else if (di->battery_voltage > BQ2419x_LOW_TEMP_NOT_CHARGING_VOLTAGE)
@@ -1054,6 +1119,9 @@ static void bq2419x_monitor_battery_ntc_charging(struct bq2419x_device_info *di)
         if(di->battery_temp_status != battery_status){
             ichg_temp = ICHG_LOW_TEMP;
        }
+#else
+            di->chrg_config = DIS_CHARGER;
+#endif
         break;
     case BATTERY_HEALTH_TEMPERATURE_5:
         di->chrg_config = EN_CHARGER;
@@ -1082,7 +1150,18 @@ static void bq2419x_monitor_battery_ntc_charging(struct bq2419x_device_info *di)
         }
         break;
     case BATTERY_HEALTH_TEMPERATURE_HIGH:
+
+        //di->chrg_config = EN_CHARGER;
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+        if (di->battery_voltage <= BQ2419x_HIGH_TEMP_RECHARGE_VOLTAGE)
+            di->chrg_config = EN_CHARGER;
+        else if (di->battery_voltage > BQ2419x_HIGH_TEMP_STOP_CHARGE_VOLTAGE)
+            di->chrg_config = DIS_CHARGER;
+        else
+            di->chrg_config =di->chrg_config;
+#else
         di->chrg_config = EN_CHARGER;
+#endif
         if (di->battery_temp_status != battery_status){
             bq2419x_calling_limit_ac_input_current(di,HIGH_TEMP_CONFIG);
         }
@@ -1171,7 +1250,9 @@ static void bq2419x_start_usb_charger(struct bq2419x_device_info *di)
         di->aux_batt_exist = true;
         dev_info(di->dev,"Aux batt exist!");
     }
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     hisi_coul_charger_event_rcv(events);//blocking_notifier_call_chain(&notifier_list, events, NULL);
+#endif
     di->charger_source = POWER_SUPPLY_TYPE_USB;
     bq2419x_get_max_charge_voltage(di);
     di->cin_dpmmV = VINDPM_4520;
@@ -1237,8 +1318,17 @@ static void bq2419x_start_usb_charger(struct bq2419x_device_info *di)
     if (!di->battery_present) {
             dev_dbg(di->dev, "BATTERY NOT DETECTED!\n");
             events = VCHRG_NOT_CHARGING_EVENT;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
             hisi_coul_charger_event_rcv(events);//blocking_notifier_call_chain(&notifier_list, events, NULL);
+#else
+            if (!strstr(saved_command_line, "androidboot.swtype=factory")) {
+                gpio_set_value(di->gpio_cd, 1);
+            }
+#endif
     }
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    hisi_coul_charger_event_rcv(events);//blocking_notifier_call_chain(&notifier_list, events, NULL);
+#endif
 
     return;
 }
@@ -1251,8 +1341,9 @@ static void bq2419x_start_ac_charger(struct bq2419x_device_info *di)
     if (di->wakelock_enabled){
         wake_lock(&chrg_lock);
     }
-
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     hisi_coul_charger_event_rcv(events);//blocking_notifier_call_chain(&notifier_list, events, NULL);
+#endif
     di->charger_source = POWER_SUPPLY_TYPE_MAINS;
     bq2419x_get_max_charge_voltage(di);
     di->cin_dpmmV = VINDPM_4520;
@@ -1299,8 +1390,17 @@ static void bq2419x_start_ac_charger(struct bq2419x_device_info *di)
     if (!di->battery_present) {
             dev_dbg(di->dev, "BATTERY NOT DETECTED!\n");
             events = VCHRG_NOT_CHARGING_EVENT;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
             hisi_coul_charger_event_rcv(events);//blocking_notifier_call_chain(&notifier_list, events, NULL);
+#else
+            if (!strstr(saved_command_line, "androidboot.swtype=factory")) {
+                gpio_set_value(di->gpio_cd, 1);
+            }
+#endif
     }
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    hisi_coul_charger_event_rcv(events);//blocking_notifier_call_chain(&notifier_list, events, NULL);
+#endif
 
     return;
 }
@@ -1640,6 +1740,26 @@ static int bq2419x_usb_notifier_call(struct notifier_block *nb,
     return NOTIFY_OK;
 }
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+int bq2419x_set_charge_state(int state)
+{
+    int old_state;
+    struct bq2419x_device_info *di = g_di;
+
+    if (di == NULL
+        || (state!=0&&state!=1)){
+        return -1;
+    }
+
+    old_state = di->chrg_config;
+
+    di->chrg_config = state;
+    di->factory_flag = state;
+    bq2419x_config_power_on_reg(di);
+
+    return old_state;
+}
+#endif
 
 /*
 * set 1 --- hz_mode ; 0 --- not hz_mode
@@ -2679,6 +2799,9 @@ static int __devinit bq2419x_charger_probe(struct i2c_client *client,
 
     ret = hisi_battery_charge_param(&charge_param);
     if(ret){
+#ifdef    CONFIG_HUAWEI_CHARGING_FEATURE
+        di->design_capacity = charge_param.design_capacity;
+#endif
         di->charge_in_temp_5 = charge_param.charge_in_temp_5;
         di->charge_in_temp_10 = charge_param.charge_in_temp_10;
     }

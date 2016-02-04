@@ -18,7 +18,7 @@
 ********************************************************************/
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CCLIB
 
-#include "../include/cc_acl.h"
+#include "cc_acl.h"
 
 /*!
  * SEP implementation for applet address accessing rights. 

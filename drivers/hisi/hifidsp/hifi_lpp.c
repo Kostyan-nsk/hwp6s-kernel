@@ -545,6 +545,51 @@ int hifi_dsp_test_cmd(unsigned long arg)
 }
 
 
+static int hifi_dsp_wakeup_read_thread(unsigned long arg)
+{
+	struct recv_request *recv = NULL;
+	struct misc_recmsg_param *recmsg = NULL;
+	unsigned int wake_cmd = (unsigned int)arg;
+
+	recv = (struct recv_request *)kmalloc(sizeof(struct recv_request), GFP_ATOMIC);
+	if (NULL == recv)
+	{
+		loge("recv kmalloc failed.\n");
+		return -ENOMEM;
+	}
+
+	wake_lock_timeout(&g_misc_data.hifi_misc_wakelock, HZ);
+
+	memset(recv, 0, sizeof(struct recv_request));
+
+	/* 分配总的空间 */
+	recv->rev_msg.mail_buff = (unsigned char *)kmalloc(SIZE_LIMIT_PARAM, GFP_ATOMIC);
+	if (NULL == recv->rev_msg.mail_buff)
+	{
+		kfree(recv);
+		loge("recv->rev_msg.mail_buff kmalloc failed.\n");
+		return -ENOMEM;
+	}
+	memset(recv->rev_msg.mail_buff, 0, SIZE_LIMIT_PARAM);
+
+	recmsg = (struct misc_recmsg_param *)recv->rev_msg.mail_buff;
+	recmsg->msgID = ID_AUDIO_AP_PLAY_DONE_IND;
+	recmsg->playStatus = (unsigned short)wake_cmd;
+
+	/* 设定SIZE */
+	recv->rev_msg.mail_buff_len = sizeof(struct misc_recmsg_param) + SIZE_CMD_ID;
+
+	spin_lock_bh(&g_misc_data.recv_proc_lock);
+	list_add_tail(&recv->recv_node, &recv_proc_work_queue_head);
+	g_misc_data.wait_flag++;
+	spin_unlock_bh(&g_misc_data.recv_proc_lock);
+
+	wake_up(&g_misc_data.proc_waitq);
+
+	return OK;
+}
+
+
 int hifi_dsp_write_param(unsigned long arg)
 {
     int ret = OK;
@@ -574,11 +619,18 @@ int hifi_dsp_write_param(unsigned long arg)
     if (NULL == hifi_param_vir_addr) {
         loge("hifi_param_vir_addr ioremap fail\n");
         ret = ERROR;
-        goto error2;
+        goto error1;
     }
     logd("hifi_param_vir_addr = 0x%x\n", (unsigned int)hifi_param_vir_addr);
 
     logd("user addr = 0x%x, size = %d", para->para_in, para->para_size_in);
+
+    if (SIZE_PARAM_PRIV < para->para_size_in) {
+        loge("the ioremap size :%d is smaller than user size:%d\n", SIZE_PARAM_PRIV, para->para_size_in);
+        ret = ERROR;
+        goto error1;
+    }
+
     ret = copy_from_user(hifi_param_vir_addr, para->para_in, para->para_size_in);
     if ( ret != 0) {
         loge("copy data to hifi error! ret = %d", ret);
@@ -589,7 +641,6 @@ error1:
         iounmap(hifi_vir_addr);
     }
 
-error2:
     if (hifi_param_vir_addr != NULL) {
         iounmap(hifi_param_vir_addr);
     }
@@ -692,6 +743,10 @@ long hifi_misc_ioctl(struct file *fd,
             ret = hifi_dsp_dump_hifi_cmd(arg);
             break;
             
+	        case HIFI_MISC_IOCTL_WAKEUP_THREAD:
+                 ret = hifi_dsp_wakeup_read_thread(arg);
+                 break;
+
         default:
             /*打印无该CMD类型*/
             ret = (int)ERROR;
@@ -708,7 +763,7 @@ static int hifi_misc_mmap(struct file *file, struct vm_area_struct *vma)
 {
     int ret = 0;
     unsigned long phys_page_addr = 0;
-
+	unsigned long size = 0;
     IN_FUNCTION;
 
 #if 1
@@ -716,16 +771,21 @@ static int hifi_misc_mmap(struct file *file, struct vm_area_struct *vma)
 #else
     phys_addr = virt_to_phys((void *)((unsigned long)g_hifi_priv_area)) >> PAGE_SHIFT;
 #endif
+	size = ((unsigned long)vma->vm_end - (unsigned long)vma->vm_start);
 
     logd("vma=0x%x\n", vma);
     logd("siz=0x%x, vma->vm_start=0x%x, end=%x%x\n", vma->vm_end - vma->vm_start,
                             vma->vm_start, vma->vm_end);
     logd("phys_page_addr=0x%x\n", phys_page_addr);
 
+	if(size > HIFI_MUSIC_DATA_SIZE) {
+		size = HIFI_MUSIC_DATA_SIZE;
+	}
+	
     ret = remap_pfn_range(vma,
                     vma->vm_start,
                     phys_page_addr,
-                    vma->vm_end - vma->vm_start,
+	                size,
                     PAGE_SHARED);
     if(ret != 0)
     {

@@ -18,19 +18,19 @@
 ********************************************************************/
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_SYM_DRIVER
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_dma.h"
-#include "../include/dx_pal_log.h"
-#include "../include/dx_error.h"
-#include "../include/cc_plat.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/sym_crypto_driver.h"
-#include "../include/completion.h"
-#include "../include/dma_object.h"
-#include "../include/sep_ctx.h"
-#include "../include/combined.h"
-#include "../include/debug.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_dma.h"
+#include "dx_pal_log.h"
+#include "dx_error.h"
+#include "cc_plat.h"
+#include "sym_adaptor_driver.h"
+#include "sym_crypto_driver.h"
+#include "completion.h"
+#include "dma_object.h"
+#include "sep_ctx.h"
+#include "combined.h"
+#include "debug.h"
 
 #define DX_SET_AXIM_VAL()	DX_HAL_WriteCcRegister(DX_CC_REG_OFFSET(HOST_RGF, HOST_ADDR_AXIM_CTRL),0x4)
 

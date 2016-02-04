@@ -25,7 +25,7 @@
 #include "mali_kernel_common.h"
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
-#include "mali_pp_scheduler.h"
+//#include "mali_pp_scheduler.h"
 
 #include "mali_balong_pmm.h"
 #include <mach/hisi_mem.h>
@@ -88,7 +88,7 @@ static struct mali_gpu_device_data mali_gpu_data =
     .fb_start = MALI_FRAME_BUFFER_ADDR,
     .fb_size = MALI_FRAME_BUFFER_SIZE,
 	.max_job_runtime = 2000, /* 2 seconds time out */
-    .utilization_interval = 50,        /* 50ms */
+    .control_interval = 50,        /* 50ms */
     .utilization_callback = mali_gpu_utilization_proc,
 	.pmu_switch_delay = 0xFF, /* do not have to be this high on FPGA, but it is good for testing to have a delay */
 	.pmu_domain_config = {0x1, 0x2, 0x4, 0x4, 0x4, 0x8, 0x8, 0x8, 0x8, 0x1, 0x2, 0x8},
@@ -234,7 +234,10 @@ static int mali_os_suspend(struct device *device)
         ret = device->driver->pm->suspend(device);
     }
 
-    mali_platform_power_mode_change(MALI_POWER_MODE_DEEP_SLEEP);
+    if(0 == ret)
+    {
+        mali_platform_power_mode_change(MALI_POWER_MODE_DEEP_SLEEP);
+    }
 
     return ret;
 }

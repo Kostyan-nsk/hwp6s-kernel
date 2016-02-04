@@ -57,7 +57,7 @@ int v_offset_a = 1000000;		// 995729; /* need div 1000000 */
 int v_offset_b = 0;			// 3258; /* uv */
 int c_offset_a = 1000000;		// 977704; /* need div 1000000 */
 int c_offset_b = 5600;			// 6071; /* ua */
-
+int removable_batt_flag = 0;
 #ifdef _DRV_LLT_
 #define SMARTSTAR_COUL_ERR(fmt,args...) do { printf("[smartstar]" fmt, ## args); } while (0)
 #define SMARTSTAR_COUL_EVT(fmt,args...) do { printf("[smartstar]" fmt, ## args); } while (0)
@@ -78,6 +78,9 @@ int c_offset_b = 5600;			// 6071; /* ua */
 #define BATTERY_EXIST_FLAG  0x1
 
 #define BATTERY_MOVE_MAGIC_NUM        0xc3
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+#define BATTERY_CHECK_TIME_MS (1*1000)
+#endif
 
 #define TEMP_TOO_HOT            (60)
 #define TEMP_TOO_COLD          (-20)
@@ -202,6 +205,18 @@ int c_offset_b = 5600;			// 6071; /* ua */
 #define SR_DEVICE_WAKEUP       1
 #define SR_DEVICE_SLEEP        2
 
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+typedef unsigned char boolean;
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+#define BST_PM_CUT  0x3
+#define BST_PM_TH    0x1
+#endif
+
 static unsigned int hand_chg_capacity_flag = 0;
 static unsigned int input_capacity = 50;
 static long hisi_saved_abs_cc_mah = 0;
@@ -233,6 +248,9 @@ struct ss_coul_nv_info{
 
 struct smartstar_coul_device
 {
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    char product_name[32];
+#endif
     int batt_exist;
     int prev_pc_unusable;
     int irqs[IRQ_MAX];
@@ -268,7 +286,9 @@ struct smartstar_coul_device
     unsigned int batt_chargecycles; //chargecycle in percent
     int last_cali_temp; // temperature in degree*10
     long cc_end_value;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     long cc_start_value;
+#endif
     unsigned int v_cutoff;
     unsigned int v_low_int_value;
     unsigned long	get_cc_start_time;
@@ -290,7 +310,12 @@ struct smartstar_coul_device
     int fcc_real_mah;
     struct delayed_work	notifier_work;
     struct delayed_work	calculate_soc_delayed_work;
+#ifndef  CONFIG_HUAWEI_CHARGING_FEATURE
     struct delayed_work	boost_check_delayed_work;
+#endif
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+	struct delayed_work	battery_check_delayed_work;
+#endif
     struct hisi_coul_ops *   ops;
     struct ss_coul_nv_info nv_info;
     int is_nv_read;
@@ -331,6 +356,7 @@ module_param(v_offset_a, int, 0644);
 module_param(v_offset_b, int, 0644);
 module_param(c_offset_a, int, 0644);
 module_param(c_offset_b, int, 0644);
+module_param(removable_batt_flag, int, 0644);
 
 static int do_save_offset;
 static int do_save_offset_ret;
@@ -504,8 +530,39 @@ static long convert_regval2uah(unsigned long reg_val)
 
     ret = temp / (R_COUL_MOHM/10);
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    temp = (s64) c_offset_a * ret;
+    ret = div_s64(temp, 1000000);
+#endif
+
     return ret;
 }
+
+/**
+ * convert_uah2regval
+ * 1bit = 1bit current * 0.11 c = 5/10661 * 11/100 c = 5/10661 * 11/100 * 1000/3600 mAh
+ *       = 11 / (10661*2*36) mAh = 11 * 1000/ (10661 *2 *36) uAh
+ *       = 11 * 125/ (10661* 9) uAh
+ * convert battery voltage to uah
+ */
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+static long convert_uah2regval(unsigned long uah_val)
+{
+    long ret = 0;
+    s64 temp = 0;
+
+    temp = temp * c_offset_a;
+    temp = div_s64(temp, 1000000);
+
+    temp = uah_val * (R_COUL_MOHM/10);
+
+    temp = temp * 10661 * 9;
+    ret = div_s64(temp, (11*125));
+
+    return ret;
+}
+#endif
+
 
 #if 1 /*debug*/
 static unsigned long g_cc_in = 0;
@@ -546,10 +603,12 @@ static long calculate_cc_uah(void)
     cc_uah_out = convert_regval2uah(cc_out);
     cc_uah_in = convert_regval2uah(cc_in);
 
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     temp = (s64) c_offset_a *cc_uah_in;
     cc_uah_in = div_s64(temp, 1000000);
     temp = (s64) c_offset_a *cc_uah_out;
     cc_uah_out = div_s64(temp, 1000000);
+#endif
     SMARTSTAR_REGS_READ(SMARTSTAR_CHG_TIMER_BASE, &cl_in_time, 4);
     SMARTSTAR_REGS_READ(SMARTSTAR_LOAD_TIMER_BASE, &cl_out_time, 4);
     /* uah = uas/3600 = ua*s/3600 */
@@ -619,6 +678,26 @@ static void clear_coul_time(void)
 
     clear_sr_time_array();
 }
+
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+static void save_cc_uah(long cc_uah)
+{
+    unsigned long reg;
+	if (cc_uah > 0){
+        reg = convert_uah2regval(cc_uah);
+        SMARTSTAR_REGS_WRITE(SMARTSTAR_CL_OUT_BASE, &reg, 4);
+        reg = 0;
+        SMARTSTAR_REGS_WRITE(SMARTSTAR_CL_IN_BASE, &reg, 4);
+    }
+    else {
+        reg = convert_uah2regval(-cc_uah);
+        SMARTSTAR_REGS_WRITE(SMARTSTAR_CL_IN_BASE, &reg, 4);
+        reg = 0;
+        SMARTSTAR_REGS_WRITE(SMARTSTAR_CL_OUT_BASE, &reg, 4);
+    }
+	clear_coul_time();
+}
+#endif
 
 /**
  * convert_regval2uv
@@ -1599,7 +1678,11 @@ static int save_nv_info(struct smartstar_coul_device *di)
 
     if (!di->is_nv_read){
         SMARTSTAR_COUL_ERR("save nv before read, error\n");
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+        val = SMARTSTAR_REG_READ(SMARTSTAR_NV_SAVE_SUCCESS);
+#else
         val = SMARTSTAR_REG_READ(SMARTSTAR_FIFO_CLEAR);
+#endif
         SMARTSTAR_REG_WRITE(SMARTSTAR_NV_SAVE_SUCCESS, val & 0xfc);
         return -1;
     }
@@ -1615,7 +1698,9 @@ static int save_nv_info(struct smartstar_coul_device *di)
     pinfo->v_offset_b = v_offset_b;
     pinfo->c_offset_a = c_offset_a;
     pinfo->c_offset_b = c_offset_b;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     pinfo->start_cc = di->cc_start_value;
+#endif
     pinfo->ocv_temp = di->batt_ocv_temp;
     pinfo->limit_fcc = di->batt_limit_fcc;
 
@@ -1647,13 +1732,21 @@ static int save_nv_info(struct smartstar_coul_device *di)
     ret = nve_direct_access(&nve);
     if (ret) {
         SMARTSTAR_COUL_INF("save nv partion failed, ret=%d\n", ret);
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+        val = SMARTSTAR_REG_READ(SMARTSTAR_NV_SAVE_SUCCESS);
+#else
         val = SMARTSTAR_REG_READ(SMARTSTAR_FIFO_CLEAR);
+#endif
         SMARTSTAR_REG_WRITE(SMARTSTAR_NV_SAVE_SUCCESS, val & 0xfc);
     }
     else
     {
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+        val = SMARTSTAR_REG_READ(SMARTSTAR_NV_SAVE_SUCCESS);
+#else
         val = SMARTSTAR_REG_READ(SMARTSTAR_FIFO_CLEAR);
         val &= 0xfc;
+#endif
         SMARTSTAR_REG_WRITE(SMARTSTAR_NV_SAVE_SUCCESS, val | 0x02);
     }
     return ret;
@@ -2004,7 +2097,9 @@ int smartstar_battery_cc (void)
     }
 
     cc = calculate_cc_uah();
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     cc -= di->cc_start_value;
+#endif
 
     return cc/1000;
 }
@@ -2171,6 +2266,9 @@ int smartstar_battery_charge_param(struct battery_charge_param_s *param)
     if (di->batt_data == NULL)
         return 0;
 
+#ifdef    CONFIG_HUAWEI_CHARGING_FEATURE
+    param->design_capacity = di->batt_data->fcc;
+#endif
     param->max_cin_currentmA = di->batt_data->max_cin_currentmA;
     param->max_currentmA= di->batt_data->max_currentmA;
     param->max_voltagemV= di->batt_data->max_voltagemV;
@@ -2240,10 +2338,12 @@ static void get_ocv_by_fcc(struct smartstar_coul_device *di,int batt_temp)
         clear_cc_register();
         clear_coul_time();
         di->get_cc_start_time = 0;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
         if (di->cc_start_value != 0){
             di->cc_start_value = 0;
             di->is_nv_need_save = save_nv_info(di);
         }
+#endif
     } else {
         DBG_CNT_INC(dbg_ocv_fc_failed);
         SMARTSTAR_COUL_ERR("full charged, but OCV don't change,\
@@ -2326,10 +2426,12 @@ static void get_ocv_by_vol(struct smartstar_coul_device *di)
 		clear_coul_time();
               save_ocv(voltage_uv);
 		di->get_cc_start_time = 0;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
         if (di->cc_start_value != 0){
             di->cc_start_value = 0;
             di->is_nv_need_save = 1;
         }
+#endif
 		SMARTSTAR_COUL_EVT("awake from deep sleep, new OCV = %d \n",
 						   di->batt_ocv);
 		DBG_CNT_INC(dbg_ocv_cng_0);
@@ -2408,17 +2510,23 @@ static void get_initial_ocv(struct smartstar_coul_device *di)
 
     if(fastboot_save_nv_info_error()){
         di->batt_ocv_valid_to_refresh_fcc = 0;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
         di->cc_start_value = 0;
+#endif
         di->batt_ocv_temp = 250;
     }
     else{
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
         di->cc_start_value = pinfo->start_cc;
+#endif
         di->batt_ocv_temp = pinfo->ocv_temp;
     }
 
     di->batt_limit_fcc = pinfo->limit_fcc;
 
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     SMARTSTAR_COUL_INF("ocv = %d uv, start_cc = %ld uAh\n", ocv, di->cc_start_value);
+#endif
 
     di->batt_ocv = ocv;
     //di->cc_start_value = 0;
@@ -2573,6 +2681,32 @@ static void get_battery_id_voltage(struct smartstar_coul_device *di)
     SMARTSTAR_COUL_INF("get battery id voltage is %d mv\n",di->batt_id_vol);
 }
 
+/**
+ * get_battery_id_voltage - get voltage on ID pin by HKADC.
+ * @di: stmartstar coul device
+ * called in module initalization
+ */
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+static void get_battery_id_voltage_real(struct smartstar_coul_device *di)
+{
+    int ret = 0;
+    short temperature;
+    unsigned short volt;
+
+    /*change ID get from NTC resistance by HKADC path*/
+    extern int DRV_HKADC_GET_TEMP(HKADC_TEMP_PROTECT_E log_chan,
+            unsigned short* volt,
+            short* temp, HKADC_CONV_MODE_E ulMode);
+
+    ret = DRV_HKADC_GET_TEMP(0,&volt,&temperature, 0); // 0 == HKADC_TEMP_BATTERY
+    if(ret != 0){ // 0 == HKADC_OK
+        SMARTSTAR_COUL_ERR("HKADC get battery id fail\n");
+        volt = 0;
+    }
+	di->batt_id_vol = volt;
+    SMARTSTAR_COUL_INF("get battery id voltage is %d mv\n",di->batt_id_vol);
+}
+#endif
 static int bound_soc(int soc)
 {
 	soc = max(0, soc);
@@ -2591,6 +2725,10 @@ int max_c; //ma
 static void get_fifo_data(struct vcdata *vc)
 {
     int i;
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+    short vol_reset_value = 0xffff;
+    int abnormal_value_cnt = 0;
+#endif	
     static short vol_fifo[FIFO_DEPTH];
     static short cur_fifo[FIFO_DEPTH];
     int vol,cur;
@@ -2602,8 +2740,21 @@ static void get_fifo_data(struct vcdata *vc)
         SMARTSTAR_REGS_READ(SMARTSTAR_CUR_FIFO_BASE+i*2, &cur_fifo[i], 2);
     }
 
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+    if(vol_fifo[0] != vol_reset_value)
+    {
+        vol=convert_regval2uv(vol_fifo[0])/1000;
+        cur=convert_regval2ua(cur_fifo[0])/1000;
+    }
+    else
+    {
+        vol = 0;
+        cur = 0;
+    }
+#else
     vol=convert_regval2uv(vol_fifo[0])/1000;
     cur=convert_regval2ua(cur_fifo[0])/1000;
+#endif	
 
     vols=vol;
     curs=cur;
@@ -2611,6 +2762,28 @@ static void get_fifo_data(struct vcdata *vc)
     max_cur = min_cur = cur;
 
     for (i=1; i<FIFO_DEPTH; i++){
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+        if(vol_fifo[i] != vol_reset_value)
+        {
+            vol = convert_regval2uv(vol_fifo[i])/1000;
+            cur = convert_regval2ua(cur_fifo[i])/1000;
+            
+            vols += vol;
+            curs += cur;
+            
+            if (cur > max_cur){
+                max_cur = cur;
+            }
+            else if (cur < min_cur){
+                min_cur = cur;
+            }
+        }
+        else
+        {
+            abnormal_value_cnt++;
+            SMARTSTAR_COUL_INF("i:%d, vol_fifo[i]:%d, cur_fifo[i]:%d\n", i, vol_fifo[i], cur_fifo[i]);
+        }
+#else
         vol = convert_regval2uv(vol_fifo[i])/1000;
         cur = convert_regval2ua(cur_fifo[i])/1000;
 
@@ -2623,10 +2796,16 @@ static void get_fifo_data(struct vcdata *vc)
         else if (cur < min_cur){
             min_cur = cur;
         }
+#endif
     }
 
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+    vol = vols/(FIFO_DEPTH - abnormal_value_cnt);
+    cur = curs/(FIFO_DEPTH - abnormal_value_cnt);
+#else
     vol = vols/FIFO_DEPTH;
     cur = curs/FIFO_DEPTH;
+#endif
 
     vc->avg_v = vol;
     vc->avg_c = cur;
@@ -2871,7 +3050,11 @@ static void calculate_soc_params(struct smartstar_coul_device *di,
 
     /* calculate cc micro_volt_hour */
     di->cc_end_value = calculate_cc_uah();
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     *cc_uah = di->cc_end_value - di->cc_start_value;
+#else
+    *cc_uah = di->cc_end_value;
+#endif
 
     di->batt_ruc = *remaining_charge_uah - *cc_uah;
 
@@ -2967,7 +3150,11 @@ static int calculate_state_of_charge(struct smartstar_coul_device *di)
 
     di->rbatt = rbatt;
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    if (di->batt_limit_fcc && di->batt_limit_fcc<fcc_uah){
+#else
     if (di->batt_limit_fcc){
+#endif
         fcc_uah = di->batt_limit_fcc;
         SMARTSTAR_COUL_INF("use limit_FCC! %duAh\n", fcc_uah);
     }
@@ -3043,8 +3230,13 @@ void boost_init(void)
     char regval;
 	regval = SMARTSTAR_REG_READ(SMARTSTAR_BOOST_VOLTAGE_ADDR);
 
+#ifdef  CONFIG_HUAWEI_CHARGING_FEATURE
+    /* 0x3 = 011 means 5.0 V */
+    regval = (regval & (~0x7)) | 0x3;
+#else
     /* 0x5 = 101 means 3.8V */
     regval = (regval & (~0x7)) | 0x5;
+#endif
 
     SMARTSTAR_REG_WRITE(SMARTSTAR_BOOST_VOLTAGE_ADDR, regval);
 }
@@ -3053,11 +3245,32 @@ int boost_enable_threshold = 3500;
 int boost_disable_threshold = 3600;
 module_param(boost_enable_threshold, int, 0644);
 module_param(boost_disable_threshold, int, 0644);
-
 void set_boost_enable(int enable)
 {
 #define SMARTSTAR_BOOST_BYPASS_ADDR   0x0B9
-
+#define SMARTSTAR_CLASSD_ADJ0_ADDR  0x0c5
+#define SMARTSTAR_CLASSD_ENABLE (1<<4)
+    unsigned char class_d = 0;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+ char regval;
+    if(enable)
+    {
+        regval = BST_PM_TH;
+    }
+    else
+    {
+        class_d = SMARTSTAR_REG_READ(SMARTSTAR_CLASSD_ADJ0_ADDR);
+        if(class_d & SMARTSTAR_CLASSD_ENABLE)
+        {
+            regval = BST_PM_TH;
+        }
+        else
+        {
+            regval = BST_PM_CUT;
+        }
+    }
+    SMARTSTAR_REG_WRITE(SMARTSTAR_BOOST_BYPASS_ADDR, regval);
+#else
     static int state = 0;
     static int pre_state = 0;
     char regval;
@@ -3092,6 +3305,7 @@ void set_boost_enable(int enable)
         regval = 0x3;
         SMARTSTAR_REG_WRITE(SMARTSTAR_BOOST_BYPASS_ADDR, regval);
     }
+#endif
 }
 
 void dump_acore_reg()
@@ -3157,6 +3371,7 @@ extern unsigned int reg_read_u32(unsigned int pAddr);
 	}
 
 }
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
 static void boost_check_work(struct work_struct *work)
 {
     struct smartstar_coul_device *di = container_of(work,
@@ -3201,6 +3416,151 @@ static void boost_check_work(struct work_struct *work)
 
 }
 #endif
+#endif
+
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+static void calc_initial_ocv(struct smartstar_coul_device *di)
+{
+    short reg;
+    int old_charge_state;
+
+    extern int bq2419x_set_charge_state(int state);
+
+    old_charge_state = bq2419x_set_charge_state(0);
+
+    cali_adc();
+
+    mdelay(2500); // 2.2s for calibration, 0.11s for sampling, and 0.19s for pad
+
+    di->batt_ocv = smartstar_battery_voltage()*1000;
+
+    reg = convert_uv2regval(di->batt_ocv);
+
+    reg &= 0x8000;
+
+    SMARTSTAR_REG_WRITE(SMARTSTAR_SAVE_OCV_ADDR, reg);
+
+    bq2419x_set_charge_state(old_charge_state);
+
+    clear_cc_register();
+    clear_coul_time();
+
+    SMARTSTAR_COUL_EVT("OCV = %d\n", di->batt_ocv);
+
+}
+
+static void battery_plug_in(struct smartstar_coul_device *di)
+{
+    char val;
+
+    SMARTSTAR_COUL_EVT("%s: Enter\n",__FUNCTION__);
+
+    di->batt_exist = 1;
+
+    /*set battery data*/
+    get_battery_id_voltage_real(di);
+
+    di->batt_data = get_battery_data(di->batt_id_vol, di->product_name);
+
+    if(di->batt_data)
+    {
+        SMARTSTAR_COUL_INF("%s: batt ID is %d, batt_brand is %s, product_name is %s\n",__FUNCTION__,di->batt_id_vol, di->batt_data->batt_brand, di->product_name);
+    }
+	else
+	{
+        SMARTSTAR_COUL_ERR("di->batt_data is NULL");
+	}
+
+    di->batt_temp = smartstar_battery_temperature_tenth_degree();
+
+    SMARTSTAR_COUL_INF("battery temperature is %d.%d\n", di->batt_temp/10, di->batt_temp%10);
+
+    /*calculate first soc */
+    calc_initial_ocv(di);
+
+    di->charging_stop_time = get_coul_time();
+
+    di->last_iavg_ma = IMPOSSIBLE_IAVG;
+    di->prev_pc_unusable = -EINVAL;
+
+    di->sr_resume_time = get_coul_time();
+    sr_cur_state = SR_DEVICE_WAKEUP;
+
+    di->batt_chargecycles = 0;
+    di->batt_changed_flag = 1;
+    di->batt_limit_fcc = 0;
+    di->adjusted_fcc_temp_lut = NULL;
+    di->is_nv_need_save = 1;
+    val = SMARTSTAR_REG_READ(SMARTSTAR_NV_SAVE_SUCCESS);
+    SMARTSTAR_REG_WRITE(SMARTSTAR_NV_SAVE_SUCCESS, val & 0xfc);
+    SMARTSTAR_COUL_INF("new battery plug in, reset chargecycles!\n");
+
+    /*get the first soc value*/
+    DI_LOCK();
+    di->soc_limit_flag = 0;
+    di->batt_soc = calculate_state_of_charge(di);
+    di->soc_limit_flag = 1;
+    DI_UNLOCK();
+
+    set_low_vol_int_reg(di, LOW_INT_STATE_RUNNING);
+
+    /*schedule calculate_soc_work*/
+    schedule_delayed_work(&di->calculate_soc_delayed_work,
+                        round_jiffies_relative(msecs_to_jiffies(di->soc_work_interval)));
+
+    // save battery move magic number
+    SMARTSTAR_REG_WRITE(SMARTSTAR_BATTERY_MOVE_ADDR, BATTERY_MOVE_MAGIC_NUM);
+
+    blocking_notifier_call_chain(&notifier_list, BATTERY_MOVE, NULL);//hisi_coul_charger_event_rcv(evt);
+
+    SMARTSTAR_COUL_EVT("%s: Exit\n",__FUNCTION__);
+
+}
+
+static void battery_plug_out(struct smartstar_coul_device *di)
+{
+    short reg;
+
+    SMARTSTAR_COUL_EVT("%s: Enter\n",__FUNCTION__);
+
+    di->batt_exist = 0;
+
+    blocking_notifier_call_chain(&notifier_list, BATTERY_MOVE, NULL);//hisi_coul_charger_event_rcv(evt);
+
+    cancel_delayed_work(&di->calculate_soc_delayed_work);
+
+    // save battery move magic number
+    SMARTSTAR_REG_WRITE(SMARTSTAR_BATTERY_MOVE_ADDR, 0x18);
+
+    // clear saved ocv
+    reg = 0;
+    SMARTSTAR_REG_WRITE(SMARTSTAR_SAVE_OCV_ADDR, reg);
+
+    SMARTSTAR_COUL_EVT("%s: Exit\n",__FUNCTION__);
+
+}
+
+static void battery_check_work(struct work_struct *work)
+{
+    struct smartstar_coul_device *di = container_of(work,
+				struct smartstar_coul_device,
+				battery_check_delayed_work.work);
+
+    int batt_exist = is_smartstar_battery_exist();
+
+    if (batt_exist != di->batt_exist){
+        if (batt_exist){
+            battery_plug_in(di);
+        }
+        else{
+            battery_plug_out(di);
+        }
+    }
+
+    schedule_delayed_work(&di->battery_check_delayed_work,
+                round_jiffies_relative(msecs_to_jiffies(BATTERY_CHECK_TIME_MS)));
+}
+#endif
 /**
  * calculate_soc_work - schedule every CALCULATE_SOC_MS.
  */
@@ -3224,6 +3584,13 @@ static void boost_check_work(struct work_struct *work)
             di->is_nv_need_save = 0;
         }
     }
+
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    if (!di->batt_exist){
+         SMARTSTAR_COUL_EVT("battery not exist, do not calc soc any more\n");
+        return;
+    }
+#endif
 
     DI_LOCK();
     /* calc soc */
@@ -3309,6 +3676,10 @@ static void boost_check_work(struct work_struct *work)
 static void make_cc_no_overload(struct smartstar_coul_device *di)
 {
 	long cc;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    cc = calculate_cc_uah();
+    save_cc_uah(cc);
+#else
 	unsigned long time;
 	cc = calculate_cc_uah();
 	cc = cc - di->cc_start_value;
@@ -3319,6 +3690,7 @@ static void make_cc_no_overload(struct smartstar_coul_device *di)
 	clear_cc_register();
 	clear_coul_time();
     di->is_nv_need_save = save_nv_info(di);
+#endif
 }
 
 /**
@@ -3338,6 +3710,11 @@ static void make_cc_no_overload(struct smartstar_coul_device *di)
 
 	if (intstat & COUL_VBAT_LOW_INT)
 	{
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    if (!di->batt_exist){
+           return;
+        }
+#endif
         SMARTSTAR_COUL_EVT("IRQ: COUL_VBAT_LOW_INT, vbat=%duv, last vbat_int=%d\n", vbat_uv, di->v_low_int_value);
 
 #if 0
@@ -3375,12 +3752,18 @@ static void make_cc_no_overload(struct smartstar_coul_device *di)
             if (vbat_uv < BATTERY_VOL_2_PERCENT){
                 delta_soc = di->batt_soc - 2;
                 di->batt_soc = 1;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+                blocking_notifier_call_chain(&notifier_list, BATTERY_LOW_SHUTDOWN, NULL);//hisi_coul_charger_event_rcv(evt);
+#endif
             }
         }
         else if (di->v_low_int_value == LOW_INT_STATE_RUNNING){
             if (vbat_uv < di->v_cutoff){
                 delta_soc = di->batt_soc;
                 di->batt_soc = 0;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+                blocking_notifier_call_chain(&notifier_list, BATTERY_LOW_SHUTDOWN, NULL);//hisi_coul_charger_event_rcv(evt);
+#endif
             }
         }
 
@@ -3389,7 +3772,9 @@ static void make_cc_no_overload(struct smartstar_coul_device *di)
             SMARTSTAR_COUL_EVT("delta_soc=%d, mark save ocv is invalid\n", delta_soc);
             SMARTSTAR_REGS_WRITE(SMARTSTAR_SAVE_OCV_ADDR,&ocvreg,2);            
         }
-		blocking_notifier_call_chain(&notifier_list, BATTERY_LOW_SHUTDOWN, NULL);//hisi_coul_charger_event_rcv(evt);
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
+        blocking_notifier_call_chain(&notifier_list, BATTERY_LOW_SHUTDOWN, NULL);//hisi_coul_charger_event_rcv(evt);
+#endif
 #endif
         di->irq_mask &= ~COUL_VBAT_LOW_INT;
 	}
@@ -3488,7 +3873,9 @@ static void smartstar_charging_stop (struct smartstar_coul_device *di)
 {
     int rm, cc;
     int fcc_101 = di->batt_fcc*101/100;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     int need_save = 1;
+#endif
 
     if (CHARGING_STATE_CHARGE_UNKNOW == di->charging_state){
         return;
@@ -3498,27 +3885,42 @@ static void smartstar_charging_stop (struct smartstar_coul_device *di)
 
     if (CHARGING_STATE_CHARGE_START == di->charging_state){
         update_chargecycles(di);
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+        di->is_nv_need_save = 1;
+#else
         need_save = 1;
+#endif
+
     }
 
     cc = calculate_cc_uah();
 
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     cc = cc - di->cc_start_value;
+#endif
 
     rm = di->batt_rm - cc;
 
     if (rm > fcc_101){
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+        unsigned long reg;
+        cc = cc + (rm-fcc_101);
+        save_cc_uah(cc);
+#else
         di->cc_start_value -= rm-fcc_101;
         need_save = 1;
+#endif
         di->batt_limit_fcc = 0;
     }
 	else if (di->batt_soc == 100 && di->batt_soc_real > 950){
 		di->batt_limit_fcc = rm*100/101;
 	}
 
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     if(need_save){
         di->is_nv_need_save = save_nv_info(di);
     }
+#endif
 
     di->charging_state = CHARGING_STATE_CHARGE_STOP;
     di->charging_stop_time = get_coul_time();
@@ -3533,6 +3935,7 @@ static int calculate_real_fcc_uah(struct smartstar_coul_device *di,
     int cc_uah;
     int real_fcc_uah;
     int rbatt;
+#ifndef  CONFIG_HUAWEI_CHARGING_FEATURE
     int terminate_soc_real;
 
     terminate_soc_real = di->batt_soc_real;
@@ -3541,6 +3944,13 @@ static int calculate_real_fcc_uah(struct smartstar_coul_device *di,
     					 &unusable_charge_uah,
     					 &remaining_charge_uah, &cc_uah, &delta_rc, &rbatt);
     real_fcc_uah = (-(cc_uah - di->charging_begin_cc))/(terminate_soc_real - di->charging_begin_soc)*terminate_soc_real;
+#else
+     calculate_soc_params(di,
+    					 &fcc_uah,
+    					 &unusable_charge_uah,
+    					 &remaining_charge_uah, &cc_uah, &delta_rc, &rbatt);
+    real_fcc_uah = (-(cc_uah - di->charging_begin_cc))/(1000 - di->charging_begin_soc)*1000;
+#endif
     //real_fcc_uah = remaining_charge_uah - cc_uah;
     //real_fcc_uah = real_fcc_uah*100/101;
     *ret_fcc_uah = fcc_uah;
@@ -3905,7 +4315,9 @@ void ss_di_show(void)
     printk(KERN_ERR"batt_chargecycles = %d\n", di->batt_chargecycles);
     printk(KERN_ERR"last_cali_temp = %d\n", di->last_cali_temp);
     printk(KERN_ERR"cc_end_value = %ld\n", di->cc_end_value);
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     printk(KERN_ERR"cc_start_value = %ld\n", di->cc_start_value);
+#endif
     printk(KERN_ERR"v_cutoff = %d\n", di->v_cutoff);
     printk(KERN_ERR"v_low_int_value = %d\n", di->v_low_int_value);
     printk(KERN_ERR"get_cc_start_time = %ld\n", di->get_cc_start_time);
@@ -4087,6 +4499,33 @@ static ssize_t smartstar_show_abs_cc(struct device_driver *driver, char *buf)
     return sprintf(buf, "%ld\n", val);
 }
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+static ssize_t smartstar_show_battery_brand_name(struct device_driver *driver, char *buf)
+{
+    struct smartstar_coul_device *di = g_smartstar_coul_dev;
+
+     if((NULL == buf) || (NULL == di)){
+        return -1;
+    }
+
+    sprintf(buf, "%s\n",di->batt_data->batt_brand);
+
+    return strlen(buf);
+}
+
+static ssize_t smartstar_show_battery_id_voltage(struct device_driver *driver, char *buf)
+{
+    struct smartstar_coul_device *di = g_smartstar_coul_dev;
+
+    if((NULL == buf) || (NULL == di)){
+        return -1;
+    }
+
+    sprintf(buf, "%d\n",di->batt_id_vol);
+
+    return strlen(buf);
+}
+#endif
 static DRIVER_ATTR(gaugelog, S_IWUSR | S_IWGRP | S_IRUGO, smartstar_show_gaugelog,NULL);
 static DRIVER_ATTR(hand_chg_capacity_flag, S_IWUSR | S_IRUGO,
                   smartstar_show_hand_chg_capacity_flag,
@@ -4097,6 +4536,10 @@ static DRIVER_ATTR(input_capacity, S_IWUSR | S_IRUGO,
 static DRIVER_ATTR(abs_cc, S_IWUSR | S_IRUGO,
                   smartstar_show_abs_cc,
                   NULL);
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+static DRIVER_ATTR(battery_brand_name, S_IRUSR | S_IRGRP | S_IRUGO, smartstar_show_battery_brand_name, NULL);
+static DRIVER_ATTR(battery_id_voltage, S_IRUSR | S_IRGRP | S_IRUGO, smartstar_show_battery_id_voltage, NULL);
+#endif
 
 static struct platform_driver hisi_smartstar_coul_driver;
 
@@ -4141,8 +4584,9 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
     struct smartstar_coul_device *di = NULL;
     int retval = 0, i;
     int val;
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     char product_name[32] = {0};
-
+#endif
 #if defined CONFIG_MACH_HI6620SFT
     gpio_request(GPIO_4_1,"pmu");
     gpio_request(GPIO_4_2,"pmu");
@@ -4204,6 +4648,19 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
         return -1;
     }
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    retval = driver_create_file(&(hisi_smartstar_coul_driver.driver), &driver_attr_battery_brand_name);
+    if (0 != retval) {
+        printk("failed to create sysfs entry(battery_brand_name): %d\n", retval);
+        return -1;
+    }
+
+    retval = driver_create_file(&(hisi_smartstar_coul_driver.driver), &driver_attr_battery_id_voltage);
+    if (0 != retval) {
+        printk("failed to create sysfs entry(battery_id_voltage): %d\n", retval);
+        return -1;
+    }
+#endif
     //wake_lock_init(&hisi_smartstar_wakelock, WAKE_LOCK_SUSPEND, "hisi_smartstar_wakelock");
 
     di = (struct smartstar_coul_device *)kzalloc(sizeof(*di), GFP_KERNEL);
@@ -4240,10 +4697,18 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
     di->sr_resume_time = get_coul_time();
     sr_cur_state = SR_DEVICE_WAKEUP;
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    if (!get_hw_config_string("product/product_name", di->product_name, sizeof(di->product_name), NULL) ) {
+        strncpy(di->product_name, "EDGE_PLUS_UG", sizeof("EDGE_PLUS_UG"));
+        SMARTSTAR_COUL_ERR("%s: get product/product_name fail, use default: %s\n", __FUNCTION__, di->product_name);
+    }
+#else
     if (!get_hw_config_string("product/product_name", product_name, sizeof(product_name), NULL) ) {
         strncpy(product_name, "EDGE_PLUS_UG", sizeof("EDGE_PLUS_UG"));
         SMARTSTAR_COUL_ERR("%s: get product/product_name fail, use default: %s\n", __FUNCTION__, product_name);
     }
+#endif
+
 
     if (get_hw_config_int("gas_gauge/r_pcb", &di->r_pcb, NULL)) {
         di->r_pcb *= 1000;    // to uohm
@@ -4255,7 +4720,41 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
     if (!get_hw_config_int("gas_gauge/current_offset_a", &c_offset_a, NULL)){
         c_offset_a = DEFAULT_C_OFF_A;
     }
+    if (get_hw_config_int("gas_gauge/battery_is_removable", &removable_batt_flag, NULL)) {
+        SMARTSTAR_COUL_ERR("get gas_gauge/battery_is_removable ok!set removable_batt_flag to %d\n", removable_batt_flag);
+    }
+    else {
+        removable_batt_flag = 0;
+        SMARTSTAR_COUL_ERR("get gas_gauge/r_pcb failed!set r_pcb to %d\n", di->r_pcb);
+    }
 
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    INIT_DELAYED_WORK(&di->calculate_soc_delayed_work,
+        calculate_soc_work);
+    INIT_DELAYED_WORK(&di->battery_check_delayed_work,
+        battery_check_work);
+
+    /*check battery is exist*/
+    if (!is_smartstar_battery_exist()) {
+        SMARTSTAR_COUL_ERR("%s: no battery, just registe callback\n",__FUNCTION__);
+        di->batt_data = get_battery_data(di->batt_id_vol, di->product_name);
+        di->batt_exist = 0;
+        goto coul_no_battery;
+    }
+
+    di->batt_exist = 1;
+
+    /*set battery data*/
+    get_battery_id_voltage(di);
+    di->batt_data = get_battery_data(di->batt_id_vol, di->product_name);
+    if (NULL == di->batt_data) {
+        SMARTSTAR_COUL_ERR("%s: batt ID(0x%x) is invalid, product_name is %s\n",__FUNCTION__,di->batt_id_vol, di->product_name);
+        retval = -EINVAL;
+        goto coul_failed_1;
+    }
+    SMARTSTAR_COUL_ERR("%s: batt ID is %d, batt_brand is %s, product_name is %s\n",__FUNCTION__,di->batt_id_vol, di->batt_data->batt_brand, di->product_name);
+
+#else
     /*check battery is exist*/
     if (!is_smartstar_battery_exist()) {
         SMARTSTAR_COUL_ERR("%s: no battery, just registe callback\n",__FUNCTION__);
@@ -4281,10 +4780,16 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
 
     INIT_DELAYED_WORK(&di->calculate_soc_delayed_work,
         calculate_soc_work);
+#endif
 
 #if BOOST_ENABLE
+#ifndef  CONFIG_HUAWEI_CHARGING_FEATURE
     INIT_DELAYED_WORK(&di->boost_check_delayed_work,
         boost_check_work);
+#else
+    boost_init();
+    set_boost_enable(1);
+#endif
 #endif
     
     di->batt_temp = smartstar_battery_temperature_tenth_degree();
@@ -4306,7 +4811,11 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
         di->batt_limit_fcc = 0;
         di->adjusted_fcc_temp_lut = NULL; /* enable it when test ok */
         di->is_nv_need_save = 1;
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+        val = SMARTSTAR_REG_READ(SMARTSTAR_NV_SAVE_SUCCESS);
+#else
         val = SMARTSTAR_REG_READ(SMARTSTAR_FIFO_CLEAR);
+#endif
         SMARTSTAR_REG_WRITE(SMARTSTAR_NV_SAVE_SUCCESS, val & 0xfc);
         SMARTSTAR_COUL_INF("battery changed, reset chargecycles!\n");
     } else {
@@ -4323,7 +4832,7 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
     /*schedule calculate_soc_work*/
     schedule_delayed_work(&di->calculate_soc_delayed_work,
                         round_jiffies_relative(msecs_to_jiffies(di->soc_work_interval)));
-
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
 #if BOOST_ENABLE
     schedule_delayed_work(&di->boost_check_delayed_work,
                         round_jiffies_relative(msecs_to_jiffies(1000)));
@@ -4340,10 +4849,36 @@ static int __init hisi_smartstar_coul_probe(struct platform_device *pdev)
     }
 
 coul_no_battery:
+#else
+#if 0
+    INIT_DELAYED_WORK(&di->notifier_work,
+                      interrupt_notifier_work);
+#endif
+    set_low_vol_int_reg(di, LOW_INT_STATE_RUNNING);
+coul_no_battery:
+    INIT_DELAYED_WORK(&di->notifier_work,
+                      interrupt_notifier_work);
+
+    if (hisi_get_irqs(pdev, di)){
+        goto coul_failed_2;
+    }
+
+#if 0
+#if BOOST_ENABLE
+    schedule_delayed_work(&di->boost_check_delayed_work,
+                        round_jiffies_relative(msecs_to_jiffies(1000)));
+#endif
+#endif
+
+    /*schedule calculate_soc_work*/
+    schedule_delayed_work(&di->battery_check_delayed_work,
+                        round_jiffies_relative(msecs_to_jiffies(BATTERY_CHECK_TIME_MS)));
+
+#endif
     coul_ops = (struct hisi_coul_ops*) kzalloc(sizeof (*coul_ops), GFP_KERNEL);
     if (!coul_ops) {
-		SMARTSTAR_COUL_ERR("failed to alloc coul_ops struct\n");
-		retval = -ENOMEM;
+          SMARTSTAR_COUL_ERR("failed to alloc coul_ops struct\n");
+          retval = -ENOMEM;
         goto coul_failed_3;
     }
 
@@ -4389,12 +4924,26 @@ coul_failed_3:
     for (i=0; i<IRQ_MAX; i++){
         free_irq(di->irqs[i], di);
     }
+#ifndef CONFIG_HUAWEI_CHARGING_FEATURE
     cancel_delayed_work(&di->calculate_soc_delayed_work);
+
 #if BOOST_ENABLE
     cancel_delayed_work(&di->boost_check_delayed_work);
 #endif
+
+#else
+#if 0
+#if BOOST_ENABLE
+    cancel_delayed_work(&di->boost_check_delayed_work);
+#endif
+#endif
+    cancel_delayed_work(&di->battery_check_delayed_work);
+#endif
 coul_failed_2:
 	cancel_delayed_work(&di->notifier_work);
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    cancel_delayed_work(&di->calculate_soc_delayed_work);
+#endif
 coul_failed_1:
     platform_set_drvdata(pdev, NULL);
     kfree(di);
@@ -4470,6 +5019,17 @@ static int hisi_smartstar_coul_suspend(struct platform_device *pdev,
     DI_UNLOCK();
 	SMARTSTAR_COUL_INF("SUSPEND! cc=%ld, time=%ld\n", di->suspend_cc,
 					   di->suspend_time);
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    if (di->batt_exist){
+        cancel_delayed_work(&di->calculate_soc_delayed_work);
+        cali_adc();
+    }
+#if BOOST_ENABLE
+        set_boost_enable(FALSE);
+        //cancel_delayed_work_sync(&di->boost_check_delayed_work);
+#endif
+    cancel_delayed_work(&di->battery_check_delayed_work);
+#else
     if (di->batt_exist){
         cancel_delayed_work(&di->calculate_soc_delayed_work);
 #if BOOST_ENABLE
@@ -4478,6 +5038,7 @@ static int hisi_smartstar_coul_suspend(struct platform_device *pdev,
 #endif
     }
     cali_adc();
+#endif
     set_low_vol_int_reg(di, LOW_INT_STATE_SLEEP);
     return 0;
 }
@@ -4627,7 +5188,20 @@ static int hisi_smartstar_coul_resume(struct platform_device *pdev)
     di->soc_limit_flag = 1;
 
     DI_UNLOCK();
+#ifdef CONFIG_HUAWEI_CHARGING_FEATURE
+    if (di->batt_exist){
+        schedule_delayed_work(&di->calculate_soc_delayed_work,
+                    round_jiffies_relative(msecs_to_jiffies(CALCULATE_SOC_MS/2)));
+    }
 
+#if BOOST_ENABLE
+        set_boost_enable(TRUE);
+       // schedule_delayed_work(&di->boost_check_delayed_work,
+       //             round_jiffies_relative(msecs_to_jiffies(1000)));
+#endif
+    schedule_delayed_work(&di->battery_check_delayed_work,
+                round_jiffies_relative(msecs_to_jiffies(BATTERY_CHECK_TIME_MS)));
+#else
     if (di->batt_exist){
         schedule_delayed_work(&di->calculate_soc_delayed_work,
                     round_jiffies_relative(msecs_to_jiffies(CALCULATE_SOC_MS/2)));
@@ -4638,7 +5212,7 @@ static int hisi_smartstar_coul_resume(struct platform_device *pdev)
 #endif
 
     }
-
+#endif
     return 0;
 }
 #endif

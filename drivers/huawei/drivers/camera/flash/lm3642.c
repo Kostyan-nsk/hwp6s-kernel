@@ -507,7 +507,10 @@ static int lm3642_turn_on(work_mode mode, flash_lum_level lum)
 	u32 val = 0;
 	bool is_using_mini_isp = false;
 
-	get_hw_config_int("camera/miniisp", &val, NULL);
+       bool ret_id = 0;
+
+       get_hw_config_int("camera/miniisp", &val, NULL);
+
 	if (val == 1)
 		is_using_mini_isp = true;
 
@@ -540,7 +543,11 @@ static int lm3642_turn_on(work_mode mode, flash_lum_level lum)
 		    }
 		    */
 		} else {
-			get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+			ret_id = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+			if (!ret_id) {
+			    val = 0;
+                         print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
+			}
 			if(1 == val){
 				lum = FLASH_CURRENT_FOR_H30L_FLASH;
 			}else{
@@ -892,6 +899,7 @@ static int lm3642_probe(struct i2c_client *client, const struct i2c_device_id *i
 	struct i2c_adapter *adapter = NULL;
     struct regulator *flash_mask_vdd = NULL;
 	int ret = 0;
+	bool ret_id = 0;
 	u8 val = 0;
 	u32 retVal = 0;
 	print_debug("Enter %s", __FUNCTION__);
@@ -976,8 +984,12 @@ static int lm3642_probe(struct i2c_client *client, const struct i2c_device_id *i
 		//register callback func
         notify_key_status_to_device(lm3642_torch_process);
     } else if(flash_config_type == 3) { /*add a flash_mask_io_vdd to control the flash mask gpio*/
-	
-			get_hw_config_int("camera/h30lCamHardwareUnique", &retVal, NULL);
+			ret_id = get_hw_config_int("camera/h30lCamHardwareUnique", &retVal, NULL);
+			if (!ret_id) {
+			    retVal = 0;
+			    print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
+			}
+
 			if(1 == retVal){
         		flash_mask_vdd = regulator_get(&client->dev, "S_CAMERA_CORE_VDD");
 			}else{
@@ -1008,7 +1020,6 @@ static int lm3642_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	return 0;
 }
-
 /*
  **************************************************************************
  * FunctionName: lm3642_remove;
@@ -1101,7 +1112,6 @@ static int __init lm3642_module_init(void)
 	#endif
 	return 0;
 }
-
 /*
  **************************************************************************
  * FunctionName: lm3642_module_deinit;
@@ -1127,7 +1137,6 @@ static void __exit lm3642_module_deinit(void)
 		unregister_camera_flash(&lm3642_intf);
 	return;
 }
-
 module_init(lm3642_module_init);
 module_exit(lm3642_module_deinit);
 MODULE_AUTHOR("Jiezhou");

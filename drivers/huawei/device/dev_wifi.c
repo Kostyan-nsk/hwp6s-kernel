@@ -1,13 +1,14 @@
 /*
- * Copyright (C) 2009 Texas	Instruments
+ * Copyright (c) 2012-2013 Huawei Ltd.
  *
- * Author: Pradeep Gurumath	<pradeepgurumath@ti.com>
+ * Author: 
+ *
  * This	program	is free	software; you can redistribute it and/or modify
  * it under	the	terms of the GNU General Public	License	version	2 as
  * published by	the	Free Software Foundation.
  */
 
-/* linux/arch/arm/mach-k3v2/k3v2_wifi_power.c
+/* dev_wifi.c
  */
 
 /*=========================================================================
@@ -25,26 +26,35 @@
 #include <linux/err.h>
 #include <linux/random.h>
 #include <linux/skbuff.h>
-#include <generated/mach-types.h>
 #include <linux/wifi_tiwlan.h>
-#include <asm/mach-types.h>
-#include <linux/mux.h>
-#include <linux/regulator/consumer.h>
+#include <linux/gpio.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+
+#include <linux/regulator/consumer.h>
+#include <linux/ctype.h>
+#include <linux/mmc/dw_mmc.h>
+#ifdef CONFIG_HWCONNECTIVITY
+#include <linux/huawei/hw_connectivity.h>
+#endif
+#include <generated/mach-types.h>
+#include <asm/mach-types.h>
+#include <linux/mux.h>
 #include <linux/clk.h>
 #include <linux/mtd/nve_interface.h>
-#include <linux/ctype.h>
 #include <hisi/drv_regulator_user.h>
 #include <mach/clk_name_interface.h>
 #include <mach/iomux_blocks.h>
 #include <reg_ops.h>
+
 #include "dev_wifi.h"
-unsigned char g_wifimac[WLAN_MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
 
 extern int hsad_get_wifi_enable(void);
 extern int hsad_get_wifi_irq(void);
-
 struct wifi_host_s {
 	struct regulator *vdd;
 	struct clk *clk;
@@ -53,17 +63,17 @@ struct wifi_host_s {
 	bool bEnable;
 };
 
-struct wifi_host_s *wifi_host;
-
 static int gpio_wifi_en = -1;
 static int gpio_wifi_irq = -1;
-
-static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 typedef struct wifi_mem_prealloc_struct {
 	void *mem_ptr;
 	unsigned long size;
 } wifi_mem_prealloc_t;
 
+
+struct wifi_host_s *wifi_host;
+static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
+unsigned char g_wifimac[WLAN_MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
 static wifi_mem_prealloc_t wifi_mem_array[PREALLOC_WLAN_NUMBER_OF_SECTIONS] = {
 	{ NULL, (WLAN_SECTION_SIZE_0 + PREALLOC_WLAN_SECTION_HEADER) },
 	{ NULL, (WLAN_SECTION_SIZE_1 + PREALLOC_WLAN_SECTION_HEADER) },
@@ -77,19 +87,15 @@ void *wifi_mem_prealloc(int section, unsigned long size)
 	if (section == PREALLOC_WLAN_NUMBER_OF_SECTIONS)
 		return wlan_static_skb;
 	if ((section < 0) || (section > PREALLOC_WLAN_NUMBER_OF_SECTIONS)) {
-		pr_err("%s: is error(section:%d).\n", __func__, section);
+		pr_err("%s: is not prealloc(section:%d), use dynamic memory.\n", __func__, section);
 		return NULL;
 	}
 	if (wifi_mem_array[section].size < size) {
-		pr_err("%s: is error(size:%lu).\n", __func__, size);
+		pr_err("%s: section:%d prealloc is not enough(size:%lu), use dynamic memory.\n", __func__, section, size);
 		return NULL;
 	}
 	return wifi_mem_array[section].mem_ptr;
 }
-
-#ifndef	CONFIG_WIFI_CONTROL_FUNC
-EXPORT_SYMBOL(wifi_mem_prealloc);
-#endif
 
 /*init wifi buf*/
 int init_wifi_mem(void)
@@ -142,186 +148,14 @@ int deinit_wifi_mem(void)
 	return 0;
 }
 
-int k3v2_wifi_power(int on)
-{
-	int ret = 0;
-	pr_info("%s: on:%d\n", __func__, on);
-
-	if (NULL == wifi_host) {
-		pr_err("%s: wifi_host is null\n", __func__);
-		return -1;
-	}
-
-	if (on) {
-		if (wifi_host->bEnable) {
-			pr_err("%s: wifi had power on.\n", __func__);
-			return ret;
-		}
-
-		ret = blockmux_set(wifi_host->block, wifi_host->config, LOWPOWER);
-		if (ret < 0)
-		{
-			pr_err("%s: blockmux_set LOWPOWER failed, ret:%d\n", __func__, ret);
-			return ret;
-		}
-		pr_info("%s: power up\n", __func__);
-		ret = clk_enable(wifi_host->clk);
-		if (ret < 0) {
-			pr_err("%s: clk_enable failed, ret:%d\n", __func__, ret);
-			return ret;
-		}
-
-		msleep(10);
-		gpio_set_value(gpio_wifi_en, 0);
-		msleep(10);
-		gpio_set_value(gpio_wifi_en, 1);
-		msleep(100);
-
-		ret = blockmux_set(wifi_host->block, wifi_host->config, NORMAL);
-		if (ret < 0) {
-			pr_err("%s: blockmux_set NORMAL failed, ret:%d\n", __func__, ret);
-			clk_disable(wifi_host->clk);
-			return ret;
-		}
-
-		hi_sdio_set_power(on);
-		wifi_host->bEnable = true;
-	} else {
-		if (!wifi_host->bEnable) {
-			pr_err("%s: wifi had power off\n", __func__);
-			return ret;
-		}
-
-		ret = blockmux_set(wifi_host->block, wifi_host->config, LOWPOWER);
-		if (ret < 0)
-		{
-			pr_err("%s: blockmux_set LOWPOWER failed, ret:%d\n", __func__, ret);
-			return ret;
-		}
-
-		msleep(10);
-		hi_sdio_set_power(on);
-		gpio_set_value(gpio_wifi_en, 0);
-		clk_disable(wifi_host->clk);
-		wifi_host->bEnable = false;
-	}
-
-	return ret;
-}
-
-#ifndef CONFIG_WIFI_CONTROL_FUNC
-EXPORT_SYMBOL(k3v2_wifi_power);
-#endif
-
-int k3v2_wifi_reset(int on)
-{
-	pr_info("%s: on:%d.\n", __func__, on);
-	if (on)
-		gpio_set_value(gpio_wifi_en, 1);
-	else
-		gpio_set_value(gpio_wifi_en, 0);
-	return 0;
-}
-
-#ifndef CONFIG_WIFI_CONTROL_FUNC
-EXPORT_SYMBOL(k3v2_wifi_reset);
-#endif
-
-#ifdef _DRV_LLT_
-int char2byte( char* strori, char* outbuf )
-#else
-static int char2byte( char* strori, char* outbuf )
-#endif
-{
-	int i = 0;
-	int temp = 0;
-	int sum = 0;
-
-	for( i = 0; i < NV_WLAN_VALID_SIZE; i++ ){
-
-		switch (strori[i]) {
-			case '0' ... '9':
-				temp = strori[i] - '0';
-		    	break;
-		    case 'a' ... 'f':
-				temp = strori[i] - 'a' + 10;
-				break;
-		    case 'A' ... 'F':
-				temp = strori[i] - 'A' + 10;
-			    break;
-			default:
-				return 0;
-	}
-		sum += temp;
-		if( i % 2 == 0 ){
-			outbuf[i/2] |= temp << 4;
-		}
-		else{
-			outbuf[i/2] |= temp;
-		}
-	}
-	return sum;
-}
-#ifdef _DRV_LLT_
-void read_from_global_buf(unsigned char * buf)
-#else
 static void read_from_global_buf(unsigned char * buf)
-#endif
 {
 	memcpy(buf,g_wifimac,WLAN_MAC_LEN);
 	printk("get MAC from g_wifimac: mac=%02x:%02x:%02x:%02x:%02x:%02x\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
 	return;
 }
-#ifdef _DRV_LLT_
-int read_from_file(unsigned char * buf)
-#else
-static int read_from_file(unsigned char * buf)
-#endif
-{
-	struct file* filp = NULL;
-	mm_segment_t old_fs;
-	int result = 0;
-	filp = filp_open(MAC_ADDRESS_FILE, O_CREAT|O_RDWR, 0666);
-	if(IS_ERR(filp)){
-		printk("open mac address file error\n");
-		get_random_bytes(buf,WLAN_MAC_LEN); 
-		buf[0] = 0x0;
-		printk("get MAC from Random: mac=%02x:%02x:%02x:%02x:%02x:%02x\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]); 
-		memcpy(g_wifimac,buf,WLAN_MAC_LEN); 
-		return 0;
-	}
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	filp->f_pos = 0;
-	result = filp->f_op->read(filp,buf,WLAN_MAC_LEN,&filp->f_pos);
-	if(WLAN_MAC_LEN == result){
-		printk("get MAC from the file!\n");
-		memcpy(g_wifimac,buf,WLAN_MAC_LEN);
-		set_fs(old_fs);
-		filp_close(filp,NULL);
-		return 0;
-	}
-	//random mac
-	get_random_bytes(buf,WLAN_MAC_LEN);
-	buf[0] = 0x0;
-	printk("get MAC from Random: mac=%02x:%02x:%02x:%02x:%02x:%02x\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
-	memcpy(g_wifimac,buf,WLAN_MAC_LEN);
-
-	//update mac -file
-	filp->f_pos = 0;
-	result = filp->f_op->write(filp,buf,WLAN_MAC_LEN,&filp->f_pos);
-	if(WLAN_MAC_LEN != result){
-		printk("update random mac to file error\n");
-	}
-
-	set_fs(old_fs);
-	filp_close(filp,NULL);
-	return 0;
-}
-
-
-int char2_byte( char* strori, char* outbuf )
+static int char2_byte( char* strori, char* outbuf )
 {
 	int i = 0;
 	int temp = 0;
@@ -411,14 +245,7 @@ static int read_from_mac_file(unsigned char * buf)
 	return 0;
 }
 
-
-
-
-#ifdef _DRV_LLT_
-int k3v2_wifi_get_mac_addr(unsigned char *buf)
-#else
-static int k3v2_wifi_get_mac_addr(unsigned char *buf)
-#endif
+int bcm_wifi_get_mac_addr(unsigned char *buf)
 {
 	int ret = -1;
 
@@ -448,60 +275,86 @@ static int k3v2_wifi_get_mac_addr(unsigned char *buf)
 	return 0;
 }
 
-#ifndef CONFIG_WIFI_CONTROL_FUNC
-EXPORT_SYMBOL(k3v2_wifi_get_mac_addr);
-#endif
-struct wifi_platform_data k3v2_wifi_control = {
-	.set_power = k3v2_wifi_power,
-	.set_reset = k3v2_wifi_reset,
-	.set_carddetect = hi_sdio_detectcard_to_core,
-	.get_mac_addr = k3v2_wifi_get_mac_addr,
-	.mem_prealloc = wifi_mem_prealloc,
-};
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-static struct resource k3v2_wifi_resources[] = {
-	[0] = {
-	.name  = "bcm4329_wlan_irq",
-	.start = 0,
-	.end   = 0,
-	.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL
-			| IRQF_NO_SUSPEND,/* IORESOURCE_IRQ_HIGHEDGE */
-	},
-};
-
-static struct platform_device k3v2_wifi_device = {
-	.name = "bcm4329_wlan",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(k3v2_wifi_resources),
-	.resource = k3v2_wifi_resources,
-	.dev = {
-		.platform_data = &k3v2_wifi_control,
-	},
-};
-#endif
-
-/*this function just run one time*/
-static int init_wifi_gpio(void)
+int bcm_wifi_power(int on)
 {
-    gpio_wifi_en = hsad_get_wifi_enable();
-    if (gpio_wifi_en < 0){
-        pr_err("%s: wifi enable gpio get failed gpio_wifi_en=%d\n", __func__, gpio_wifi_en);
-        return -1;
-    }
+	int ret = 0;
+	pr_info("%s: on:%d\n", __func__, on);
 
-    gpio_wifi_irq = hsad_get_wifi_irq();
-    if (gpio_wifi_irq < 0){
-        pr_err("%s: wifi irq gpio get failed gpio_wifi_irq=%d\n", __func__, gpio_wifi_irq);
-        return -1;
-    }
-    pr_err("init_wifi_gpio: wifi_en:%d, wifi_irq:%d\n", gpio_wifi_en, gpio_wifi_irq); //debug
+	if (NULL == wifi_host) {
+		pr_err("%s: wifi_host is null\n", __func__);
+		return -1;
+	}
 
-    k3v2_wifi_device.resource[0].start = gpio_to_irq(gpio_wifi_irq);
-    k3v2_wifi_device.resource[0].end = gpio_to_irq(gpio_wifi_irq);
+	if (on) {
+		if (wifi_host->bEnable) {
+			pr_err("%s: wifi had power on.\n", __func__);
+			return ret;
+		}
 
-    return 0;
+		ret = blockmux_set(wifi_host->block, wifi_host->config, LOWPOWER);
+		if (ret < 0)
+		{
+			pr_err("%s: blockmux_set LOWPOWER failed, ret:%d\n", __func__, ret);
+			return ret;
+		}
+		pr_info("%s: power up\n", __func__);
+		ret = clk_enable(wifi_host->clk);
+		if (ret < 0) {
+			pr_err("%s: clk_enable failed, ret:%d\n", __func__, ret);
+			return ret;
+		}
+
+		msleep(10);
+		gpio_set_value(gpio_wifi_en, 0);
+		msleep(10);
+		gpio_set_value(gpio_wifi_en, 1);
+		msleep(100);
+
+		ret = blockmux_set(wifi_host->block, wifi_host->config, NORMAL);
+		if (ret < 0) {
+			pr_err("%s: blockmux_set NORMAL failed, ret:%d\n", __func__, ret);
+			clk_disable(wifi_host->clk);
+			return ret;
+		}
+
+		hi_sdio_set_power(on);
+		wifi_host->bEnable = true;
+	} else {
+		if (!wifi_host->bEnable) {
+			pr_err("%s: wifi had power off\n", __func__);
+			return ret;
+		}
+
+		ret = blockmux_set(wifi_host->block, wifi_host->config, LOWPOWER);
+		if (ret < 0)
+		{
+			pr_err("%s: blockmux_set LOWPOWER failed, ret:%d\n", __func__, ret);
+			return ret;
+		}
+
+		msleep(10);
+		hi_sdio_set_power(on);
+		gpio_set_value(gpio_wifi_en, 0);
+		clk_disable(wifi_host->clk);
+		wifi_host->bEnable = false;
+	}
+
+	return ret;
 }
+
+
+
+static int bcm_wifi_reset(int on)
+{
+	pr_info("%s: on:%d.\n", __func__, on);
+	if (on)
+		gpio_set_value(gpio_wifi_en, 1);
+	else
+		gpio_set_value(gpio_wifi_en, 0);
+	return 0;
+}
+
 
 extern int dhd_msg_level;
 
@@ -535,13 +388,13 @@ static ssize_t show_wifi_wrong_action_flag(struct device *dev,
         struct device_attribute *attr, char *buf) {
     int has_wrong_action = wl_get_wrong_action_flag();
     printk(KERN_INFO "%s has wrong action %d\n", __func__, has_wrong_action);
-    return snprintf(buf, 10, "%d\n", has_wrong_action);
+    return sprintf(buf, "%d\n", has_wrong_action);
 }
 
 static ssize_t restore_wifi_arp_timeout(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t size) {
     int value;
-    if (sscanf(buf, "%10d\n", &value) == 1) {
+    if (sscanf(buf, "%d\n", &value) == 1) {
         if(value == 1) {
             printk(KERN_INFO "%s enter should invoke wrong action handler\n", __func__);
             wl_trigger_disable_nmode();
@@ -554,7 +407,7 @@ static ssize_t restore_wifi_arp_timeout(struct device *dev, struct device_attrib
 static ssize_t restore_wifi_wrong_action_debug(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t size) {
     int value;
-    if (sscanf(buf, "%10d\n", &value) == 1) {
+    if (sscanf(buf, "%d\n", &value) == 1) {
         if(value == 1) {
             printk(KERN_INFO "%s enter should invoke wrong action handler\n", __func__);
             wl_trigger_disable_nmode();
@@ -629,12 +482,55 @@ static const struct attribute_group wifi_state = {
 	.attrs = wifi_state_attributes,
 };
 
+struct wifi_platform_data bcm_wifi_control = {
+	.set_power = bcm_wifi_power,
+	.set_reset = bcm_wifi_reset,
+	.set_carddetect = hi_sdio_detectcard_to_core,
+	.get_mac_addr = bcm_wifi_get_mac_addr,
+	.mem_prealloc = wifi_mem_prealloc,
+};
 
-#ifdef _DRV_LLT_
-int __init k3v2_wifi_init(void)
-#else
-static int __init k3v2_wifi_init(void)
-#endif
+static struct resource bcm_wifi_resources[] = {
+	[0] = {
+	.name  = "bcmdhd_wlan_irq",
+	.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL
+			| IRQF_NO_SUSPEND,
+	},
+};
+
+static struct platform_device bcm_wifi_device = {
+	.name = "bcmdhd_wlan",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bcm_wifi_resources),
+	.resource = bcm_wifi_resources,
+	.dev = {
+		.platform_data = &bcm_wifi_control,
+	},
+};
+
+static int init_wifi_gpio(void)
+{
+    gpio_wifi_en = hsad_get_wifi_enable();
+    if (gpio_wifi_en < 0){
+        pr_err("%s: wifi enable gpio get failed gpio_wifi_en=%d\n", __func__, gpio_wifi_en);
+        return -1;
+    }
+
+    gpio_wifi_irq = hsad_get_wifi_irq();
+    if (gpio_wifi_irq < 0){
+        pr_err("%s: wifi irq gpio get failed gpio_wifi_irq=%d\n", __func__, gpio_wifi_irq);
+        return -1;
+    }
+    pr_err("init_wifi_gpio: wifi_en:%d, wifi_irq:%d====\n", gpio_wifi_en, gpio_wifi_irq); //debug
+
+    bcm_wifi_device.resource[0].start = gpio_to_irq(gpio_wifi_irq);
+    bcm_wifi_device.resource[0].end = gpio_to_irq(gpio_wifi_irq);
+
+    return 0;
+}
+
+
+int  wifi_power_probe()
 {
 	int ret = 0;
 	int i = 0;
@@ -738,28 +634,27 @@ static int __init k3v2_wifi_init(void)
                       1,
                       0x00/*no pull, disable pull down*/);
 #endif
-
 #ifdef CONFIG_WIFI_CONTROL_FUNC
-	ret = platform_device_register(&k3v2_wifi_device);
+	ret = platform_device_register(&bcm_wifi_device);
 	if (ret) {
 		pr_err("%s: platform_device_register failed, ret:%d.\n",
 			__func__, ret);
 		goto err_platform_device_register;
 	}
+	ret = sysfs_create_group(&bcm_wifi_device.dev.kobj, &attrgroup_debug_level);
+	if (ret) {
+		pr_err("wifi_power_probe create debug level error ret =%d", ret);
+	}
 
-    ret = sysfs_create_group(&k3v2_wifi_device.dev.kobj, &attrgroup_debug_level);
-    if (ret) {
-        pr_err("k3v2_wifi_init create debug level error ret =%d", ret);
-    }
-	ret = sysfs_create_group(&k3v2_wifi_device.dev.kobj, &attrgroup_arp_timeout);
+	ret = sysfs_create_group(&bcm_wifi_device.dev.kobj, &attrgroup_arp_timeout);
 	if (ret) {
 		pr_err("wifi_power_probe create arp trigger error ret =%d", ret);
 	}
 
-    ret = sysfs_create_group(&k3v2_wifi_device.dev.kobj, &wifi_state);
-    if (ret) {
-        pr_err("k3v2_wifi_init sysfs_create_group error ret =%d", ret);
-    }
+	ret = sysfs_create_group(&bcm_wifi_device.dev.kobj, &wifi_state);
+	if (ret) {
+		pr_err("wifi_power_probe sysfs_create_group error ret =%d", ret);
+	}
 #endif
 
 	return 0;
@@ -781,4 +676,18 @@ err_malloc_wifi_host:
 	return ret;
 }
 
-device_initcall(k3v2_wifi_init);
+#ifdef _DRV_LLT_
+int __init wifi_power_init(void)
+#else
+static int __init wifi_power_init(void)
+#endif
+{
+	int ret;
+
+	pr_err("enter: %s, %d.\n", __FUNCTION__, __LINE__);
+	wifi_power_probe();
+	pr_err("enter: %s, %d.\n", __FUNCTION__, __LINE__);
+	return ret;
+}
+
+device_initcall(wifi_power_init); 

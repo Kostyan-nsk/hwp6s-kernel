@@ -728,7 +728,7 @@ int ccorereset_task(void *arg)
         }
         CCORE_RESET_TASK_PHASE_SET(12);
         
-        mach_call_usermodeshell("/system/etc/log/crash_notice.sh",0);/*notice LogServer to handle log-bins*/
+        //mach_call_usermodeshell("/system/etc/log/crash_notice.sh",0);/*notice LogServer to handle log-bins*/
         
         printk(KERN_ERR "%s: leave\n", __FUNCTION__);
     }

@@ -1451,6 +1451,19 @@ enum RRC_NAS_SYS_SUBMODE_ENUM
 };
 typedef VOS_UINT8  RRC_NAS_SYS_SUBMODE_ENUM_UINT8;
 
+/*****************************************************************************
+ 枚举名    : RRC_NAS_SYS_INFO_TYPE_ENUM
+ 协议表格  :
+ ASN.1描述 :
+ 枚举说明  : sys info 的类型
+*****************************************************************************/
+enum RRC_NAS_SYS_INFO_TYPE_ENUM
+{
+    RRC_NAS_SYS_INFO_TYPE_OTA                 = 0,                /* 当前是ota */
+    RRC_NAS_SYS_INFO_TYPE_SYS                 = 1,                /* 当前是系统消息 */
+    RRC_NAS_SYS_INFO_TYPE_BUTT
+};
+typedef VOS_UINT8  RRC_NAS_SYS_INFO_TYPE_ENUM_UINT8;
 
 enum RRC_NAS_LTE_CAPABILITY_STATUS_ENUM
 {
@@ -2002,6 +2015,8 @@ typedef struct
     VOS_UINT32                          bitOpCellId     : 1;
     VOS_UINT32                          bitSpare        : 28;
 
+    RRC_NAS_SYS_INFO_TYPE_ENUM_UINT8    enSysInfoType;
+    VOS_UINT8                           aucReserve[3];
     RRC_PLMN_ID_STRU                    PlmnId;             /* 本小区PLMN ID              */
 
     VOS_UINT32                          ulCsDrxLength;      /* CS域DRX长度系数 */

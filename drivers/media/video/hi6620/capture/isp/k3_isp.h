@@ -253,6 +253,7 @@ int k3_isp_yuvrect_to_rawrect2(camera_rect_s *yuv, camera_rect_s *raw);
 int k3_isp_rawrect_to_yuvrect(camera_rect_s *yuv, camera_rect_s *raw);
 int k3_isp_antishaking_rect_stat2out(camera_rect_s *out, camera_rect_s *stat);
 int k3_isp_antishaking_rect_out2stat(camera_rect_s *out, camera_rect_s *stat);
+void *get_sensor();
 
 #endif /*__K3_ISP_H__ */
 

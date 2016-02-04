@@ -19,14 +19,14 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_MLLI
 
-#include "../include/bsp.h"
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_abort.h"
-#include "../include/cc_plat.h"
-#include "../include/completion.h"
-#include "../include/hw_queue.h"
-#include "../include/mlli.h"
+#include "bsp.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_abort.h"
+#include "cc_plat.h"
+#include "completion.h"
+#include "hw_queue.h"
+#include "mlli.h"
 
 
 /******************************************************************************

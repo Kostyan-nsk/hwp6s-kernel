@@ -177,9 +177,7 @@ static char *selftest_err_msg[] = {
 /* mark calibrate err*/
 static atomic_t selftest_err_code = ATOMIC_INIT(0);
 
-/*used to mark whether gyro can be enabled, 1: can enable, 0: cannot enable*/
 static atomic_t gyro_allow_enable = ATOMIC_INIT(1);
-
 static int int1_gpio = LSM330_GYR_DEFAULT_INT1_GPIO;
 static int int2_gpio = LSM330_GYR_DEFAULT_INT2_GPIO;
 /* module_param(int1_gpio, int, S_IRUGO); */
@@ -857,7 +855,6 @@ static int lsm330_gyr_enable(struct lsm330_gyr_status *stat)
        dev_info(&stat->client->dev, "%s: stat->enabled = %d, gyro_allow_enable %d\n", __func__,
 						atomic_read(&stat->enabled), atomic_read(&gyro_allow_enable));
 	if (!atomic_cmpxchg(&stat->enabled, 0, 1)) {
-
 		if (!atomic_read(&gyro_allow_enable)){
 			mutex_lock(&stat->lock);
 			stat	->on_before_suspend  = 1;
@@ -865,8 +862,7 @@ static int lsm330_gyr_enable(struct lsm330_gyr_status *stat)
 			dev_info(&stat->client->dev, "open gyro after suspend, just record the status\n");
 			return 0;
 		}
-
-		// gyr_regulator_enable(stat);
+           // gyr_regulator_enable(stat);
 		err = lsm330_gyr_device_power_on(stat);
 		if (err < 0) {
 			atomic_set(&stat->enabled, 0);
@@ -896,7 +892,6 @@ static int lsm330_gyr_disable(struct lsm330_gyr_status *stat)
 			dev_info(&stat->client->dev, "close gyro after suspend, just record the status\n");
 			return 0;
 		}
-
 		//cancel_delayed_work_sync(&stat->input_work);
 		lsm330_gyr_device_power_off(stat);
 		dev_dbg(&stat->client->dev, "%s: cancel_delayed_work_sync "
@@ -1576,7 +1571,7 @@ static int lsm330_gyr_early_suspend(struct early_suspend *h)
 	struct lsm330_gyr_status *stat = container_of(h, struct lsm330_gyr_status, early_suspend);
 	struct i2c_client *client = stat->client;
 	u8 buf[2];
-
+	//printk("-----------lsm330gy early suspend  begin-----\n");
 	dev_dbg(&client->dev, "%s\n", __func__);
 	if (stat->on_before_suspend = atomic_read(&stat->enabled)) {
 
@@ -1591,7 +1586,6 @@ static int lsm330_gyr_early_suspend(struct early_suspend *h)
 #endif 
 		mutex_unlock(&stat->lock);
 	}
-	/*forbidden enable gyro*/
 	atomic_set(&gyro_allow_enable, 0);
 	dev_info(&stat->client->dev, "%s  leave, on_before_suspend %d atomic_read(&stat->enabled) %d\n",
 		__func__, stat->on_before_suspend, atomic_read(&stat->enabled));
@@ -1600,9 +1594,8 @@ static int lsm330_gyr_early_suspend(struct early_suspend *h)
 
 static int lsm330_gyr_later_resume(struct early_suspend *h)
 {
-
 	int err = 0;
-
+	//printk("-----------lsm330gy later resume begin-----\n");
 	struct lsm330_gyr_status *stat = container_of(h, struct lsm330_gyr_status, early_suspend);
 	struct i2c_client *client = stat->client;
 	u8 buf[2];
@@ -1632,8 +1625,6 @@ static int lsm330_gyr_later_resume(struct early_suspend *h)
 		atomic_set(&stat->enabled, 1);
 		mutex_unlock(&stat->lock);
 	}
-
-	/*allow enable gyro*/
 	atomic_set(&gyro_allow_enable, 1);
 	return err;
 }

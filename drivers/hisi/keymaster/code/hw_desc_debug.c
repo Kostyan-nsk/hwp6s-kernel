@@ -19,8 +19,8 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_INFRA
 
-#include "../include/hw_queue.h"
-#include "../include/cc_plat.h"
+#include "hw_queue.h"
+#include "cc_plat.h"
 
 #ifdef HW_DESC_DUMP_HOST_BUF
 #define HOST_DESC_BUF_ADDRESS 	0x10000000

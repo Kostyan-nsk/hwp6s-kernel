@@ -19,12 +19,12 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_INFRA
 
-#include "../include/dx_pal_types.h"
-#include "../include/sep_ctx.h"
-#include "../include/crys_aes.h"
-#include "../include/key_buffer.h"
-#include "../include/key_object.h"
-#include "../include/compiler.h"
+#include "dx_pal_types.h"
+#include "sep_ctx.h"
+#include "crys_aes.h"
+#include "key_buffer.h"
+#include "key_object.h"
+#include "compiler.h"
 
 
 DX_PAL_COMPILER_ASSERT(sizeof(KeyBuffer_s) <= sizeof(DX_KeyObjContainer_t), "Container size is too small");

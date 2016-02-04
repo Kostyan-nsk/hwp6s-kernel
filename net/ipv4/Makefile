@@ -55,3 +55,4 @@ obj-$(CONFIG_XFRM) += xfrm4_policy.o xfrm4_state.o xfrm4_input.o \
 
 obj-$(CONFIG_TCP_CONG_MW3) += tcp_mw3.o
 obj-$(CONFIG_AEGIS) += pwrtmg_aegis.o
+obj-$(CONFIG_HW_WIFIPRO) += wifipro_tcp_monitor.o

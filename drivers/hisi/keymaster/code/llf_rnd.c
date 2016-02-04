@@ -19,27 +19,27 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_rng.h"
+#include "dx_rng.h"
 #ifndef CRYS_RND_SEM_DISABLE
-#include "../include/DX_PAL_Sem.h"
-#include "../include/PLAT_SystemDep.h"
+#include "DX_PAL_Sem.h"
+#include "PLAT_SystemDep.h"
 #else
-#include "../include/plat_print_dbg.h"
+#include "plat_print_dbg.h"
 #endif
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_dma.h"
-#include "../include/dx_crys_kernel.h"
-#include "../include/dx_hal.h" 
-#include "../include/bsp.h"
-#include "../include/hw_queue.h"
-#include "../include/crys.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rnd_local.h"
-#include "../include/crys_rnd_error.h"
-#include "../include/llf_rnd_hwdefs.h"
-#include "../include/llf_rnd.h"
-#include "../include/llf_rnd_error.h"
-#include "../include/debug.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_dma.h"
+#include "dx_crys_kernel.h"
+#include "dx_hal.h" 
+#include "bsp.h"
+#include "hw_queue.h"
+#include "crys.h"
+#include "crys_common_math.h"
+#include "crys_rnd_local.h"
+#include "crys_rnd_error.h"
+#include "llf_rnd_hwdefs.h"
+#include "llf_rnd.h"
+#include "llf_rnd_error.h"
+#include "debug.h"
 
 /*
 *  Object %name    : %

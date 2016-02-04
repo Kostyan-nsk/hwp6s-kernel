@@ -86,6 +86,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt.rt_iif = fl4->flowi4_iif;
 	xdst->u.rt.rt_oif = fl4->flowi4_oif;
 	xdst->u.rt.rt_mark = fl4->flowi4_mark;
+	xdst->u.rt.rt_uid = fl4->flowi4_uid;
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
@@ -117,7 +118,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	memset(fl4, 0, sizeof(struct flowi4));
 	fl4->flowi4_mark = skb->mark;
 
-	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
+	if (!ip_is_fragment(iph)) {
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
 		case IPPROTO_UDPLITE:

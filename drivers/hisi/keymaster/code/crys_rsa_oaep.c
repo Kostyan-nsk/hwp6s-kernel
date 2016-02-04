@@ -20,22 +20,22 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_vos_mem.h"
+#include "dx_vos_mem.h"
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
-#include "../include/dx_vos_basetypes.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rsa_error.h"
-#include "../include/crys_hash.h"
-#include "../include/crys_hash_error.h"
-#include "../include/crys_rsa_local.h"
-#include "../include/crys_rnd_error.h"
-#include "../include/compiler.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/cc_acl.h"
+#include "dx_vos_basetypes.h"
+#include "crys_common_math.h"
+#include "crys_rsa_error.h"
+#include "crys_hash.h"
+#include "crys_hash_error.h"
+#include "crys_rsa_local.h"
+#include "crys_rnd_error.h"
+#include "compiler.h"
+#include "plat_print_dbg.h"
+#include "cc_acl.h"
 
 /************************ Defines ******************************/
 

@@ -22,22 +22,22 @@
 
 /* .............. CRYS level includes ................. */
 
-#include "../include/dx_vos_mem.h"
-#include "../include/crys.h"
-#include "../include/crys_common.h"
-#include "../include/crys_rsa_error.h"
-#include "../include/crys_rsa_local.h"
-#include "../include/crys_common_math.h"
-#include "../include/log.h"
+#include "dx_vos_mem.h"
+#include "crys.h"
+#include "crys_common.h"
+#include "crys_rsa_error.h"
+#include "crys_rsa_local.h"
+#include "crys_common_math.h"
+#include "log.h"
 #ifndef CRYS_NO_RSA_SELF_TEST_SUPPORT
-#include "../include/crys_self_test_local.h"
+#include "crys_self_test_local.h"
 #endif
 
 /* .............. LLF level includes ................. */
 
 #if !defined(CRYS_NO_HASH_SUPPORT) && !defined(CRYS_NO_PKI_SUPPORT)
-#include "../include/llf_pki_rsa.h"
-#include "../include/cc_acl.h"
+#include "llf_pki_rsa.h"
+#include "cc_acl.h"
 #endif /* !defined(CRYS_NO_HASH_SUPPORT) && !defined(CRYS_NO_PKI_SUPPORT) */
 
 /************************ Defines ******************************/

@@ -81,6 +81,7 @@
 #define OV5648_FOXCONN_MIN_ISO			100
 
 #define OV5648_FOXCONN_APERTURE_FACTOR              240 //F2.4
+#define OV5648_EQUIVALENT_FOCUS	                    22//22mm
 
 #define OV5648_FOXCONN_AUTOFPS_GAIN_LOW2MID		0x16
 #define OV5648_FOXCONN_AUTOFPS_GAIN_MID2HIGH		0x16
@@ -228,6 +229,11 @@ static void ov5648_foxconn_write_isp_seq(const struct isp_reg_t *seq, u32 size)
 	k3_ispio_write_isp_seq(seq, size);
 }
 
+static int ov5648_get_equivalent_focus(void)
+{
+    print_debug("enter %s", __func__);
+    return OV5648_EQUIVALENT_FOCUS;
+}
 
 #ifdef OV5648_FOXCONN_OTP_FEATURE
 static int ov5648_foxconn_check_otp_group(int inx)
@@ -866,7 +872,12 @@ static int ov5648_foxconn_init_isp_reg(void)
 int ov5648_foxconn_power(camera_power_state power)
 {
 	int val = 0;	
-	get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+       bool ret = 0;
+	ret = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+	if (!ret) {
+		val = 0;
+		print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
+	}
 	
 	if (power == POWER_ON) {
 		if(1 == val){
@@ -1065,6 +1076,7 @@ static int ov5648_foxconn_init(void)
 {
 	static bool ov5648_foxconn_check = false;
 	int val = 0;
+	bool ret = 0;
 	print_debug("%s", __func__);
 
 	if (false == ov5648_foxconn_check) {
@@ -1082,7 +1094,12 @@ static int ov5648_foxconn_init(void)
 
     // S_CAMERA_CORE_VDD and S_CAMERA_IO_VDD use same vdd source, so only init once
 	k3_ispio_power_init(S_CAMERA_ANALOG_VDD, LDO_VOLTAGE_28V, LDO_VOLTAGE_28V);	/*analog 2.85V - sec camera*/
-	get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+	ret = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
+	if (!ret) {
+		val = 0;
+		print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
+	}
+
 	if(1 == val){
 		k3_ispio_power_init(S_BACKUP_CAMERA_CORE_VDD, LDO_VOLTAGE_18V, LDO_VOLTAGE_18V);		/*IO 1.8V - sec camera*/
 	}else{
@@ -1202,7 +1219,7 @@ static void ov5648_foxconn_set_default(void)
 	ov5648_foxconn_sensor.sensor_iso_to_gain = ov5648_foxconn_iso_to_gain;
 
 	ov5648_foxconn_sensor.get_sensor_aperture = ov5648_foxconn_get_sensor_aperture;
-	ov5648_foxconn_sensor.get_equivalent_focus = NULL;
+	ov5648_foxconn_sensor.get_equivalent_focus = ov5648_get_equivalent_focus;
 
 	ov5648_foxconn_sensor.isp_location = CAMERA_USE_K3ISP;
 	ov5648_foxconn_sensor.sensor_tune_ops = NULL;

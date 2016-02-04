@@ -26,7 +26,6 @@
 #include <asm/io.h>
 #include <mach/hardware.h>
 #include "product_config.h"
-#include <mach/drvLogDef.h>
 #include <linux/scatterlist.h>
 #include "MemoryMap.h"
 #endif

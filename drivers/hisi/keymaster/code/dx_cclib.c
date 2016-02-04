@@ -19,18 +19,18 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CCLIB
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_log.h"
-#include "../include/dx_cclib.h"
-#include "../include/dx_hal.h"
-#include "../include/dx_pal_init.h"
-#include "../include/hw_queue.h"
-#include "../include/completion.h"
-#include "../include/crys_rnd.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/debug.h" //2012/11/12
+#include "dx_pal_types.h"
+#include "dx_pal_log.h"
+#include "dx_cclib.h"
+#include "dx_hal.h"
+#include "dx_pal_init.h"
+#include "hw_queue.h"
+#include "completion.h"
+#include "crys_rnd.h"
+#include "sym_adaptor_driver.h"
+#include "debug.h" //2012/11/12
 #if ENABLE_RSA_DRIVER
-#include "../include/dx_asym_init.h"
+#include "dx_asym_init.h"
 #endif
 
 static uint32_t dx_cclib_init_state = 0;

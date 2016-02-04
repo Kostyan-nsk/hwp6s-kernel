@@ -67,7 +67,7 @@
 #endif
 
 #include "hwa_cam_tune.h"
-
+#include "k3_isp.h"
 #define CAM_DEF_WIDTH   640
 #define CAM_DEF_HEIGHT  480
 
@@ -280,6 +280,8 @@ static int k3_v4l2_ioctl_s_fmt_capture(struct file *file, void *fh,
 	CHECK_STATE(STATE_CAPTURE);
 	CHECK_STATE(STATE_IPP);
 
+	if(NULL == get_sensor())
+		return -ENODEV;
 
     /* if ZSL state is off */
 	if (CAMERA_ZSL_ON != k3_isp_get_zsl_state()){
@@ -331,6 +333,9 @@ static int k3_v4l2_ioctl_s_fmt_preview(struct file *file, void *fh,
 
 	print_debug("enter %s", __func__);
     print_info("%s:preview_fmt->fmt.pix.width=%d,preview_fmt->fmt.pix.height=%d",__func__,fmt->fmt.pix.width,fmt->fmt.pix.height);
+
+	if(NULL == get_sensor())
+		return -ENODEV;
 
 	SAFE_GET_DRVDATA(cam, fh);
 
@@ -1808,6 +1813,9 @@ static int k3_v4l2_ioctl_streamon(struct file *file, void *fh,
 	camera_state state;
 	v4l2_ctl_struct *cam = NULL;
 
+	if(NULL == get_sensor())
+		return -ENODEV;
+
 	SAFE_GET_DRVDATA(cam, fh);
 
 	/* if ZSL switch on */
@@ -1872,6 +1880,9 @@ static int k3_v4l2_ioctl_streamoff(struct file *file, void *fh,
 	struct semaphore *lock;
 
 	print_info("enter %s", __func__);
+
+	if(NULL == get_sensor())
+		return -ENODEV;
 
 	SAFE_GET_DRVDATA(cam, fh);
 

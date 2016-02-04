@@ -19,15 +19,15 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_API
 
-#include "../include/dx_pal_types.h"
-#include "../include/crys_bypass_api.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/dma_buffer.h"
-#include "../include/bypass.h"
-#include "../include/dx_macros.h"
-#include "../include/dx_error.h"
-#include "../include/validate_crys_bypass.h"
-#include "../include/crys_context_relocation.h"
+#include "dx_pal_types.h"
+#include "crys_bypass_api.h"
+#include "sym_adaptor_driver.h"
+#include "dma_buffer.h"
+#include "bypass.h"
+#include "dx_macros.h"
+#include "dx_error.h"
+#include "validate_crys_bypass.h"
+#include "crys_context_relocation.h"
 
 
 #ifdef DX_CC_TEE

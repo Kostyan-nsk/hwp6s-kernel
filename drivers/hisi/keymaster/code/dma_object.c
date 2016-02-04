@@ -20,11 +20,11 @@
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_INFRA
 
 /* Implementation of the DMA object */
-#include "../include/dma_buffer.h"
-#include "../include/dma_object.h"
-#include "../include/dx_macros.h"
-#include "../include/compiler.h"
-#include "../include/hw_queue_defs.h"
+#include "dma_buffer.h"
+#include "dma_object.h"
+#include "dx_macros.h"
+#include "compiler.h"
+#include "hw_queue_defs.h"
 
 
 DX_PAL_COMPILER_ASSERT(sizeof(DmaBuffer_s) <= sizeof(DX_DmaObjContainer_t), "Container size is too small");

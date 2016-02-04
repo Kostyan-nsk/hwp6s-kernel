@@ -19,15 +19,15 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_vos_mem.h"
-#include "../include/crys.h"
-#include "../include/crys_rsa_error.h"
-#include "../include/crys_rsa_types.h"
-#include "../include/crys_ccm.h"
-#include "../include/crys_rsa_local.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/crys_bypass_api.h"
-#include "../include/cc_acl.h"
+#include "dx_vos_mem.h"
+#include "crys.h"
+#include "crys_rsa_error.h"
+#include "crys_rsa_types.h"
+#include "crys_ccm.h"
+#include "crys_rsa_local.h"
+#include "plat_print_dbg.h"
+#include "crys_bypass_api.h"
+#include "cc_acl.h"
 
 /************************ Defines ******************************/
 

@@ -369,7 +369,7 @@ CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
                    -Iarch/$(hdr-arch)/include/generated -Iinclude \
                    $(if $(KBUILD_SRC), -I$(srctree)/include) \
-                   -include include/generated/autoconf.h 
+                   -include include/generated/autoconf.h
       
 
 LINUXINCLUDE += -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/config/product/include/hi6620cs_oem_gutl_dsda \
@@ -382,6 +382,7 @@ LINUXINCLUDE += -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/config/produ
                 -I$(srctree)/drivers \
                 -I$(srctree)/mm \
                 -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/include/drv \
+                -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/include/taf \
                 -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/include/drv/MODULE_H \
                 -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/include/med \
                 -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/include/nv/gu/drv \
@@ -391,6 +392,7 @@ LINUXINCLUDE += -I$(srctree)/drivers/hisi/modem/include/vendor/hisi/config/produ
                 -I$(srctree)/drivers/gpu/mali/include \
                 -I$(srctree)/drivers/hisi/nvim \
                 -I$(srctree)/drivers/hisi/modem/include/external/efipartition \
+                -I$(srctree)/drivers/hisi/keymaster/include
 
 
 ifneq ($(BALONG_INC),)

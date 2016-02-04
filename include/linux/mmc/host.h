@@ -369,6 +369,9 @@ extern int mmc_sdio_resume_ext(struct mmc_host *host);
 extern int mmc_power_save_host(struct mmc_host *host);
 extern int mmc_power_restore_host(struct mmc_host *host);
 
+int mmc_power_save_host_for_wifi(struct mmc_host *host);
+int mmc_power_restore_host_for_wifi(struct mmc_host *host);
+
 extern void mmc_detect_change(struct mmc_host *, unsigned long delay);
 extern void mmc_request_done(struct mmc_host *, struct mmc_request *);
 

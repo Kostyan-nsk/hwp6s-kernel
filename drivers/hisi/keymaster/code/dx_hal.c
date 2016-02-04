@@ -22,11 +22,11 @@
 //#include <unistd.h>
 //#include <sys/mman.h>
 //#include <fcntl.h>
-#include "../include/dx_host.h"
-#include "../include/dx_bitops.h"
-#include "../include/dx_cc_regs.h"
-#include "../include/dx_hal.h"
-#include "../include/sep_ctx.h"
+#include "dx_host.h"
+#include "dx_bitops.h"
+#include "dx_cc_regs.h"
+#include "dx_hal.h"
+#include "sep_ctx.h"
 
 
 

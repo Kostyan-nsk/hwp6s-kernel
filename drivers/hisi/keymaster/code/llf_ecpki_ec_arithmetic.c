@@ -18,17 +18,17 @@
 ********************************************************************/
 
 
-#include "../include/dx_vos_basetypes.h"
-#include "../include/dx_vos_mem.h"
-#include "../include/crys_defs.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/bsp.h"
-#include "../include/crys_common_math.h"
-#include "../include/llf_ecpki.h"
-#include "../include/crys_ecpki_types.h"
-#include "../include/crys_ecpki_error.h"
-#include "../include/llf_ecpki_modular_arithmetic.h"
-#include "../include/llf_ecpki_ec_arithmetic.h"
+#include "dx_vos_basetypes.h"
+#include "dx_vos_mem.h"
+#include "crys_defs.h"
+#include "plat_print_dbg.h"
+#include "bsp.h"
+#include "crys_common_math.h"
+#include "llf_ecpki.h"
+#include "crys_ecpki_types.h"
+#include "crys_ecpki_error.h"
+#include "llf_ecpki_modular_arithmetic.h"
+#include "llf_ecpki_ec_arithmetic.h"
 
 /* canceling the lint warning:
   Info 740: Unusual pointer cast 

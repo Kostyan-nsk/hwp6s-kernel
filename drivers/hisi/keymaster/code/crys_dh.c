@@ -33,24 +33,24 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_vos_mem.h"
+#include "dx_vos_mem.h"
 #ifndef DX_OEM_FW
-#include "../include/crys.h"
+#include "crys.h"
 #else
-#include "../include/oem_crys.h"
+#include "oem_crys.h"
 #endif
 
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rnd.h"
-#include "../include/crys_rnd_local.h"
-#include "../include/crys_ccm.h"
-#include "../include/crys_dh_error.h"
-#include "../include/crys_dh.h"
-#include "../include/crys_dh_kg.h"
-#include "../include/llf_pki_rsa.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "crys_rnd.h"
+#include "crys_rnd_local.h"
+#include "crys_ccm.h"
+#include "crys_dh_error.h"
+#include "crys_dh.h"
+#include "crys_dh_kg.h"
+#include "llf_pki_rsa.h"
 
-#include "../include/debug.h"//2012/11/17
+#include "debug.h"//2012/11/17
 /************************ Defines *******************************/
 
 /* canceling the lint warning:

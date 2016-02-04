@@ -20,10 +20,10 @@
 
 
 /************* Include Files ****************/
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_error.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_memint.h"
+#include "dx_pal_types.h"
+#include "dx_pal_error.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_memint.h"
 
 
 /************************ Defines ******************************/

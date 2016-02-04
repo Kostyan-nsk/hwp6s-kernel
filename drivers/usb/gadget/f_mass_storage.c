@@ -296,6 +296,7 @@
 #include <linux/usb/composite.h>
 
 #include "gadget_chips.h"
+#include "hw_rwswitch.h"
 
 
 /*------------------------------------------------------------------------*/
@@ -316,9 +317,6 @@ static unsigned long ulperftestflag;
 #include "storage_common.c"
 
 #define SC_REWIND_11                    0x11
-#define INDEX_ENDUSER_SWITCH            1
-#define INDEX_FACTORY_REWORK            0
-static void usb_port_switch_request(int usb_switch_index);
 
 /*-------------------------------------------------------------------------*/
 

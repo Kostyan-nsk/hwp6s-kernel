@@ -19,21 +19,21 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/dx_pal_log.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "dx_pal_log.h"
 #ifndef  CRYS_RND_SEM_DISABLE
-#include "../include/dx_pal_sem.h"
+#include "dx_pal_sem.h"
 #endif
-#include "../include/compiler.h"
-#include "../include/crys.h"
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_rnd.h"
-#include "../include/crys_rnd_error.h"
-#include "../include/crys_rnd_local.h" 
-#include "../include/llf_rnd.h"
-#include "../include/debug.h"//2012/11/16
+#include "compiler.h"
+#include "crys.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "crys_rnd.h"
+#include "crys_rnd_error.h"
+#include "crys_rnd_local.h" 
+#include "llf_rnd.h"
+#include "debug.h"//2012/11/16
 
 
 /*

@@ -53,3 +53,5 @@ source "drivers/huawei/drivers/simcard_switch/Kconfig"
 source "drivers/huawei/drivers/hw_kstate/Kconfig"
 
 source "drivers/huawei/drivers/dsm/Kconfig"
+
+source "drivers/huawei/device/Kconfig"

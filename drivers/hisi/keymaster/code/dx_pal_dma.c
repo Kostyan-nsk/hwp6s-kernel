@@ -26,9 +26,9 @@
 #include <fcntl.h>
 #include <string.h>
 */
-#include "../include/dx_pal_dma.h"
+#include "dx_pal_dma.h"
 
-#include "../include/debug.h"//added 2012/11/10
+#include "debug.h"//added 2012/11/10
 
 static 	int fd_mem = -1;
 uint32_t gMemVirtBaseAddr = 0;

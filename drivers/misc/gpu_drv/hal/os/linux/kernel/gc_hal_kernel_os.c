@@ -2313,7 +2313,15 @@ gckOS_WriteRegisterEx(
 {
     gcmkHEADER_ARG("Os=0x%X Core=%d Address=0x%X Data=0x%08x", Os, Core, Address, Data);
 
-    writel(Data, (gctUINT8 *)Os->device->registerBases[Core] + Address);
+    if(Address < Os->device->requestedRegisterMemSizes[Core])
+    {
+        writel(Data, (gctUINT8 *)Os->device->registerBases[Core] + Address);
+    }
+    else
+    {
+        printk(KERN_ERR "gckOS_WriteRegisterEx pid: %d, address 0x%x, requestedRegisterMemSizes 0x%x\n",
+                        current->pid, Address, (unsigned int)Os->device->requestedRegisterMemSizes[Core]);
+    }
 
     /* Success. */
     gcmkFOOTER_NO();

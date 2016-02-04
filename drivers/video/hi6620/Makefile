@@ -9,11 +9,12 @@ k3fb-objs := edc_reg.o \
 	fb_monitor.o\
 	edc_overlay.o \
 	mipi_dsi_host.o \
+	hisi_fb_sysfs.o \
 	k3_fb.o \
 	ldi.o \
 	mipi_dsi.o \
 	backlight_pwm.o
-	
+
 
 EXTRA_CFLAGS += -Iarch/arm/mach-k3v2
 

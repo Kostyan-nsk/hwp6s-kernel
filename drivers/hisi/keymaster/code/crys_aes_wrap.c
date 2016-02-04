@@ -19,20 +19,20 @@
 
 #define DX_PAL_LOG_CUR_COMPONENT DX_LOG_MASK_CRYS_API
 
-#include "../include/dx_pal_types.h"
-#include "../include/dx_pal_mem.h"
-#include "../include/cc_plat.h"
-#include "../include/crys_aes.h"
-#include "../include/crys_aes_error.h"
-#include "../include/crys_bypass_api.h"
-#include "../include/cipher.h"
-#include "../include/sym_adaptor_driver.h"
-#include "../include/dma_buffer.h"
-#include "../include/key_buffer.h"
-#include "../include/crys_common_math.h"
-#include "../include/cc_acl.h"
-#include "../include/dx_error.h"
-#include "../include/crys_context_relocation.h"
+#include "dx_pal_types.h"
+#include "dx_pal_mem.h"
+#include "cc_plat.h"
+#include "crys_aes.h"
+#include "crys_aes_error.h"
+#include "crys_bypass_api.h"
+#include "cipher.h"
+#include "sym_adaptor_driver.h"
+#include "dma_buffer.h"
+#include "key_buffer.h"
+#include "crys_common_math.h"
+#include "cc_acl.h"
+#include "dx_error.h"
+#include "crys_context_relocation.h"
 
 
 

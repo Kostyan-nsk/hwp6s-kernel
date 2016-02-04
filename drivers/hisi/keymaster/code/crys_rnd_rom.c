@@ -18,14 +18,14 @@
 ********************************************************************/
 
 /************* Include Files ****************/
-#include "../include/dx_pal_mem.h"
-#include "../include/crys.h"
-#include "../include/crys_rnd_error.h" 
-#include "../include/crys_rnd_local.h" 
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/rng_rom_api.h"
-#include "../include/cc_acl.h"
+#include "dx_pal_mem.h"
+#include "crys.h"
+#include "crys_rnd_error.h" 
+#include "crys_rnd_local.h" 
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "rng_rom_api.h"
+#include "cc_acl.h"
 
 /*  
 *  Object %name    : % CRYS_RND.c

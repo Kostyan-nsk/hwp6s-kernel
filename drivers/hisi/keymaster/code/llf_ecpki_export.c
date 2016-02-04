@@ -23,21 +23,21 @@
 /************* Include Files ****************/
 
 /* .............. CRYS level includes ................. */
-#include "../include/dx_vos_mem.h"
-#include "../include/dx_vos_memmap.h"
-#include "../include/crys_rnd.h"
-#include "../include/plat_print_dbg.h"
-#include "../include/crys_common.h"
-#include "../include/crys_common_math.h"
-#include "../include/crys_ecpki_types.h"
-#include "../include/crys_ecpki_kg.h"
-#include "../include/crys_ecpki_local.h"
-#include "../include/llf_ecpki_error.h"
-#include "../include/llf_ecpki_export.h"
-#include "../include/llf_ecpki_ec_arithmetic.h"
-#include "../include/llf_ecpki_modular_arithmetic.h"
-#include "../include/llf_pki.h"
-#include "../include/llf_ecpki_defs.h"
+#include "dx_vos_mem.h"
+#include "dx_vos_memmap.h"
+#include "crys_rnd.h"
+#include "plat_print_dbg.h"
+#include "crys_common.h"
+#include "crys_common_math.h"
+#include "crys_ecpki_types.h"
+#include "crys_ecpki_kg.h"
+#include "crys_ecpki_local.h"
+#include "llf_ecpki_error.h"
+#include "llf_ecpki_export.h"
+#include "llf_ecpki_ec_arithmetic.h"
+#include "llf_ecpki_modular_arithmetic.h"
+#include "llf_pki.h"
+#include "llf_ecpki_defs.h"
 
 /************************ Defines ******************************/
 

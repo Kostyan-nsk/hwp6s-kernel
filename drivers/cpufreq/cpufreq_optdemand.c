@@ -49,12 +49,12 @@
 static unsigned int operating_points[7][3] = {
 	/* kHz   up_threshold   down_threshold */
 	{208000,	70,	0},
-	{416000,	75,	45},
-	{624000,	80,	50},
-	{798000,	85,	55},
-	{1196000,	90,	60},
-	{1596000,	95,	65},
-	{1795000,	100,	70},
+	{416000,	75,	50},
+	{624000,	80,	60},
+	{798000,	85,	60},
+	{1196000,	90,	70},
+	{1596000,	95,	70},
+	{1795000,	100,	90},
 };
 
 static int usage_count;
@@ -115,7 +115,7 @@ struct cpufreq_optdemand_inputopen {
 };
 
 static struct cpufreq_optdemand_inputopen inputopen;
-static struct workqueue_struct *down_wq;
+static struct workqueue_struct *optdemand_wq, *down_wq;
 #endif
 
 static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall)
@@ -303,7 +303,7 @@ static void optdemand_dbs_timer(struct work_struct *work)
 	}
 
 max_delay:
-	queue_delayed_work_on(cpu, system_wq, &pcpu->work,
+	queue_delayed_work_on(cpu, optdemand_wq, &pcpu->work,
 				usecs_to_jiffies(tunables.sampling_rate));
 }
 
@@ -505,10 +505,10 @@ static void update_sampling_rate(unsigned int new_rate)
 		pcpu = &per_cpu(cpuinfo, cpu);
 		cpufreq_cpu_put(policy);
 
-		mutex_lock(&pcpu->timer_mutex);
+//		mutex_lock(&pcpu->timer_mutex);
 
 		if (!delayed_work_pending(&pcpu->work)) {
-			mutex_unlock(&pcpu->timer_mutex);
+//			mutex_unlock(&pcpu->timer_mutex);
 			continue;
 		}
 
@@ -517,14 +517,14 @@ static void update_sampling_rate(unsigned int new_rate)
 
 		if (time_before(next_sampling, appointed_at)) {
 
-			mutex_unlock(&pcpu->timer_mutex);
+//			mutex_unlock(&pcpu->timer_mutex);
 			cancel_delayed_work_sync(&pcpu->work);
-			mutex_lock(&pcpu->timer_mutex);
+//			mutex_lock(&pcpu->timer_mutex);
 
-			queue_delayed_work_on(pcpu->cpu, system_wq, &pcpu->work,
+			queue_delayed_work_on(pcpu->cpu, optdemand_wq, &pcpu->work,
 						usecs_to_jiffies(new_rate));
 		}
-		mutex_unlock(&pcpu->timer_mutex);
+//		mutex_unlock(&pcpu->timer_mutex);
 	}
 }
 
@@ -843,7 +843,7 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 	    mutex_init(&pcpu->timer_mutex);
 	    INIT_DELAYED_WORK_DEFERRABLE(&pcpu->work, optdemand_dbs_timer);
 
-	    queue_delayed_work_on(cpu, system_wq, &pcpu->work,
+	    queue_delayed_work_on(cpu, optdemand_wq, &pcpu->work,
 				    usecs_to_jiffies(tunables.sampling_rate));
 	    break;
 
@@ -890,6 +890,11 @@ struct cpufreq_governor cpufreq_gov_optdemand = {
 
 static int __init cpufreq_optdemand_init(void)
 {
+	optdemand_wq = alloc_workqueue("optdemand", WQ_UNBOUND | WQ_HIGHPRI, 1);
+	if (!optdemand_wq) {
+		pr_err("%s cannot create workqueue\n", __func__);
+		return -ENOMEM;
+	}
 #ifdef CONFIG_INPUT_PULSE_SUPPORT
 	/* No rescuer thread, bind to CPU queuing the work for possibly
 	   warm cache (probably doesn't matter much). */
@@ -907,6 +912,10 @@ static int __init cpufreq_optdemand_init(void)
 static void __exit cpufreq_optdemand_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_optdemand);
+#ifdef CONFIG_INPUT_PULSE_SUPPORT
+	destroy_workqueue(down_wq);
+#endif /*#ifdef CONFIG_INPUT_PULSE_SUPPORT*/
+	destroy_workqueue(optdemand_wq);
 }
 
 MODULE_AUTHOR("Yu Wei <yuwei3@hisilicon.com>");

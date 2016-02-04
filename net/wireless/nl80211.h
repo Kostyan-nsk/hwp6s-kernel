@@ -109,4 +109,6 @@ nl80211_send_cqm_pktloss_notify(struct cfg80211_registered_device *rdev,
 				struct net_device *netdev, const u8 *peer,
 				u32 num_packets, gfp_t gfp);
 
+void
+cfg80211_do_drv_recovery(struct net_device *dev, gfp_t gfp);
 #endif /* __NET_WIRELESS_NL80211_H */

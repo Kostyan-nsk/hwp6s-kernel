@@ -540,7 +540,14 @@ typedef struct
     VOS_UINT32                          ulImsiPolling           : 1;
     VOS_UINT32                          ulCglaGetRsp            : 1;
     VOS_UINT32                          ulAIDFCPSave            : 1;
-    VOS_UINT32                          ulRsv                   :22;
+    VOS_UINT32                          ulCUIMCheck             : 1;
+    VOS_UINT32                          ulAPDURepeate           : 1;
+    VOS_UINT32                          ulPKCS15                : 1;
+    VOS_UINT32                          ulP2ActiveAID           : 1;
+    VOS_UINT32                          ulIgnoreDFCheck         : 1;
+    VOS_UINT32                          ulCglaRspRecvBuf        : 1;
+    VOS_UINT32                          ulCglaCheckSW63CX       : 1;    
+    VOS_UINT32                          ulRsv                   :15;
 }USIMM_FEATURE_CFG_BIT_STRU;
 
 /*****************************************************************************

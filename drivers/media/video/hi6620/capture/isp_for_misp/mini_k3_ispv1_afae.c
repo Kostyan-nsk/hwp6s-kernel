@@ -1805,6 +1805,11 @@ static u32 ispv1_get_single_win_raw_lum(u8 win_idx, u32 stat_unit_area)
 {
 	u32 stat_value;
 	u32 lum = 0;
+    
+    if(0 == stat_unit_area) {
+        print_warn("%s, stat_unit_area:%d", __func__, stat_unit_area);
+        return 0;    
+    }
 
 	stat_value = get_win_lum(win_idx)  / stat_unit_area;
 	lum = ispv1_convert_win_lum(stat_value, lum_table, ARRAY_SIZE(lum_table));

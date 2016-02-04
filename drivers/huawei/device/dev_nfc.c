@@ -78,8 +78,10 @@ static int nfc_gpio_setup (struct pn544_i2c_platform_data *platform_data)
      .ven_gpio = 0,
      .firm_gpio = 0,
      .ven_valid_level = 0,
+     .card_num = 1,
      .clock_src = "",
      .conf_name = "",
+     .chip_type = "",
      .gpio_config = nfc_gpio_setup,
  };
 
@@ -103,16 +105,23 @@ static void init_nfc_dev_info(struct i2c_board_info *nfc_devs)
         ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->ven_gpio = hsad_get_nfc_ven_id();
         ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->firm_gpio = hsad_get_nfc_firm_dload_id();
         ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->ven_valid_level = hsad_get_nfc_ven_valid_level();
+        ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->card_num = hsad_get_nfc_card_num();
         
         if(false == hsad_get_nfc_clk_src(((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->clock_src)){
     		printk(KERN_WARNING "%s hsad_get_nfc_clk_src is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->clock_src);            
         }
-        printk(KERN_WARNING "%s clock src is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->conf_name);
+        printk(KERN_WARNING "%s clock src is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->clock_src);
 
         if(false == hsad_get_nfc_conf_name(((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->conf_name)){
-    		printk(KERN_WARNING "%s hsad_get_nfc_clk_src is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->conf_name);            
+                printk(KERN_WARNING "%s hsad_get_nfc_conf_name is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->conf_name);
         }  
         printk(KERN_WARNING "%s clock src is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->conf_name);
+
+        if(false == hsad_get_nfc_chip_type(((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->chip_type)){
+               printk(KERN_WARNING "%s hsad_get_nfc_chip_type is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->chip_type);
+        }
+        printk(KERN_WARNING "%s chip type is %s!\n", __func__, ((struct pn544_i2c_platform_data *)nfc_devs[0].platform_data)->chip_type);
+
 
         nfc_devs[0].irq = hsad_get_nfc_irq_id();
 

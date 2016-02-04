@@ -22,15 +22,15 @@
 
 /************* Include Files ****************/
 
-#include "../include/dx_crys_kernel.h"
-#include "../include/dx_hal_plat.h"
-#include "../include/dx_pal_types.h"
-#include "../include/dx_reg_base_host.h"
-#include "../include/dx_cc_regs.h"
-#include "../include/dx_host.h"
-#include "../include/crys_rnd.h"
-#include "../include/crys_rnd_local.h"
-#include "../include/dx_rng_plat.h"
+#include "dx_crys_kernel.h"
+#include "dx_hal_plat.h"
+#include "dx_pal_types.h"
+#include "dx_reg_base_host.h"
+#include "dx_cc_regs.h"
+#include "dx_host.h"
+#include "crys_rnd.h"
+#include "crys_rnd_local.h"
+#include "dx_rng_plat.h"
 
 
 	 

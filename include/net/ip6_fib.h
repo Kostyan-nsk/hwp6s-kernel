@@ -1,8 +1,8 @@
 /*
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -125,6 +125,27 @@ struct rt6_info {
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
 	return ((struct rt6_info *)dst)->rt6i_idev;
+}
+
+static inline void rt6_clean_expires(struct rt6_info *rt)
+{
+	rt->rt6i_flags &= ~RTF_EXPIRES;
+	rt->dst.expires = 0;
+}
+
+static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
+{
+	rt->dst.expires = expires;
+	rt->rt6i_flags |= RTF_EXPIRES;
+}
+
+static inline void ip6_rt_put(struct rt6_info *rt)
+{
+	/* dst_release() accepts a NULL parameter.
+	 * We rely on dst being first structure in struct rt6_info
+	 */
+	BUILD_BUG_ON(offsetof(struct rt6_info, dst) != 0);
+	dst_release(&rt->dst);
 }
 
 struct fib6_walker_t {

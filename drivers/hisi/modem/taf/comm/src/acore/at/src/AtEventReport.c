@@ -11103,46 +11103,65 @@ TAF_VOID At_QryParaRspSysinfoProc(
 
 }
 
-/**********************************************************
- 函 数 名  : At_QryMmPlmnInfoRspProc
- 功能描述  : 参数查询结果^MMINFO的上报处理
- 输入参数  :
- 输出参数  : 无
- 返 回 值  :
- 调用函数  :
- 被调函数  :
 
- 修改历史      :
-  1.日    期   : 2013年01月09日
-    作    者   : l65478
-    修改内容   : 新增函数
-*************************************************************/
-TAF_VOID At_QryMmPlmnInfoRspProc(
-    TAF_UINT8                           ucIndex,
-    TAF_UINT8                           OpId,
-    TAF_VOID                            *pPara
+VOS_VOID At_QryMmPlmnInfoRspProc(
+    VOS_UINT8                           ucIndex,
+    VOS_UINT8                           OpId,
+    VOS_VOID                           *pPara
 )
 {
-    TAF_UINT32 ulResult = AT_FAILURE;
-    TAF_UINT16 usLength = 0;
-    TAF_MMA_MM_INFO_PLMN_NAME_STRU             *pstPlmnName;
+    TAF_MMA_MM_INFO_PLMN_NAME_STRU     *pstPlmnName = VOS_NULL_PTR;
+    VOS_UINT32                          ulResult;
+    VOS_UINT16                          usLength;
+    VOS_UINT8                           i;
 
+    /* 变量初始化 */
     pstPlmnName = (TAF_MMA_MM_INFO_PLMN_NAME_STRU *)pPara;
+    ulResult    = AT_ERROR;
 
-    /*  ^MMINFO: <long name><short name>     */
-    usLength += (TAF_UINT16)At_sprintf(AT_CMD_MAX_LEN,(TAF_CHAR *)pgucAtSndCodeAddr,(TAF_CHAR *)pgucAtSndCodeAddr + usLength,"%s: ",g_stParseContext[ucIndex].pstCmdElement->pszCmdName);
+    /* 转换LongName及ShortName */
+    if ( pstPlmnName->ucLongNameLen <= TAF_PH_OPER_NAME_LONG
+      && pstPlmnName->ucShortNameLen <= TAF_PH_OPER_NAME_SHORT )
+    {
 
-    PS_MEM_CPY(pgucAtSndCodeAddr+usLength, pstPlmnName->aucLongName, pstPlmnName->ucLongNameLen);
-    usLength = usLength + pstPlmnName->ucLongNameLen;
-    usLength += (TAF_UINT16)At_sprintf(AT_CMD_MAX_LEN,(TAF_CHAR *)pgucAtSndCodeAddr,(TAF_CHAR *)pgucAtSndCodeAddr + usLength,",");
+        /* ^MMPLMNINFO:<long name>,<short name> */
+        usLength = (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN,
+                                          (VOS_CHAR *)pgucAtSndCodeAddr,
+                                          (VOS_CHAR *)pgucAtSndCodeAddr,
+                                          "%s:",
+                                          g_stParseContext[ucIndex].pstCmdElement->pszCmdName);
 
-    PS_MEM_CPY(pgucAtSndCodeAddr+usLength, pstPlmnName->aucShortName, pstPlmnName->ucShortNameLen);
-    usLength = usLength + pstPlmnName->ucShortNameLen;
+        for (i = 0; i < pstPlmnName->ucLongNameLen; i++)
+        {
+            usLength += (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN,
+                                               (VOS_CHAR *)pgucAtSndCodeAddr,
+                                               (VOS_CHAR *)pgucAtSndCodeAddr + usLength,
+                                               "%02X",
+                                               pstPlmnName->aucLongName[i]);
+        }
 
-    ulResult = AT_OK;
-    gstAtSendData.usBufLen = usLength;
+        usLength += (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN, (VOS_CHAR *)pgucAtSndCodeAddr, (VOS_CHAR *)pgucAtSndCodeAddr + usLength, ",");
+
+        for (i = 0; i < pstPlmnName->ucShortNameLen; i++)
+        {
+            usLength += (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN,
+                                               (VOS_CHAR *)pgucAtSndCodeAddr,
+                                               (VOS_CHAR *)pgucAtSndCodeAddr + usLength,
+                                               "%02X",
+                                               pstPlmnName->aucShortName[i]);
+        }
+
+        ulResult = AT_OK;
+        gstAtSendData.usBufLen = usLength;
+    }
+    else
+    {
+        gstAtSendData.usBufLen = 0;
+    }
+
     At_FormatResultData(ucIndex,ulResult);
 
+    return;
 }
 
 /*****************************************************************************
@@ -16028,10 +16047,6 @@ VOS_UINT32 AT_PrintTimeZoneInfoNoAdjustment(
         cTimeZone   = pstMmInfo->stUniversalTimeandLocalTimeZone.cTimeZone;
     }
 
-    if (NAS_MM_INFO_IE_LTZ == (pstMmInfo->ucIeFlg & NAS_MM_INFO_IE_LTZ))
-    {
-        cTimeZone   = pstMmInfo->cLocalTimeZone;
-    }
 
     if (cTimeZone < 0)
     {
@@ -16365,7 +16380,7 @@ TAF_UINT32 At_PrintMmTimeInfo(
     /*时间显示格式: ^TIME: "yy/mm/dd,hh:mm:ss(+/-)tz,dst" */
     if ( (VOS_TRUE == AT_CheckRptCmdStatus(pEvent->aucCurcRptCfg, AT_CMD_RPT_CTRL_BY_CURC, AT_RPT_CMD_TIME))
       && (VOS_TRUE == ulChkTimeFlg)
-      && (NAS_MM_INFO_IE_UTLTZ == (pstNetCtx->stTimeInfo.ucIeFlg & NAS_MM_INFO_IE_UTLTZ)) )
+      && (NAS_MM_INFO_IE_UTLTZ == (pEvent->stMmInfo.ucIeFlg & NAS_MM_INFO_IE_UTLTZ)) )
     {
         /* "^TIME: */
         usLength += (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN,

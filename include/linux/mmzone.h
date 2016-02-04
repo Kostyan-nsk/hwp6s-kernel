@@ -60,6 +60,7 @@ enum {
 	MIGRATE_ISOLATE,	/* can't allocate from here */
 	MIGRATE_TYPES
 };
+extern int *get_migratetype_fallbacks(int mtype);
 
 #ifdef CONFIG_CMA //added by qijiwen
 #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)

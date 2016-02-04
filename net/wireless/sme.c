@@ -775,6 +775,27 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 }
 EXPORT_SYMBOL(cfg80211_disconnected);
 
+void cfg80211_drv_recovery(struct net_device *dev, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_event *ev;
+	unsigned long flags;
+
+	ev = kzalloc(sizeof(*ev), gfp);
+	if (!ev) {
+		printk(KERN_ERR "%s: malloc fail\n", __FUNCTION__);
+		return;
+	}
+
+	ev->type = EVENT_DRV_RECOVERY;
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	list_add_tail(&ev->list, &wdev->event_list);
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+	queue_work(cfg80211_wq, &rdev->event_work);
+}
+EXPORT_SYMBOL(cfg80211_drv_recovery);
+
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
 		       struct cfg80211_connect_params *connect,
