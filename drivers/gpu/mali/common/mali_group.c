@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "mali_kernel_common.h"
 #include "mali_group.h"
@@ -460,7 +460,7 @@ void mali_group_power_up(struct mali_group *group)
 	group->power_is_on = MALI_TRUE;
 
 	if (MALI_FALSE == mali_group_is_virtual(group)
-			&& MALI_FALSE == mali_group_is_in_virtual(group)) {
+	    && MALI_FALSE == mali_group_is_in_virtual(group)) {
 		mali_group_reset(group);
 	}
 
@@ -519,6 +519,71 @@ MALI_DEBUG_CODE(static void mali_group_print_virtual(struct mali_group *vgroup)
 		i++;
 	}
 })
+
+static void mali_group_dump_core_status(struct mali_group *group)
+{
+	u32 i;
+
+	MALI_DEBUG_ASSERT_POINTER(group);
+	MALI_DEBUG_ASSERT(NULL != group->gp_core || (NULL != group->pp_core && !mali_group_is_virtual(group)));
+
+	if (NULL != group->gp_core) {
+		MALI_PRINT(("Dump Group %s\n", group->gp_core->hw_core.description));
+
+		for (i = 0; i < 0xA8; i += 0x10) {
+			MALI_PRINT(("0x%04x: 0x%08x 0x%08x 0x%08x 0x%08x\n", i, mali_hw_core_register_read(&group->gp_core->hw_core, i),
+				    mali_hw_core_register_read(&group->gp_core->hw_core, i + 4),
+				    mali_hw_core_register_read(&group->gp_core->hw_core, i + 8),
+				    mali_hw_core_register_read(&group->gp_core->hw_core, i + 12)));
+		}
+
+
+	} else {
+		MALI_PRINT(("Dump Group %s\n", group->pp_core->hw_core.description));
+
+		for (i = 0; i < 0x5c; i += 0x10) {
+			MALI_PRINT(("0x%04x: 0x%08x 0x%08x 0x%08x 0x%08x\n", i, mali_hw_core_register_read(&group->pp_core->hw_core, i),
+				    mali_hw_core_register_read(&group->pp_core->hw_core, i + 4),
+				    mali_hw_core_register_read(&group->pp_core->hw_core, i + 8),
+				    mali_hw_core_register_read(&group->pp_core->hw_core, i + 12)));
+		}
+
+		/* Ignore some minor registers */
+		for (i = 0x1000; i < 0x1068; i += 0x10) {
+			MALI_PRINT(("0x%04x: 0x%08x 0x%08x 0x%08x 0x%08x\n", i, mali_hw_core_register_read(&group->pp_core->hw_core, i),
+				    mali_hw_core_register_read(&group->pp_core->hw_core, i + 4),
+				    mali_hw_core_register_read(&group->pp_core->hw_core, i + 8),
+				    mali_hw_core_register_read(&group->pp_core->hw_core, i + 12)));
+		}
+	}
+
+	MALI_PRINT(("Dump Group MMU\n"));
+	for (i = 0; i < 0x24; i += 0x10) {
+		MALI_PRINT(("0x%04x: 0x%08x 0x%08x 0x%08x 0x%08x\n", i, mali_hw_core_register_read(&group->mmu->hw_core, i),
+			    mali_hw_core_register_read(&group->mmu->hw_core, i + 4),
+			    mali_hw_core_register_read(&group->mmu->hw_core, i + 8),
+			    mali_hw_core_register_read(&group->mmu->hw_core, i + 12)));
+	}
+}
+
+
+/**
+ * @Dump group status
+ */
+void mali_group_dump_status(struct mali_group *group)
+{
+	MALI_DEBUG_ASSERT_POINTER(group);
+
+	if (mali_group_is_virtual(group)) {
+		struct mali_group *group_c;
+		struct mali_group *temp;
+		_MALI_OSK_LIST_FOREACHENTRY(group_c, temp, &group->group_list, struct mali_group, group_list) {
+			mali_group_dump_core_status(group_c);
+		}
+	} else {
+		mali_group_dump_core_status(group);
+	}
+}
 
 /**
  * @brief Add child group to virtual group parent

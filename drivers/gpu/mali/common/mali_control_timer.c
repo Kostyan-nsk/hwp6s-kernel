@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2010-2012, 2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2012, 2014-2015 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "mali_kernel_utilization.h"
@@ -33,7 +33,7 @@ static void mali_control_timer_callback(void *arg)
 	if (mali_utilization_enabled()) {
 		struct mali_gpu_utilization_data *util_data = NULL;
 		u64 time_period = 0;
-        mali_bool need_add_timer = MALI_TRUE;
+		mali_bool need_add_timer = MALI_TRUE;
 
 		/* Calculate gpu utilization */
 		util_data = mali_utilization_calculate(&period_start_time, &time_period, &need_add_timer);
@@ -44,10 +44,10 @@ static void mali_control_timer_callback(void *arg)
 #else
 			mali_utilization_platform_realize(util_data);
 #endif
-		}
 
-		if ((MALI_TRUE == need_add_timer) && (0 != util_data->utilization_gpu)) {
-			mali_control_timer_add(mali_control_timeout);
+			if (MALI_TRUE == need_add_timer) {
+				mali_control_timer_add(mali_control_timeout);
+			}
 		}
 	}
 }
@@ -86,7 +86,7 @@ void mali_control_timer_term(void)
 
 mali_bool mali_control_timer_resume(u64 time_now)
 {
-    mali_utilization_data_assert_locked();
+	mali_utilization_data_assert_locked();
 
 	if (timer_running != MALI_TRUE) {
 		timer_running = MALI_TRUE;
@@ -103,10 +103,10 @@ mali_bool mali_control_timer_resume(u64 time_now)
 
 void mali_control_timer_pause(void)
 {
-    mali_utilization_data_assert_locked();
-    if (timer_running == MALI_TRUE) {
-        timer_running = MALI_FALSE;
-    }
+	mali_utilization_data_assert_locked();
+	if (timer_running == MALI_TRUE) {
+		timer_running = MALI_FALSE;
+	}
 }
 
 void mali_control_timer_suspend(mali_bool suspend)

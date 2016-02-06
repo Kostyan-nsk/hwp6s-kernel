@@ -54,9 +54,10 @@
 #include "drv_pmic_if.h"
 #include <mach/pmussi_drv.h>
 
-#define DVFS_STEP_OVER          0
+#define DVFS_STEP_OVER          1
 #define STATIC   static
 
+extern int ddr_minfreq_handle(unsigned int req_value);
 /* recorder the current status for test */
 typedef struct mali_dvfs_statusTag{
     mali_dvfs_status  currentStep;
@@ -69,6 +70,7 @@ typedef struct mali_dvfs_profileTag{
     unsigned int volProfile;                /* should calc this to reg value */
     unsigned int pllNum;                    /* pll0 or pll1 */
     unsigned int pllFreqReg;                /* pll0 for freq lock */
+    unsigned int ddr_freq;
 }mali_dvfs_profile_table;
 
 typedef struct mali_volt_cal_para
@@ -97,11 +99,11 @@ mali_dvfs_policy_table mali_dvfs_policy[MALI_DVFS_STEPS]=
     {80,40,1,1,0,0},
     {80,40,1,1,0,0}
     #else
+    {60,0,1,0,0,0},
+    {70,30,1,1,0,0},
     {80,40,1,1,0,0},
-    {80,50,1,1,0,0},
-    {85,55,1,1,0,0},
-    {100,60,1,1,0,0},
-    {100,70,1,1,0,0}
+    {90,50,1,1,0,0},
+    {100,60,0,1,0,0}
     #endif
 };
 /*dvfs status*/
@@ -121,11 +123,11 @@ STATIC mali_dvfs_profile_table mali_dvfs_profile[MALI_DVFS_STEPS]=
     {30, 0x01,0x9b13, 1,0},             /* 0.9v */
     {60, 0x00,0x9b19, 0,0}              /* 60Mhz */
     #else
-    {160, 0x00,0x9b14, 0,0x5381032},              /* 160Mhz,pll0,1div, 0.8V */
-    {266, 0x31,0x9b1d, 1,0x524206f},              /* 266Mhz,pll1,4div, 0.9V */
-    {355, 0x21,0x9b1d, 1,0x524206f},              /* 355Mhz,pll1,3div, 0.9V */
-    {533, 0x11,0x9b2a, 1,0x524206f},               /* 533Mhz,pll1,2div, 1.0V */
-    {700, 0x00,0x9b32, 0,0x5282092}               /* 700Mhz */
+    {160, 0x00,0x9b14, 0,0x5381032, 150},              /* 160Mhz,pll0,1div, 0.8V */
+    {266, 0x31,0x9b1d, 1,0x524206f, 266},              /* 266Mhz,pll1,4div, 0.9V */
+    {355, 0x21,0x9b1d, 1,0x524206f, 360},              /* 355Mhz,pll1,3div, 0.9V */
+    {533, 0x11,0x9b2a, 1,0x524206f, 533},               /* 533Mhz,pll1,2div, 1.0V */
+    {700, 0x00,0x9b32, 0,0x5282092, 800}               /* 700Mhz */
     #endif
 };
 
@@ -274,7 +276,7 @@ mali_dvfs_status decideNextStatus(void)
     bystep_upthd        = (int)((255*bystep_upthd)/100);
     bystep_downthd      = mali_dvfs_policy[s_uwDvfsCurrPrf].down_threshold;
     bystep_downthd      = (int)((255*bystep_downthd)/100);
-    stepover_upthd      = (int)((255*90)/100);
+    stepover_upthd      = (int)((255*95)/100);
     stepover_downthd    = (int)((255*20)/100);
 
     /*get the weighted utilization*/
@@ -835,6 +837,7 @@ int pwrctrl_dfs_gpu_disable(void)
                 MALI_DEBUG_PRINT(2,( "fail to close G3D avs and dvfs \r\n"));
                 return MALI_FALSE;
             }
+	ddr_minfreq_handle(0);
         }
 
         /* G3DCLKOFFCFG = 0x0 disable DVFS */
@@ -963,7 +966,7 @@ int mali_get_target_profile(u32 curr, int step)
         }
     }
 
-    MALI_DEBUG_PRINT(3,( "g3d tarprofile is %d ,thd=%d\r\n",target,mali_dvfs_policy[MALI_DVFS_STEPS-2].up_threshold));
+    MALI_DEBUG_PRINT(3,( "g3d tarprofile is %d ,thd=%d\r\n",target,mali_dvfs_policy[target].up_threshold));
 
     if( s_uwLockProfile == 1)
     {
@@ -991,7 +994,7 @@ int mali_get_target_profile(u32 curr, int step)
 *****************************************************************************/
 void mali_avs_dfs_target_profile(int target, u32 up)
 {
-    int i;
+    int i, ret;
     u32 dvfsEn;
 
     unsigned long irq_flags = 0;
@@ -1143,6 +1146,9 @@ void mali_avs_dfs_target_profile(int target, u32 up)
             spin_unlock_irqrestore(&gpupmc_lock, irq_flags);
             udelay(1);
         }
+	ret = ddr_minfreq_handle(mali_dvfs_profile[target].ddr_freq * 1000);
+	if (ret)
+	    pr_err("%s ddr_minfreq_handle vote error, ret=%d\n",__func__,ret);
     }
 
 }
@@ -1400,7 +1406,7 @@ void pmqos_gpu_dfs_set_policy(void *profile, unsigned int len)
     #if SFT_GPU_DVFS_PROFILE
     #else
     int i;
-    memcpy(mali_dvfs_policy,profile,len);
+//    memcpy(mali_dvfs_policy,profile,len);
     MALI_DEBUG_PRINT(3,( "pmqos_gpu_dfs_set_policy len=%d\n",len));
     for(i=0;i<MALI_DVFS_STEPS;i++)
     {
