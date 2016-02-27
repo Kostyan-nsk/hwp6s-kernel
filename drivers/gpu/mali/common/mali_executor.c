@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
- * 
- * This program is free software and is provided to you under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
- * A copy of the licence is included with the program, and can also be obtained from Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * This confidential and proprietary software may be used only as
+ * authorised by a licensing agreement from ARM Limited
+ * (C) COPYRIGHT 2012-2014 ARM Limited
+ * ALL RIGHTS RESERVED
+ * The entire notice above must be reproduced on all authorised
+ * copies and copies may only be made to the extent permitted
+ * by a licensing agreement from ARM Limited.
  */
 
 #include "mali_executor.h"
@@ -34,7 +34,6 @@
 /*
  * ---------- static type definitions (structs, enums, etc) ----------
  */
-
 enum mali_executor_state_t {
 	EXEC_STATE_NOT_PRESENT, /* Virtual group on Mali-300/400 (do not use) */
 	EXEC_STATE_DISABLED,    /* Disabled by core scaling (do not use) */
@@ -43,7 +42,6 @@ enum mali_executor_state_t {
 	EXEC_STATE_IDLE,        /* Active and ready to be used */
 	EXEC_STATE_WORKING,     /* Executing a job */
 };
-
 /*
  * ---------- global variables (exported due to inline functions) ----------
  */
@@ -612,10 +610,6 @@ _mali_osk_errcode_t mali_executor_interrupt_gp(struct mali_group *group,
 		struct mali_gp_job *job;
 		mali_bool success;
 
-		if (MALI_TRUE == time_out) {
-			mali_group_dump_status(group);
-		}
-
 		success = (int_result != MALI_INTERRUPT_RESULT_ERROR) ?
 			  MALI_TRUE : MALI_FALSE;
 
@@ -692,6 +686,9 @@ _mali_osk_errcode_t mali_executor_interrupt_pp(struct mali_group *group,
 	}
 #else
 	MALI_DEBUG_ASSERT(MALI_INTERRUPT_RESULT_NONE != int_result);
+	if (!mali_group_has_timed_out(group)) {
+		MALI_DEBUG_ASSERT(!mali_group_pp_is_active(group));
+	}
 #endif
 
 	/* We should now have a real interrupt to handle */
@@ -712,10 +709,6 @@ _mali_osk_errcode_t mali_executor_interrupt_pp(struct mali_group *group,
 	} else {
 		struct mali_pp_job *job = NULL;
 		mali_bool success;
-
-		if (MALI_TRUE == time_out) {
-			mali_group_dump_status(group);
-		}
 
 		success = (int_result == MALI_INTERRUPT_RESULT_SUCCESS) ?
 			  MALI_TRUE : MALI_FALSE;
@@ -937,19 +930,19 @@ void mali_executor_group_power_down(struct mali_group *groups[],
 
 	for (i = 0; i < num_groups; i++) {
 		/* Groups must be either disabled or inactive. while for virtual group,
-		 * it maybe in empty state, because when we meet pm_runtime_suspend,
-		 * virtual group could be powered off, and before we acquire mali_executor_lock,
-		 * we must release mali_pm_state_lock, if there is a new physical job was queued,
-		 * all of physical groups in virtual group could be pulled out, so we only can
-		 * powered down an empty virtual group. Those physical groups will be powered
-		 * up in following pm_runtime_resume callback function.
-		 */
+		* it maybe in empty state, because when we meet pm_runtime_suspend,
+		* virtual group could be powered off, and before we acquire mali_executor_lock,
+		* we must release mali_pm_state_lock, if there is a new physical job was queued,
+		* all of physical groups in virtual group could be pulled out, so we only can
+		* powered down an empty virtual group. Those physical groups will be powered
+		* up in following pm_runtime_resume callback function.
+		*/
 		MALI_DEBUG_ASSERT(mali_executor_group_is_in_state(groups[i],
-				  EXEC_STATE_DISABLED) ||
-				  mali_executor_group_is_in_state(groups[i],
-						  EXEC_STATE_INACTIVE) ||
-				  mali_executor_group_is_in_state(groups[i],
-						  EXEC_STATE_EMPTY));
+				EXEC_STATE_DISABLED) ||
+				mali_executor_group_is_in_state(groups[i],
+						EXEC_STATE_INACTIVE) ||
+				mali_executor_group_is_in_state(groups[i],
+						EXEC_STATE_EMPTY));
 
 		MALI_DEBUG_PRINT(3, ("Executor: powering down group %s\n",
 				     mali_group_core_description(groups[i])));
@@ -1458,8 +1451,8 @@ static mali_bool mali_executor_virtual_group_is_usable(void)
 {
 #if defined(CONFIG_MALI450)
 	MALI_DEBUG_ASSERT_EXECUTOR_LOCK_HELD();
-	return (EXEC_STATE_INACTIVE == virtual_group_state ||
-		EXEC_STATE_IDLE == virtual_group_state) ?
+	return ((EXEC_STATE_INACTIVE == virtual_group_state ||
+		EXEC_STATE_IDLE == virtual_group_state)&&(virtual_group->state != MALI_GROUP_STATE_ACTIVATION_PENDING)) ?
 	       MALI_TRUE : MALI_FALSE;
 #else
 	return MALI_FALSE;
@@ -2282,6 +2275,7 @@ static void mali_executor_core_scale(unsigned int target_core_nr)
 {
 	int current_core_scaling_mask[MALI_MAX_NUMBER_OF_DOMAINS] = { 0 };
 	int target_core_scaling_mask[MALI_MAX_NUMBER_OF_DOMAINS] = { 0 };
+	mali_bool update_global_core_scaling_mask = MALI_FALSE;
 	int i;
 
 	MALI_DEBUG_ASSERT(0 < target_core_nr);
@@ -2344,6 +2338,7 @@ static void mali_executor_core_scale(unsigned int target_core_nr)
 			struct mali_pm_domain *domain;
 
 			if (num_physical_pp_cores_enabled >= target_core_nr) {
+				update_global_core_scaling_mask = MALI_TRUE;
 				break;
 			}
 
@@ -2373,9 +2368,11 @@ static void mali_executor_core_scale(unsigned int target_core_nr)
 	 * Here, we may still have some pp cores not been enabled because of some
 	 * pp cores need to be disabled are still in working state.
 	 */
-	for (i = 0; i < MALI_MAX_NUMBER_OF_DOMAINS; i++) {
-		if (0 < target_core_scaling_mask[i]) {
-			core_scaling_delay_up_mask[i] = target_core_scaling_mask[i];
+	if (update_global_core_scaling_mask) {
+		for (i = 0; i < MALI_MAX_NUMBER_OF_DOMAINS; i++) {
+			if (0 < target_core_scaling_mask[i]) {
+				core_scaling_delay_up_mask[i] = target_core_scaling_mask[i];
+			}
 		}
 	}
 

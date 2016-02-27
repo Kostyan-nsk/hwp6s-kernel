@@ -360,7 +360,7 @@ static int mali_os_thaw(struct device *device)
 static void mali_gpu_utilization_proc(struct mali_gpu_utilization_data *data)
 {
     static int count = 0;
-
+#if 0
     /*Just lock the gpu for the first 40 seconds after power up, this function be called every 50ns, 40s = 50ns * 800*/
     if(800 == count)
     {
@@ -368,7 +368,7 @@ static void mali_gpu_utilization_proc(struct mali_gpu_utilization_data *data)
         pmqos_gpu_dfs_limit_min(0);
         count++;
     }
-
+#endif
     mali_gpu_utilization_handler(data->utilization_gpu);
 
     if(count < 800)
