@@ -97,10 +97,10 @@ mali_dvfs_policy_table mali_dvfs_policy[MALI_DVFS_STEPS]=
     {80,40,1,1,0,0},
     {80,40,1,1,0,0}
     #else
-    {60,0,1,0,0,0},
-    {70,30,1,1,0,0},
-    {80,40,1,1,0,0},
-    {90,50,1,1,0,0},
+    {50,0,1,0,0,0},
+    {60,30,1,1,0,0},
+    {70,40,1,1,0,0},
+    {80,50,1,1,0,0},
     {100,60,0,1,0,0}
     #endif
 };
@@ -1217,6 +1217,7 @@ void pmqos_gpu_get_current_func(unsigned int *curr_func)
 *****************************************************************************/
 void pmqos_gpu_set_current_func(unsigned int target_func)
 {
+    MALI_DEBUG_PRINT(2,("target_func = %d\n", target_func));
     if ( target_func == 1 )
     {
         s_uwDebugFsDvfsOn = 1;
@@ -1265,6 +1266,7 @@ void pmqos_gpu_set_current_func(unsigned int target_func)
 *****************************************************************************/
 void pmqos_gpu_dfs_lock(u32 lock_profile)
 {
+    MALI_DEBUG_PRINT(2,("lock_profile = %d\n", lock_profile));
     s_uwLockProfile = 1;//to control the dvfs caculator and run
 
     s_uwDVFSLockPrf = lock_profile;
@@ -1306,8 +1308,10 @@ void pmqos_gpu_dfs_unlock(void)
 *****************************************************************************/
 void pmqos_gpu_dfs_limit_max(u32 max_freq_limit)
 {
+/*
     int currPrf;
 
+    MALI_DEBUG_PRINT(2,("max_freq_limit = %d\n", max_freq_limit));
     if( 0 == max_freq_limit)
     {
         s_uwDvfslimitMaxPrf = g_mali_dvfs_steps - 1;
@@ -1329,7 +1333,7 @@ void pmqos_gpu_dfs_limit_max(u32 max_freq_limit)
             }
         }
     }
-
+*/
 }
 /*****************************************************************************
  function name  : pmqos_gpu_dfs_limit_min
@@ -1348,8 +1352,10 @@ void pmqos_gpu_dfs_limit_max(u32 max_freq_limit)
 *****************************************************************************/
 void pmqos_gpu_dfs_limit_min(u32 min_freq_limit)
 {
+/*
     int currPrf;
 
+    MALI_DEBUG_PRINT(2,("min_freq_limit = %d\n", min_freq_limit);
     if( 0 == min_freq_limit)
     {
         s_uwDvfslimitMinPrf = 0;
@@ -1372,6 +1378,7 @@ void pmqos_gpu_dfs_limit_min(u32 min_freq_limit)
         }
 
     }
+*/
 }
 
 void mali_set_default_voltage(void)
