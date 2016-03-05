@@ -444,8 +444,11 @@ static ssize_t dt2w_doubletap2wake_dump(struct device *dev,
 	    return -EINVAL;
 	if ((input > 1 && y_res == 0) || input > 4)
 	    input = 1;
-	if (scr_suspended)
+	if (scr_suspended) {
 	    dt2w_prev_switch = input;
+	    if (!input && wake_lock_active(&dt2w_wakelock))
+		wake_unlock(&dt2w_wakelock);
+	}
 	else
 	    dt2w_switch = input;
 	return count;
