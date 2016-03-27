@@ -141,7 +141,7 @@ config_pair  hw_OSCAR_UL_VB_configs [] = {
     {"power/ldo_ocp_bit_mask", (unsigned int)0x1000, E_CONFIG_DATA_TYPE_INT },
     {"product/name", (const unsigned int)(unsigned int*)"OSCAR_UL_VB", E_CONFIG_DATA_TYPE_STRING },
     {"product/product_name", (const unsigned int)(unsigned int*)"OSCAR_UL", E_CONFIG_DATA_TYPE_STRING },
-    {"pwc/afreq", (unsigned int)1795000, E_CONFIG_DATA_TYPE_INT },
+    {"pwc/afreq", (unsigned int)1996000, E_CONFIG_DATA_TYPE_INT },
     {"pwc/gfreq", (unsigned int)700000, E_CONFIG_DATA_TYPE_INT },
     {"sd_card/present_voltage", (unsigned int)0, E_CONFIG_DATA_TYPE_INT },
     {"sd_card/sdcard_clk_pin", (unsigned int)66, E_CONFIG_DATA_TYPE_INT },

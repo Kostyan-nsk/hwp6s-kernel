@@ -33,6 +33,9 @@
 #include <linux/tick.h>
 #include <asm/cputime.h>
 
+extern int acpu_minfreq_handle(unsigned int req_value);
+extern int acpu_maxfreq_handle(unsigned int req_value);
+
 static int active_count;
 
 struct cpufreq_impulse_cpuinfo {
@@ -1257,6 +1260,7 @@ static int cpufreq_governor_impulse(struct cpufreq_policy *policy,
 	unsigned int j;
 	struct cpufreq_impulse_cpuinfo *pcpu;
 	struct cpufreq_frequency_table *freq_table;
+	struct cpufreq_policy *cpu0;
 	unsigned long flags;
 	unsigned int anyboost;
 
@@ -1266,6 +1270,16 @@ static int cpufreq_governor_impulse(struct cpufreq_policy *policy,
 			return -EINVAL;
 
 		mutex_lock(&gov_lock);
+
+		/* Start cpu with selected freq limits */
+		if (policy->cpu) {
+		    cpu0 = cpufreq_cpu_get(0);
+		    if (cpu0) {
+			policy->min = cpu0->min;
+			policy->max = cpu0->max;
+			cpufreq_cpu_put(cpu0);
+		    }
+		}
 
 		freq_table =
 			cpufreq_frequency_get_table(policy->cpu);
@@ -1349,6 +1363,8 @@ static int cpufreq_governor_impulse(struct cpufreq_policy *policy,
 		else if (policy->min > policy->cur)
 			__cpufreq_driver_target(policy,
 					policy->min, CPUFREQ_RELATION_L);
+		acpu_minfreq_handle(policy->min);
+		acpu_maxfreq_handle(policy->max);
 		for_each_cpu(j, policy->cpus) {
 			pcpu = &per_cpu(cpuinfo, j);
 

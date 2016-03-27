@@ -19,11 +19,11 @@ hardware\libhardware\include\hardware\hisi\global_ddr_map.h             ->vendor
 #define IPC2_NOSEC_ACPUWDT_INT_CLEAR (0x1 << IPC2_NOSEC_ACPUWDT_INT_NUM)
 
 #define POLICY_VALID_MAGIC 0x12849176
-#define SURPPORT_POLICY_NUM 15
+#define SURPPORT_POLICY_NUM 14
 #define INVALID_POLICY_NUM 0xFFFFFFFF
 
 #define POLICY_HEAD_LEN (4)
 #define POLICY_LEN (24)
-#define MAX_PROFILE_NUM_CPU (7)
+#define MAX_PROFILE_NUM_CPU (8)
 #define MAX_PROFILE_NUM_DDR (6)
 #endif

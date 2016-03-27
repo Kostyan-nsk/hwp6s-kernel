@@ -138,7 +138,7 @@ config_pair  hw_balong_ddr3cap_udp_dcm_rf_configs [] = {
     {"pmu/gpio_pmu_irq", (unsigned int)8, E_CONFIG_DATA_TYPE_INT },
     {"pmu/gpio_power", (unsigned int)9, E_CONFIG_DATA_TYPE_INT },
     {"product/name", (const unsigned int)(unsigned int*)"balong_ddr3cap_udp_dcm_rf", E_CONFIG_DATA_TYPE_STRING },
-    {"pwc/afreq", (unsigned int)1795000, E_CONFIG_DATA_TYPE_INT },
+    {"pwc/afreq", (unsigned int)1996000, E_CONFIG_DATA_TYPE_INT },
     {"pwc/gfreq", (unsigned int)700000, E_CONFIG_DATA_TYPE_INT },
     {"sd_card/present_voltage", (unsigned int)1, E_CONFIG_DATA_TYPE_INT },
     {"sd_card/sdcard_clk_pin", (unsigned int)66, E_CONFIG_DATA_TYPE_INT },

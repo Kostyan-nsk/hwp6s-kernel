@@ -30,6 +30,9 @@
 #include <linux/earlysuspend.h>
 #include <linux/io.h>
 
+extern int acpu_minfreq_handle(unsigned int req_value);
+extern int acpu_maxfreq_handle(unsigned int req_value);
+
 static struct workqueue_struct *abyssplugv2_wq;
 
 #define TB_BOOST 1
@@ -43,10 +46,9 @@ static struct workqueue_struct *abyssplugv2_wq;
  */
 
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
-#define DEF_FREQUENCY_UP_THRESHOLD_HOTPLUG	(90)
-#define DEF_FREQUENCY_DOWN_THRESHOLD		(25)
+#define DEF_FREQUENCY_UP_THRESHOLD_HOTPLUG	(95)
+#define DEF_FREQUENCY_DOWN_THRESHOLD		(30)
 #define DEF_FREQUENCY_DOWN_THRESHOLD_HOTPLUG	(10)
-#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
 #define DEF_START_DELAY				(0)
 
 /*
@@ -60,7 +62,7 @@ static struct workqueue_struct *abyssplugv2_wq;
  * All times here are in uS.
  */
 #define MIN_SAMPLING_RATE_RATIO			(2)
-#define DEF_SAMPLING_RATE			(100000)
+#define DEF_SAMPLING_RATE			(50000)
 #define MIN_SAMPLING_RATE			(10000)
 
 #define LATENCY_MULTIPLIER			(1000)
@@ -102,7 +104,6 @@ static struct dbs_tuners {
 	unsigned int up_threshold_hotplug;
 	unsigned int down_threshold;
 	unsigned int down_threshold_hotplug;
-	unsigned int down_differential;
 	unsigned int ignore_nice;
 	unsigned int boost;
 	ktime_t time_stamp;
@@ -112,7 +113,6 @@ static struct dbs_tuners {
 	.up_threshold_hotplug = DEF_FREQUENCY_UP_THRESHOLD_HOTPLUG,
 	.down_threshold = DEF_FREQUENCY_DOWN_THRESHOLD,
 	.down_threshold_hotplug = DEF_FREQUENCY_DOWN_THRESHOLD_HOTPLUG,
-	.down_differential = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
 	.sampling_rate = DEF_SAMPLING_RATE,
 	.ignore_nice = 0,
@@ -138,8 +138,9 @@ static struct dbs_tuners {
 #define TB_UP 1
 #define TB_DOWN 2
 
-static int tb_freqs[7][3]={
-    {1795000,1795000,1596000},
+static int tb_freqs[8][3]={
+    {1996000,1996000,1795000},
+    {1795000,1996000,1596000},
     {1596000,1795000,1196000},
     {1196000,1596000, 798000},
     { 798000,1196000, 624000},
@@ -148,9 +149,10 @@ static int tb_freqs[7][3]={
     { 208000, 416000, 208000},
 };
 
-static int tb_freqs_power[7][3]={
-    {1795000,1795000,1596000},
-    {1596000,1795000,1196000},
+static int tb_freqs_power[8][3]={
+    {1996000,1996000,1795000},
+    {1795000,1996000,1596000},
+    {1596000,1996000,1196000},
     {1196000,1795000, 798000},
     { 798000,1596000, 624000},
     { 624000,1196000, 416000},
@@ -163,12 +165,12 @@ static unsigned int tb_get_next_freq(unsigned int curfreq, unsigned int updown,
     unsigned int i;
 
     if (load < dbs_tuners_ins.boost) {
-	for(i = 0; i < 7; i++)
+	for(i = 0; i < 8; i++)
 	    if(curfreq == tb_freqs[i][TB_FREQ])
 		return tb_freqs[i][updown];
     }
     else {
-	for(i = 0; i < 7; i++)
+	for(i = 0; i < 8; i++)
 	    if(curfreq == tb_freqs_power[i][TB_FREQ])
 		return tb_freqs_power[i][updown];
     }
@@ -230,7 +232,6 @@ show_one(up_threshold, up_threshold);
 show_one(up_threshold_hotplug, up_threshold_hotplug);
 show_one(down_threshold, down_threshold);
 show_one(down_threshold_hotplug, down_threshold_hotplug);
-show_one(down_differential, down_differential);
 show_one(ignore_nice_load, ignore_nice);
 show_one(boost, boost);
 
@@ -323,20 +324,6 @@ static ssize_t store_down_threshold_hotplug(struct kobject *a, struct attribute 
 	return count;
 }
 
-static ssize_t store_down_differential(struct kobject *a, struct attribute *b,
-				    const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf(buf, "%u", &input);
-
-	if (ret > dbs_tuners_ins.down_threshold)
-		return -EINVAL;
-
-	dbs_tuners_ins.down_differential = input;
-	return count;
-}
-
 static ssize_t store_ignore_nice_load(struct kobject *a, struct attribute *b,
 				      const char *buf, size_t count)
 {
@@ -390,7 +377,6 @@ define_one_global_rw(up_threshold);
 define_one_global_rw(up_threshold_hotplug);
 define_one_global_rw(down_threshold);
 define_one_global_rw(down_threshold_hotplug);
-define_one_global_rw(down_differential);
 define_one_global_rw(ignore_nice_load);
 define_one_global_rw(boost);
 
@@ -401,7 +387,6 @@ static struct attribute *dbs_attributes[] = {
 	&up_threshold_hotplug.attr,
 	&down_threshold.attr,
 	&down_threshold_hotplug.attr,
-	&down_differential.attr,
 	&ignore_nice_load.attr,
 	&boost.attr,
 	&up_threshold.attr,
@@ -427,8 +412,8 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	cpu = this_dbs_info->cpu;
 
 	/* Because HwPowerGenieEngine can restrict min freq */
-	if (policy->max != policy->cpuinfo.max_freq)
-	    policy->max = policy->cpuinfo.max_freq;
+	if (policy->min != policy->cpuinfo.min_freq)
+	    policy->min = policy->cpuinfo.min_freq;
 
 	/*
 	 * Every sampling_rate, we check, if current idle time is less
@@ -484,8 +469,11 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	    requested_freq = tb_get_next_freq(policy->cur, TB_UP, load);
 
-	    if (requested_freq == policy->max)
+	    if (requested_freq >= policy->max) {
 		this_dbs_info->rate_mult = dbs_tuners_ins.sampling_down_factor;
+		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_C);
+		return;
+	    }
 	    else
 		this_dbs_info->rate_mult = 1;
 		
@@ -498,7 +486,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 * can support the current CPU usage without triggering the up
 	 * policy. To be safe, we focus 10 points under the threshold.
 	 */
-	if (load < (dbs_tuners_ins.down_threshold - dbs_tuners_ins.down_differential)) {
+	if (load < dbs_tuners_ins.down_threshold) {
 
 	    if (this_dbs_info->rate_mult > 1)
 		this_dbs_info->rate_mult = 1;
@@ -513,17 +501,14 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	}
 
 cpu_up:
-	if (num_online_cpus() < NR_CPUS && load > dbs_tuners_ins.up_threshold_hotplug) {
+	if (num_online_cpus() < NR_CPUS && load > dbs_tuners_ins.up_threshold_hotplug)
 	    cpu_up(num_online_cpus());
-	    return;
-	}
+	return;
 
 cpu_down:
-	if (num_online_cpus() > 1 && load < dbs_tuners_ins.down_threshold_hotplug) {
+	if (num_online_cpus() > 1 && load < dbs_tuners_ins.down_threshold_hotplug)
 	    cpu_down(num_online_cpus()-1);
-	    return;
-	}
-
+	return;
 }
 
 /* Will return if we need to evaluate cpu load again or not */
@@ -588,6 +573,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 {
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_info_s *this_dbs_info;
+	struct cpufreq_policy *cpu0;
 	int rc;
 
 	this_dbs_info = &per_cpu(cs_cpu_dbs_info, cpu);
@@ -600,6 +586,16 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		this_dbs_info->cur_policy = policy;
 		this_dbs_info->cpu = cpu;
 		this_dbs_info->rate_mult = 1;
+
+		/* Start cpu with selected freq limits */
+		if (policy->cpu) {
+		    cpu0 = cpufreq_cpu_get(0);
+		    if (cpu0) {
+			policy->min = cpu0->min;
+			policy->max = cpu0->max;
+			cpufreq_cpu_put(cpu0);
+		    }
+		}
 
 		this_dbs_info->prev_cpu_idle = get_cpu_idle_time(cpu,
 					&this_dbs_info->prev_cpu_wall);
@@ -659,6 +655,8 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			__cpufreq_driver_target(
 					this_dbs_info->cur_policy,
 					policy->min, CPUFREQ_RELATION_L);
+		acpu_minfreq_handle(policy->min);
+		acpu_maxfreq_handle(policy->max);
 		mutex_unlock(&this_dbs_info->timer_mutex);
 		break;
 	}
@@ -678,7 +676,7 @@ struct cpufreq_governor cpufreq_gov_abyssplug = {
 static int __init cpufreq_gov_dbs_init(void)
 {
 
-    abyssplugv2_wq = alloc_workqueue("abyssplugv2", WQ_HIGHPRI, 1);
+    abyssplugv2_wq = alloc_workqueue("abyssplugv2", WQ_UNBOUND | WQ_HIGHPRI | WQ_FREEZABLE, 1);
 
 	return cpufreq_register_governor(&cpufreq_gov_abyssplug);
 }

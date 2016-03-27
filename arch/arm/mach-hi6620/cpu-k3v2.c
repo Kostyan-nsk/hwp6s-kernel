@@ -1801,32 +1801,35 @@ static int __init k3v2_cpufreq_init(void)
 	int ret = 0;
 
 /******************************************************************************/
-	if (ioread32(ACPU_CHIP_MAX_FREQ) == 1596000) {
-	    void *p;
-	    unsigned int sc_ctrl1;
+	void *p;
+	unsigned int sc_ctrl1;
 
-	    sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
-	    sc_ctrl1 |= 0xc0000000;
-	    sc_ctrl1 &= ~0x0000c000;
-	    iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
+	iowrite32(8, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 4);
+	iowrite32(1996000, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 8);
+	iowrite32(7, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 12);
+	sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
+	sc_ctrl1 |= 0xc0000000;
+	sc_ctrl1 &= ~0x0000c000;
+	iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
 
-	    p = ioremap(REG_BASE_SRAM_MCU, REG_SRAM_MCU_IOSIZE);
-	    if (p == NULL){
-		pr_err("%s ioremap fail \n", __func__);
-		goto release;
-	    }
-	    iowrite32(6, p + 0x00017D90);
-	    iowrite32(7, p + 0x00017D98);
-	    iowrite32(1795000, p + 0x00017D9C);
-	    iowrite32(1795000, p + 0x00017EC8);
-	    iowrite32(7, p + 0x00017EE4);
-	    iounmap(p);
-	    iowrite32(1795000, ACPU_CHIP_MAX_FREQ);
-release:
-	    sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
-	    sc_ctrl1 |= 0xc000c000;
-	    iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
+	p = ioremap(REG_BASE_SRAM_MCU, REG_SRAM_MCU_IOSIZE);
+	if (p == NULL){
+	    pr_err("%s ioremap fail \n", __func__);
+	    goto release;
 	}
+	iowrite32(7, p + 0x00017D90);
+	iowrite32(8, p + 0x00017D98);
+	iowrite32(1996000, p + 0x00017D9C);
+	iowrite32(0, p + 0x00017DAC);
+	iowrite32(IO_ADDRESS(ACPU_POLICY_STROE_AREA) + 192, p + 0x00017DB0);
+	iowrite32(1996000, p + 0x00017EC8);
+	iowrite32(8, p + 0x00017EE4);
+	iounmap(p);
+	iowrite32(1996000, ACPU_CHIP_MAX_FREQ);
+release:
+	sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
+	sc_ctrl1 |= 0xc000c000;
+	iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
 /******************************************************************************/
 
 	ret = ipps_register_client(&ipps_client);
