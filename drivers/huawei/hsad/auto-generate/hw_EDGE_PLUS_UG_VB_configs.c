@@ -130,7 +130,7 @@ config_pair  hw_EDGE_PLUS_UG_VB_configs [] = {
     {"pmu/gpio_power", (unsigned int)9, E_CONFIG_DATA_TYPE_INT },
     {"product/name", (const unsigned int)(unsigned int*)"EDGE_PLUS_UG_VB", E_CONFIG_DATA_TYPE_STRING },
     {"product/product_name", (const unsigned int)(unsigned int*)"EDGE_PLUS_UG", E_CONFIG_DATA_TYPE_STRING },
-    {"pwc/afreq", (unsigned int)1795000, E_CONFIG_DATA_TYPE_INT },
+    {"pwc/afreq", (unsigned int)1996000, E_CONFIG_DATA_TYPE_INT },
     {"pwc/gfreq", (unsigned int)700000, E_CONFIG_DATA_TYPE_INT },
     {"sd_card/present_voltage", (unsigned int)0, E_CONFIG_DATA_TYPE_INT },
     {"sd_card/realsdcard_support", (unsigned int)0, E_CONFIG_DATA_TYPE_INT },
