@@ -57,7 +57,7 @@
 #define DEF_UP_NR_CPUS				(1)
 #define DEF_CPU_UP_RATE				(5)
 #define DEF_CPU_DOWN_RATE			(20)
-#define DEF_FREQ_STEP				(25)
+#define DEF_FREQ_STEP				(10)
 #define DEF_START_DELAY				(0)
 
 #define UP_THRESHOLD_AT_MIN_FREQ		(60)
@@ -71,9 +71,9 @@ static int hotplug_rq[4][2] = {
 };
 
 static int hotplug_freq[4][2] = {
-	{0, 1196000},
-	{208000, 1596000},
-	{416000, 1795000},
+	{0, 1596000},
+	{208000, 1795000},
+	{416000, 1996000},
 	{624000, 0}
 };
 
@@ -1057,7 +1057,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		inc = (policy->max * dbs_tuners_ins.freq_step) / 100;
 		target = min(policy->max, policy->cur + inc);
 
-		if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, target, CPUFREQ_RELATION_C, &index)) {
+		if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, target, CPUFREQ_RELATION_L, &index)) {
 		    printk(KERN_ERR "%s: failed to get next highest frequency\n", __func__);
 		    return;
 		}
@@ -1089,7 +1089,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 		freq_next = load_cpu * policy->max / 100;
 
-		if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, freq_next, CPUFREQ_RELATION_L, &index)) {
+		if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, freq_next, CPUFREQ_RELATION_H, &index)) {
 		    printk(KERN_ERR "%s: failed to get next lowest frequency\n", __func__);
 		    return;
 		}
@@ -1112,7 +1112,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		    return;
 
 		__cpufreq_driver_target(policy, freq_next,
-					CPUFREQ_RELATION_L);
+					CPUFREQ_RELATION_C);
 	}
 }
 

@@ -27,13 +27,16 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 
+extern int acpu_minfreq_handle(unsigned int req_value);
+extern int acpu_maxfreq_handle(unsigned int req_value);
 
 /* optdemand governor macros */
 #define DEF_SAMPLING_DOWN_FACTOR		(4)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MIN_SAMPLE_RATE				(10000)
-#define DEF_BOOST_PULSE_DURATION		(80000)
-#define DEF_GO_HISPEED_LOAD			(95)
+#define DEF_SAMPLE_RATE				(50000)
+#define DEF_BOOST_PULSE_DURATION		(100000)
+#define DEF_GO_HISPEED_LOAD			(98)
 #define DEF_HISPEED_FREQ			(1196000)
 #define DEF_UP_THRESHOLD			(80)
 #define DEF_DOWN_THRESHOLD			(30)
@@ -46,18 +49,21 @@
 #define UP_THRESHOLD				1
 #define DOWN_THRESHOLD				2
 
-static unsigned int operating_points[7][3] = {
+static unsigned int operating_points[8][3] = {
 	/* kHz   up_threshold   down_threshold */
-	{208000,	70,	0},
-	{416000,	75,	45},
-	{624000,	80,	50},
-	{798000,	85,	55},
-	{1196000,	90,	60},
-	{1596000,	95,	65},
-	{1795000,	100,	70},
+	{208000,	60,	0},
+	{416000,	60,	30},
+	{624000,	70,	30},
+	{798000,	80,	40},
+	{1196000,	85,	50},
+	{1596000,	90,	60},
+	{1795000,	95,	70},
+	{1996000,	100,	 80},
+
 };
 
 static int usage_count;
+static struct workqueue_struct *optdemand_wq;
 
 struct cpufreq_optdemand_cpuinfo {
 	struct cpufreq_frequency_table *freq_table;
@@ -94,7 +100,7 @@ static struct cpufreq_optdemand_tunables {
 	bool input_event_boost;
 	ktime_t time_stamp;
 } tunables = {
-	.sampling_rate = 50000,
+	.sampling_rate = DEF_SAMPLE_RATE,
 	.hispeed_freq = DEF_HISPEED_FREQ,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
 	.go_hispeed_load = DEF_GO_HISPEED_LOAD,
@@ -303,7 +309,7 @@ static void optdemand_dbs_timer(struct work_struct *work)
 	}
 
 max_delay:
-	queue_delayed_work_on(cpu, system_wq, &pcpu->work,
+	queue_delayed_work_on(cpu, optdemand_wq, &pcpu->work,
 				usecs_to_jiffies(tunables.sampling_rate));
 }
 
@@ -505,10 +511,10 @@ static void update_sampling_rate(unsigned int new_rate)
 		pcpu = &per_cpu(cpuinfo, cpu);
 		cpufreq_cpu_put(policy);
 
-		mutex_lock(&pcpu->timer_mutex);
+//		mutex_lock(&pcpu->timer_mutex);
 
 		if (!delayed_work_pending(&pcpu->work)) {
-			mutex_unlock(&pcpu->timer_mutex);
+//			mutex_unlock(&pcpu->timer_mutex);
 			continue;
 		}
 
@@ -517,14 +523,14 @@ static void update_sampling_rate(unsigned int new_rate)
 
 		if (time_before(next_sampling, appointed_at)) {
 
-			mutex_unlock(&pcpu->timer_mutex);
+//			mutex_unlock(&pcpu->timer_mutex);
 			cancel_delayed_work_sync(&pcpu->work);
-			mutex_lock(&pcpu->timer_mutex);
+//			mutex_lock(&pcpu->timer_mutex);
 
-			queue_delayed_work_on(pcpu->cpu, system_wq, &pcpu->work,
+			queue_delayed_work_on(pcpu->cpu, optdemand_wq, &pcpu->work,
 						usecs_to_jiffies(new_rate));
 		}
-		mutex_unlock(&pcpu->timer_mutex);
+//		mutex_unlock(&pcpu->timer_mutex);
 	}
 }
 
@@ -790,6 +796,7 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 		unsigned int event)
 {
 	struct cpufreq_optdemand_cpuinfo *pcpu;
+	struct cpufreq_policy *cpu0;
 	unsigned int cpu = policy->cpu;
 	u64 idle_time;
 	int rc;
@@ -825,8 +832,6 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 		}
 		tunables.time_stamp = ktime_get();
 	    }
-	    mutex_unlock(&dbs_mutex);
-
 #ifdef CONFIG_INPUT_PULSE_SUPPORT
 	    if (policy->cpu == 0) {
 		rc = input_register_handler(&cpufreq_optdemand_input_handler);
@@ -834,6 +839,15 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 		    pr_warn("%s: failed to register input handler\n", __func__);
 	    }
 #endif
+	    /* Start cpu with selected freq limits */
+	    if (policy->cpu) {
+		cpu0 = cpufreq_cpu_get(0);
+		if (cpu0) {
+		    policy->min = cpu0->min;
+		    policy->max = cpu0->max;
+		    cpufreq_cpu_put(cpu0);
+		}
+	    }
 	    pcpu->cpu = cpu;
 	    pcpu->cur_policy = policy;
 	    pcpu->freq_table = cpufreq_frequency_get_table(cpu);
@@ -842,13 +856,13 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 
 	    mutex_init(&pcpu->timer_mutex);
 	    INIT_DELAYED_WORK_DEFERRABLE(&pcpu->work, optdemand_dbs_timer);
-
-	    queue_delayed_work_on(cpu, system_wq, &pcpu->work,
+	    mutex_unlock(&dbs_mutex);
+	    queue_delayed_work_on(cpu, optdemand_wq, &pcpu->work,
 				    usecs_to_jiffies(tunables.sampling_rate));
 	    break;
 
 	case CPUFREQ_GOV_STOP:
-	    cancel_delayed_work(&pcpu->work);
+	    cancel_delayed_work_sync(&pcpu->work);
 
 	    mutex_lock(&dbs_mutex);
 	    usage_count--;
@@ -871,7 +885,8 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 	    else if (policy->min > pcpu->cur_policy->cur)
 		__cpufreq_driver_target(pcpu->cur_policy,
 					policy->min, CPUFREQ_RELATION_L);
-	    optdemand_dbs_check_cpu(pcpu);
+	    acpu_minfreq_handle(policy->min);
+	    acpu_maxfreq_handle(policy->max);
 	    mutex_unlock(&pcpu->timer_mutex);
 	    break;
 	}
@@ -890,6 +905,11 @@ struct cpufreq_governor cpufreq_gov_optdemand = {
 
 static int __init cpufreq_optdemand_init(void)
 {
+       optdemand_wq = alloc_workqueue("optdemand", WQ_UNBOUND | WQ_HIGHPRI, 1);
+       if (!optdemand_wq) {
+               pr_err("%s cannot create workqueue\n", __func__);
+               return -ENOMEM;
+       }
 #ifdef CONFIG_INPUT_PULSE_SUPPORT
 	/* No rescuer thread, bind to CPU queuing the work for possibly
 	   warm cache (probably doesn't matter much). */
@@ -907,6 +927,9 @@ static int __init cpufreq_optdemand_init(void)
 static void __exit cpufreq_optdemand_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_optdemand);
+#ifdef CONFIG_INPUT_PULSE_SUPPORT
+	destroy_workqueue(down_wq);
+#endif /*#ifdef CONFIG_INPUT_PULSE_SUPPORT*/
 }
 
 MODULE_AUTHOR("Yu Wei <yuwei3@hisilicon.com>");
