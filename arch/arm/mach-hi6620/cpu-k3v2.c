@@ -1796,22 +1796,115 @@ static struct ipps_client ipps_client = {
 
 /*****************ipps driver interface end ****************************/
 
+static void lock(void)
+{
+    unsigned int sc_ctrl1;
+
+    sc_ctrl1 = readl(AOSCTRL_SC_SYS_CTRL1);
+    sc_ctrl1 |= 0xc0000000;
+    sc_ctrl1 &= ~0x0000c000;
+    writel(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
+}
+
+static void release(void)
+{
+    unsigned int sc_ctrl1;
+
+    sc_ctrl1 = readl(AOSCTRL_SC_SYS_CTRL1);
+    sc_ctrl1 |= 0xc000c000;
+    writel(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
+}
+
+#ifdef CONFIG_CPU_FREQ_VDD_LEVELS
+static DEFINE_MUTEX(vdd_mutex);
+
+ssize_t acpuclk_get_vdd_levels_str(char *buf)
+{
+	int i = 0, len = 0;
+	void *p;
+	struct cpufreq_frequency_table *pos;
+
+	if (buf) {
+	    mutex_lock(&vdd_mutex);
+	    lock();
+	    p = ioremap(REG_BASE_SRAM_MCU, REG_SRAM_MCU_IOSIZE);
+	    if (p == NULL){
+		pr_err("%s ioremap fail \n", __func__);
+		goto release;
+	    }
+	    for (pos = cpufreq_table; pos->frequency != CPUFREQ_TABLE_END; pos++) {
+		if (pos->frequency != CPUFREQ_ENTRY_INVALID)
+		    len += sprintf(buf + len, "%7u: %4d\n", cpufreq_table[i].frequency,
+				(ioread32(p + 0x00017ADC + i * 80) & 0xFF) * 8 + 700);
+		i++;
+	    }
+	    iounmap(p);
+release:
+	    release();
+	    mutex_unlock(&vdd_mutex);
+	}
+	return len;
+}
+
+/* the minimum and maximum macros */
+#undef min
+#define min( a , b ) ( ( (a) < (b) ) ? (a) : (b) )
+
+#undef max
+#define max( a , b ) ( ( (a) > (b) ) ? (a) : (b) )
+
+void acpuclk_set_vdd(unsigned acpu_khz, int vdd)
+{
+	int i = 0;
+	unsigned int vol;
+	void *p;
+	struct cpufreq_frequency_table *pos;
+
+	if (acpu_khz == 0)
+	    vdd = vdd / 8;
+	else {
+	    if ((vdd % 1000 == 0) && (vdd / 1000 > 100)) // For some reason Kernel Adiutor
+		vdd /= 1000;				 // multiplies value on 1000 ¯\_(ツ)_/¯
+	    vdd = 0x009B9B00 + (vdd - 700) / 8;
+	}
+	pr_info("%s %d\n", __func__, vdd);
+	mutex_lock(&vdd_mutex);
+	lock();
+	p = ioremap(REG_BASE_SRAM_MCU, REG_SRAM_MCU_IOSIZE);
+	if (p == NULL){
+	    pr_err("%s ioremap fail \n", __func__);
+	    goto release;
+	}
+	for (pos = cpufreq_table; pos->frequency != CPUFREQ_TABLE_END; pos++) {
+	    if (pos->frequency != CPUFREQ_ENTRY_INVALID) {
+		vol = ioread32(p + 0x00017ADC + i * 80);
+		if (acpu_khz == 0)
+		    iowrite32(min(max(vol + vdd, 0x009B9B00), 0x009B9B35), p + 0x00017ADC + i * 80);
+		else
+		    if (cpufreq_table[i].frequency == acpu_khz)
+			iowrite32(min(max(vdd, 0x009B9B00), 0x009B9B35), p + 0x00017ADC + i * 80);
+	    }
+	    i++;
+	}
+	iounmap(p);
+release:
+	release();
+	mutex_unlock(&vdd_mutex);
+}
+#endif
+
 static int __init k3v2_cpufreq_init(void)
 {
 	int ret = 0;
 
 /******************************************************************************/
 	void *p;
-	unsigned int sc_ctrl1;
 
 	iowrite32(8, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 4);
 	iowrite32(1996000, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 8);
 	iowrite32(7, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 12);
-	sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
-	sc_ctrl1 |= 0xc0000000;
-	sc_ctrl1 &= ~0x0000c000;
-	iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
 
+	lock();
 	p = ioremap(REG_BASE_SRAM_MCU, REG_SRAM_MCU_IOSIZE);
 	if (p == NULL){
 	    pr_err("%s ioremap fail \n", __func__);
@@ -1827,9 +1920,7 @@ static int __init k3v2_cpufreq_init(void)
 	iounmap(p);
 	iowrite32(1996000, ACPU_CHIP_MAX_FREQ);
 release:
-	sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
-	sc_ctrl1 |= 0xc000c000;
-	iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
+	release();
 /******************************************************************************/
 
 	ret = ipps_register_client(&ipps_client);
