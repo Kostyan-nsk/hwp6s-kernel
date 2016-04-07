@@ -1464,18 +1464,168 @@ static int mali_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations mali_procfs_ops = {
-    .open 		= mali_proc_open,
-    .read		= seq_read,
+	.open 		= mali_proc_open,
+	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
+static ssize_t lock_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+
+    int ret;
+    unsigned int val;
+
+    ret = sscanf(buf, "%u", &val);
+    if (ret != 1)
+	return -EINVAL;
+    if (val < 5) {
+	s_uwLockProfile = 1;//to control the dvfs caculator and run
+	s_uwDVFSLockPrf = val;
+    }
+    else
+	s_uwLockProfile = 0;
+
+    return count;
+}
+
+static ssize_t voltage_show(struct device *dev,
+			struct device_attribute *attr, char *buf) {
+
+    size_t count = (int)buf;
+    unsigned int i;
+
+    for (i = 0; i < 5; i++)
+	buf += sprintf(buf, "%u: %u\n", mali_dvfs_profile[i].freq * 1000, (mali_dvfs_profile[i].volProfile & 0xFF) * 8 + 700);
+
+    buf += sprintf(buf, "\nLock: %u\nLockProfile: %u\n", s_uwLockProfile, s_uwDVFSLockPrf);
+
+    return ((int)buf - count);
+}
+
+static ssize_t F160000_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+
+    int ret;
+    unsigned int val;
+
+    ret = sscanf(buf, "%u", &val);
+    if (ret != 1)
+	return -EINVAL;
+    val = (val - 700) / 8;
+    if (val >= 0 && val <= 45)
+	mali_dvfs_profile[0].volProfile = 0x9B00 + val;
+
+    return count;
+}
+
+static ssize_t F266000_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+
+    int ret;
+    unsigned int val;
+
+    ret = sscanf(buf, "%u", &val);
+    if (ret != 1)
+	return -EINVAL;
+    val = (val - 700) / 8;
+    if (val >= 0 && val <= 45)
+	mali_dvfs_profile[1].volProfile = 0x9B00 + val;
+
+    return count;
+}
+
+static ssize_t F355000_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+
+    int ret;
+    unsigned int val;
+
+    ret = sscanf(buf, "%u", &val);
+    if (ret != 1)
+	return -EINVAL;
+    val = (val - 700) / 8;
+    if (val >= 0 && val <= 45)
+	mali_dvfs_profile[2].volProfile = 0x9B00 + val;
+
+    return count;
+}
+
+static ssize_t F533000_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+
+    int ret;
+    unsigned int val;
+
+    ret = sscanf(buf, "%u", &val);
+    if (ret != 1)
+	return -EINVAL;
+    val = (val - 700) / 8;
+    if (val >= 0 && val <= 45)
+	mali_dvfs_profile[3].volProfile = 0x9B00 + val;
+
+    return count;
+}
+
+static ssize_t F700000_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+
+    int ret;
+    unsigned int val;
+
+    ret = sscanf(buf, "%u", &val);
+    if (ret != 1)
+	return -EINVAL;
+    val = (val - 700) / 8;
+    if (val >= 0 && val <= 45)
+	mali_dvfs_profile[4].volProfile = 0x9B00 + val;
+
+    return count;
+}
+
+static DEVICE_ATTR(lock, 0222, NULL, lock_store);
+static DEVICE_ATTR(voltage, 0444, voltage_show, NULL);
+static DEVICE_ATTR(160000, 0222, NULL, F160000_store);
+static DEVICE_ATTR(266000, 0222, NULL, F266000_store);
+static DEVICE_ATTR(355000, 0222, NULL, F355000_store);
+static DEVICE_ATTR(533000, 0222, NULL, F533000_store);
+static DEVICE_ATTR(700000, 0222, NULL, F700000_store);
+
+static struct attribute *voltage_attrs[] = {
+    &dev_attr_lock.attr,
+    &dev_attr_voltage.attr,
+    &dev_attr_160000.attr,
+    &dev_attr_266000.attr,
+    &dev_attr_355000.attr,
+    &dev_attr_533000.attr,
+    &dev_attr_700000.attr,
+    NULL
+};
+
+static struct attribute_group voltage_attr_group = {
+    .attrs = voltage_attrs,
+};
+
+struct kobject *gpu_undervolt_kobj;
+EXPORT_SYMBOL_GPL(gpu_undervolt_kobj);
+
 static int __init gpu_procfs_init(void)
 {
+    int rc = 0;
+
     printk("gpu_procfs_init\n");
 
 	proc_create(GPU_PROCFS_NAME, 0, NULL, &mali_procfs_ops);
 
+
+    gpu_undervolt_kobj = kobject_create_and_add("gpu_voltage", NULL) ;
+    if (gpu_undervolt_kobj == NULL) {
+	pr_warn("%s: gpu_undervolt_kobj create_and_add failed\n", __func__);
+    }
+    rc = sysfs_create_group(gpu_undervolt_kobj, &voltage_attr_group);
+    if (rc) {
+	pr_warn("%s: sysfs_create_file failed for voltage\n", __func__);
+    }
     return 0;
 }
 
