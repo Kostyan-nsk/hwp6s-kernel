@@ -26,6 +26,7 @@
 #include <crypto/sha.h>
 #include <asm/byteorder.h>
 #include <asm/simd.h>
+#include <linux/kconfig.h>
 #include <asm/neon.h>
 #include "sha256_glue.h"
 

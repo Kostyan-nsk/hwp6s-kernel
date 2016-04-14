@@ -27,7 +27,6 @@
 #include <asm/simd.h>
 #include <asm/neon.h>
 
-
 static const u64 sha512_k[] = {
 	0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL,
 	0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
