@@ -103,7 +103,7 @@ int g_debug_camerause = 0;
 static int lcd_check_esd = 1;
 u32 frame_count = 0;
 static int isFHD = 0;
-#define PM_QOS_CPU_MIN_NUMBER (3)
+#define PM_QOS_CPU_MIN_NUMBER (2)
 
 STATIC int k3_fb_resource_initialized;
 static struct platform_device *pdev_list[K3_FB_MAX_DEV_LIST] = {0};
