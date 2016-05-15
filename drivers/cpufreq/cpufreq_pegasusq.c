@@ -43,8 +43,8 @@
 
 #define DEF_SAMPLING_DOWN_FACTOR		(2)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
-#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
-#define DEF_FREQUENCY_UP_THRESHOLD		(80)
+#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(30)
+#define DEF_FREQUENCY_UP_THRESHOLD		(90)
 #define DEF_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(5)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
@@ -1062,13 +1062,13 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		    return;
 		}
 		target = this_dbs_info->freq_table[index].frequency;
+		if (target == policy->cur)
+		    return;
 
 		/* If switching to max speed, apply sampling_down_factor */
 		if (policy->cur < policy->max && target == policy->max)
 			this_dbs_info->rate_mult =
 				dbs_tuners_ins.sampling_down_factor;
-		if (target == policy->cur)
-		    return;
 
 		__cpufreq_driver_target(policy, target, CPUFREQ_RELATION_C);
 		return;
@@ -1100,7 +1100,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		if (freq_next < policy->min)
 			freq_next = policy->min;
 
-
 		down_thres = dbs_tuners_ins.up_threshold_at_min_freq
 			- dbs_tuners_ins.down_differential;
 
@@ -1111,8 +1110,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		if (policy->cur == freq_next)
 		    return;
 
-		__cpufreq_driver_target(policy, freq_next,
-					CPUFREQ_RELATION_C);
+		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_C);
 	}
 }
 
@@ -1173,7 +1171,7 @@ static struct notifier_block reboot_notifier = {
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend early_suspend;
-unsigned int prev_freq_step;
+//unsigned int prev_freq_step;
 unsigned int prev_sampling_rate;
 
 static void cpufreq_pegasusq_early_suspend(struct early_suspend *h)
@@ -1182,10 +1180,10 @@ static void cpufreq_pegasusq_early_suspend(struct early_suspend *h)
 	dbs_tuners_ins.early_suspend =
 		atomic_read(&g_hotplug_lock);
 #endif
-	prev_freq_step = dbs_tuners_ins.freq_step;
+//	prev_freq_step = dbs_tuners_ins.freq_step;
 	prev_sampling_rate = dbs_tuners_ins.sampling_rate;
-	dbs_tuners_ins.freq_step = 20;
-	dbs_tuners_ins.sampling_rate *= 4;
+//	dbs_tuners_ins.freq_step = 20;
+	dbs_tuners_ins.sampling_rate *= 2;
 #if EARLYSUSPEND_HOTPLUGLOCK
 	atomic_set(&g_hotplug_lock,
 	    (dbs_tuners_ins.min_cpu_lock) ? dbs_tuners_ins.min_cpu_lock : 1);
@@ -1200,7 +1198,7 @@ static void cpufreq_pegasusq_late_resume(struct early_suspend *h)
 	atomic_set(&g_hotplug_lock, dbs_tuners_ins.early_suspend);
 #endif
 	dbs_tuners_ins.early_suspend = -1;
-	dbs_tuners_ins.freq_step = prev_freq_step;
+//	dbs_tuners_ins.freq_step = prev_freq_step;
 	dbs_tuners_ins.sampling_rate = prev_sampling_rate;
 #if EARLYSUSPEND_HOTPLUGLOCK
 	apply_hotplug_lock();

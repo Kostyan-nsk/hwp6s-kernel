@@ -31,7 +31,7 @@ extern int acpu_minfreq_handle(unsigned int req_value);
 extern int acpu_maxfreq_handle(unsigned int req_value);
 
 /* optdemand governor macros */
-#define DEF_SAMPLING_DOWN_FACTOR		(4)
+#define DEF_SAMPLING_DOWN_FACTOR		(2)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MIN_SAMPLE_RATE				(10000)
 #define DEF_SAMPLE_RATE				(50000)
@@ -53,8 +53,8 @@ static unsigned int operating_points[8][3] = {
 	/* kHz   up_threshold   down_threshold */
 	{208000,	60,	0},
 	{416000,	60,	30},
-	{624000,	70,	30},
-	{798000,	80,	40},
+	{624000,	70,	40},
+	{798000,	80,	50},
 	{1196000,	85,	50},
 	{1596000,	90,	60},
 	{1795000,	95,	70},
@@ -302,7 +302,7 @@ static void optdemand_dbs_timer(struct work_struct *work)
 	    tunables.input_event_boost = false;
 	    pcpu->rate_mult = tunables.boostpulse_duration / tunables.sampling_rate;
 	    if(policy->cur < tunables.hispeed_freq)
-		__cpufreq_driver_target(policy, tunables.hispeed_freq, CPUFREQ_RELATION_L);
+		__cpufreq_driver_target(policy, tunables.hispeed_freq, CPUFREQ_RELATION_C);
 	}
 	else {
 	    optdemand_dbs_check_cpu(pcpu);
