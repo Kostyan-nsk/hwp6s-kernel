@@ -140,9 +140,9 @@ static PWRCTRL_HOTPLUG_LEVEL_STRU hotplug_up_defaultlevel[NR_CPUS_NUMBER]=
     {-1,-1,5,5},
     {-1,-1,-1,-1}
 #else
-    {65,25,0,5},
-    {60,40,0,8},
-    {50,55,0,5},
+    {60,25,0,2},
+    {70,40,0,4},
+    {80,55,0,4},
     {-1,-1,-1,-1}
 #endif
 };
@@ -156,9 +156,9 @@ static PWRCTRL_HOTPLUG_LEVEL_STRU hotplug_down_defaultlevel[NR_CPUS_NUMBER]=
     {0,0,1,5}
 #else
     {0,0,-1,-1},
-    {40,15,3,3},
-    {45,35,3,3},
-    {45,45,3,3}
+    {25,15,4,4},
+    {50,35,4,4},
+    {60,45,4,4}
 #endif
 };
 

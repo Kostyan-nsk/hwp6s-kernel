@@ -35,17 +35,15 @@ extern int acpu_maxfreq_handle(unsigned int req_value);
 
 static struct workqueue_struct *abyssplugv2_wq;
 
-#define TB_BOOST 1
-
 // cpu load trigger
-#define DEF_BOOST (95)
+#define DEF_BOOST (98)
 
 /*
  * dbs is used in this file as a shortform for demandbased switching
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_UP_THRESHOLD		(80)
+#define DEF_FREQUENCY_UP_THRESHOLD		(85)
 #define DEF_FREQUENCY_UP_THRESHOLD_HOTPLUG	(95)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(30)
 #define DEF_FREQUENCY_DOWN_THRESHOLD_HOTPLUG	(10)
@@ -496,6 +494,11 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		goto cpu_down;
 
 	    requested_freq = tb_get_next_freq(policy->cur, TB_DOWN, load);
+	    if (requested_freq <= policy->min) {
+		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_C);
+		return;
+	    }
+
 	    __cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_C);
 	    return;
 	}

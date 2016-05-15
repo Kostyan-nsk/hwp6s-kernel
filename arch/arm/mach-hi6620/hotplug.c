@@ -445,25 +445,14 @@ void platform_cpu_power_on(int cpu)
     /*触发从核锁定流程*/
     stop_online_cpu((BIT(num_online_cpus())-1) & (~(BIT(this_cpu) | (BIT(cpu)))));
     /*切回原来的PLL，并将另一个PLL去使能*/
-    dsb();
-    isb();
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
     if(APCU_PLL0 == target_pll)
     {
         pwrctrl_clr_bits(SOC_PMCTRL_ACPUPLLSEL_ADDR(IO_ADDRESS(SOC_PMCTRL_BASE_ADDR)), BIT(0));
 
         /*reg = readl(SOC_PMCTRL_ACPUPLLSEL_ADDR(SOC_PMCTRL_BASE_ADDR));*/
-        reg = pwrctrl_read_reg32(SOC_PMCTRL_ACPUPLLSEL_ADDR(SOC_PMCTRL_BASE_ADDR));
-        while( (reg&BIT(SOC_PMCTRL_ACPUPLLSEL_acpu_pllsw_stat_START)));
+        do{
+            reg = pwrctrl_read_reg32(SOC_PMCTRL_ACPUPLLSEL_ADDR(SOC_PMCTRL_BASE_ADDR));
+        } while( (reg&BIT(SOC_PMCTRL_ACPUPLLSEL_acpu_pllsw_stat_START)));
 
         pwrctrl_clr_bits(SOC_PMCTRL_ACPUPLL1CTRL_ADDR(IO_ADDRESS(SOC_PMCTRL_BASE_ADDR)), BIT(0));
     }
@@ -472,23 +461,12 @@ void platform_cpu_power_on(int cpu)
         pwrctrl_set_bits(SOC_PMCTRL_ACPUPLLSEL_ADDR(IO_ADDRESS(SOC_PMCTRL_BASE_ADDR)), BIT(0));
 
         /*reg = readl(SOC_PMCTRL_ACPUPLLSEL_ADDR(SOC_PMCTRL_BASE_ADDR));*/
-        reg = pwrctrl_read_reg32(SOC_PMCTRL_ACPUPLLSEL_ADDR(SOC_PMCTRL_BASE_ADDR));
-        while( !(reg&BIT(SOC_PMCTRL_ACPUPLLSEL_acpu_pllsw_stat_START)));
+        do{
+            reg = pwrctrl_read_reg32(SOC_PMCTRL_ACPUPLLSEL_ADDR(SOC_PMCTRL_BASE_ADDR));
+        }while( !(reg&BIT(SOC_PMCTRL_ACPUPLLSEL_acpu_pllsw_stat_START)));
 
         pwrctrl_clr_bits(SOC_PMCTRL_ACPUPLL0CTRL_ADDR(IO_ADDRESS(SOC_PMCTRL_BASE_ADDR)), BIT(0));
     }
-    dsb();
-    isb();
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
-    asm("nop");
 
     /*释放从核锁定*/
     set_reset_complete_flag();
