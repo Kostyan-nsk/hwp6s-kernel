@@ -320,21 +320,10 @@ static void dt2w_input_event(struct input_handle *handle, unsigned int type,
 	}
 }
 
-static int input_dev_filter(struct input_dev *dev) {
-	if (strstr(dev->name, "touchscreen")) {
-		return 0;
-	} else {
-		return 1;
-	}
-}
-
 static int dt2w_input_connect(struct input_handler *handler,
 				struct input_dev *dev, const struct input_device_id *id) {
 	struct input_handle *handle;
 	int error;
-
-	if (input_dev_filter(dev))
-		return -ENODEV;
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
@@ -367,7 +356,21 @@ static void dt2w_input_disconnect(struct input_handle *handle) {
 }
 
 static const struct input_device_id dt2w_ids[] = {
-	{ .driver_info = 1 },
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			    BIT_MASK(ABS_MT_POSITION_X) |
+			    BIT_MASK(ABS_MT_POSITION_Y) },
+	}, /* multi-touch touchscreen */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] =
+			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	}, /* touchpad */
 	{ },
 };
 
@@ -547,6 +550,19 @@ static ssize_t s2s_length_dump(struct device *dev,
 static DEVICE_ATTR(s2s_length, (0666),
 	s2s_length_show, s2s_length_dump);
 
+static struct attribute *dt2w_attrs[] = {
+    &dev_attr_doubletap2wake.attr,
+    &dev_attr_sweep2sleep.attr,
+    &dev_attr_dt2w_version.attr,
+    &dev_attr_dt2w_duration.attr,
+    &dev_attr_s2s_length.attr,
+    NULL
+};
+
+static struct attribute_group dt2w_attr_group = {
+    .attrs = dt2w_attrs
+};
+
 /*
  * INIT / EXIT stuff below here
  */
@@ -619,25 +635,9 @@ static int __init doubletap2wake_init(void)
 		pr_warn("%s: android_touch_kobj create_and_add failed\n", __func__);
 	}
 #endif
-	rc = sysfs_create_file(android_touch_kobj, &dev_attr_doubletap2wake.attr);
+	rc = sysfs_create_group(android_touch_kobj, &dt2w_attr_group);
 	if (rc) {
-		pr_warn("%s: sysfs_create_file failed for doubletap2wake\n", __func__);
-	}
-	rc = sysfs_create_file(android_touch_kobj, &dev_attr_sweep2sleep.attr);
-	if (rc) {
-		pr_warn("%s: sysfs_create_file failed for sweep2sleep\n", __func__);
-	}
-	rc = sysfs_create_file(android_touch_kobj, &dev_attr_dt2w_version.attr);
-	if (rc) {
-		pr_warn("%s: sysfs_create_file failed for dt2w_version\n", __func__);
-	}
-	rc = sysfs_create_file(android_touch_kobj, &dev_attr_dt2w_duration.attr);
-	if (rc) {
-		pr_warn("%s: sysfs_create_file failed for dt2w_duration\n", __func__);
-	}
-	rc = sysfs_create_file(android_touch_kobj, &dev_attr_s2s_length.attr);
-	if (rc) {
-		pr_warn("%s: sysfs_create_file failed for s2s_length\n", __func__);
+	    pr_warn("%s: sysfs_create_group failed\n", __func__);
 	}
 
 err_input_dev:
