@@ -1815,6 +1815,13 @@ static void release(void)
     writel(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
 }
 
+/* the minimum and maximum macros */
+#undef min
+#define min( a , b ) ( ( (a) < (b) ) ? (a) : (b) )
+
+#undef max
+#define max( a , b ) ( ( (a) > (b) ) ? (a) : (b) )
+
 #ifdef CONFIG_CPU_FREQ_VDD_LEVELS
 static DEFINE_MUTEX(vdd_mutex);
 
@@ -1846,13 +1853,6 @@ release:
 	return len;
 }
 
-/* the minimum and maximum macros */
-#undef min
-#define min( a , b ) ( ( (a) < (b) ) ? (a) : (b) )
-
-#undef max
-#define max( a , b ) ( ( (a) > (b) ) ? (a) : (b) )
-
 void acpuclk_set_vdd(unsigned acpu_khz, int vdd)
 {
 	int i = 0;
@@ -1879,10 +1879,10 @@ void acpuclk_set_vdd(unsigned acpu_khz, int vdd)
 	    if (pos->frequency != CPUFREQ_ENTRY_INVALID) {
 		vol = ioread32(p + 0x00017ADC + i * 80);
 		if (acpu_khz == 0)
-		    iowrite32(min(max(vol + vdd, 0x009B9B00), 0x009B9B35), p + 0x00017ADC + i * 80);
+		    iowrite32(min(max(vol + vdd, 0x009B9B00), 0x009B9B3F), p + 0x00017ADC + i * 80);
 		else
 		    if (cpufreq_table[i].frequency == acpu_khz)
-			iowrite32(min(max(vdd, 0x009B9B00), 0x009B9B35), p + 0x00017ADC + i * 80);
+			iowrite32(min(max(vdd, 0x009B9B00), 0x009B9B3F), p + 0x00017ADC + i * 80);
 	    }
 	    i++;
 	}
@@ -1899,8 +1899,10 @@ static int __init k3v2_cpufreq_init(void)
 
 /******************************************************************************/
 	void *p;
+	unsigned int val;
 
 	iowrite32(8, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 4);
+	val = ioread32(MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 8);
 	iowrite32(1996000, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 8);
 	iowrite32(7, MEMORY_AXI_ACPU_FREQ_VOL_ADDR + 12);
 
@@ -1910,6 +1912,17 @@ static int __init k3v2_cpufreq_init(void)
 	    pr_err("%s ioremap fail \n", __func__);
 	    goto release;
 	}
+	if (val == 1596000) {
+	    val = ioread32(p + 0x00017C6C);
+	    val = min(val + 4, 0x009B9B3F);
+	    iowrite32(val, p + 0x00017CBC);
+	}
+	else
+	    val = ioread32(p + 0x00017CBC);
+
+	val = min(val + 4, 0x009B9B3F);
+	iowrite32(val, p + 0x00017D0C);
+
 	iowrite32(7, p + 0x00017D90);
 	iowrite32(8, p + 0x00017D98);
 	iowrite32(1996000, p + 0x00017D9C);
