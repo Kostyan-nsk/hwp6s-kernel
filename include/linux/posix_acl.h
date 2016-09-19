@@ -82,6 +82,7 @@ extern int posix_acl_create_masq(struct posix_acl *, mode_t *);
 extern int posix_acl_chmod_masq(struct posix_acl *, mode_t);
 extern int posix_acl_create(struct posix_acl **, gfp_t, mode_t *);
 extern int posix_acl_chmod(struct posix_acl **, gfp_t, mode_t);
+extern int posix_acl_update_mode(struct inode *, umode_t *, struct posix_acl **);
 
 extern struct posix_acl *get_posix_acl(struct inode *, int);
 extern int set_posix_acl(struct inode *, int, struct posix_acl *);
