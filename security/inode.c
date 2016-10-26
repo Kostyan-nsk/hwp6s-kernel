@@ -162,7 +162,7 @@ static int create_by_name(const char *name, mode_t mode,
 		parent = mount->mnt_sb->s_root;
 
 	mutex_lock(&parent->d_inode->i_mutex);
-	*dentry = lookup_one_len(name, parent, strlen(name));
+	*dentry = lookup_one_len2(name, mount, parent, strlen(name));
 	if (!IS_ERR(*dentry)) {
 		if ((mode & S_IFMT) == S_IFDIR)
 			error = mkdir(parent->d_inode, *dentry, mode);
