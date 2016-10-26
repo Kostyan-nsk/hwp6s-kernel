@@ -697,7 +697,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	if (flags & MS_KERNMOUNT)
 		mnt->mnt_flags = MNT_INTERNAL;
 
-	root = mount_fs(type, flags, name, data);
+	root = mount_fs(type, flags, name, mnt, data);
 	if (IS_ERR(root)) {
 		kfree(mnt->data);
 		free_vfsmnt(mnt);
@@ -1035,7 +1035,9 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 	if (err)
 		goto out;
 	show_mnt_opts(m, mnt);
-	if (mnt->mnt_sb->s_op->show_options)
+	if (mnt->mnt_sb->s_op->show_options2)
+			err = mnt->mnt_sb->s_op->show_options2(mnt, m, mnt_path.dentry);
+	else if (mnt->mnt_sb->s_op->show_options)
 		err = mnt->mnt_sb->s_op->show_options(m, mnt);
 	seq_puts(m, " 0 0\n");
 out:
@@ -1103,7 +1105,9 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	err = show_sb_opts(m, sb);
 	if (err)
 		goto out;
-	if (sb->s_op->show_options)
+	if (sb->s_op->show_options2)
+		err = sb->s_op->show_options2(mnt, m, mnt_path.dentry);
+	else if (sb->s_op->show_options)
 		err = sb->s_op->show_options(m, mnt);
 	seq_putc(m, '\n');
 out:
@@ -1858,7 +1862,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	if (flags & MS_BIND)
 		err = change_mount_flags(path->mnt, flags);
 	else {
-		err = do_remount_sb(sb, flags, data, 0);
+		err = do_remount_sb2(path->mnt, sb, flags, data, 0);
 		br_write_lock(vfsmount_lock);
 		propagate_remount(path->mnt);
 		br_write_unlock(vfsmount_lock);
