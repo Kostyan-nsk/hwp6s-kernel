@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include "soc_irqs.h"
 #include <mach/pmussi_drv.h>
+#include <asm/cacheflush.h>
 
 struct switch_dev policy_switch;
 
@@ -1887,6 +1888,8 @@ void acpuclk_set_vdd(unsigned acpu_khz, int vdd)
 	    i++;
 	}
 	iounmap(p);
+	flush_all_cpu_caches();
+	outer_flush_all();
 release:
 	release();
 	mutex_unlock(&vdd_mutex);
@@ -1932,6 +1935,8 @@ static int __init k3v2_cpufreq_init(void)
 	iowrite32(8, p + 0x00017EE4);
 	iounmap(p);
 	iowrite32(1996000, ACPU_CHIP_MAX_FREQ);
+	flush_all_cpu_caches();
+	outer_flush_all();
 release:
 	release();
 /******************************************************************************/
