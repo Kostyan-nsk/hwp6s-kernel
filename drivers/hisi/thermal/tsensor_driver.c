@@ -80,7 +80,7 @@
 /*tsensor NV配置*/
 static struct tsensor_config tsensor_conf=
 {
-    .enable = 0x03,
+    .enable = 0x0,
 
     .lag_value0 = 10,   /*滞回10度(10/0.7),单位配置值对应的温度值为180/255=0.7031℃，配置范围0~21.9℃*/
     .lag_value1 = 10,
