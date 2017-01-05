@@ -411,16 +411,30 @@ int propagate_umount(struct list_head *list)
 	return 0;
 }
 
-int propagate_remount(struct vfsmount *mnt) {
-	struct vfsmount *m;
+/*
++ *  Iterates over all slaves, and slaves of slaves.
++ */
+static struct vfsmount *next_descendent(struct vfsmount *root, struct vfsmount *cur)
+{
+	if (!IS_MNT_NEW(cur) && !list_empty(&cur->mnt_slave_list))
+		return first_slave(cur);
+	do {
+		if (cur->mnt_slave.next != &cur->mnt_master->mnt_slave_list)
+			return next_slave(cur);
+		cur = cur->mnt_master;
+	} while (cur != root);
+	return NULL;
+}
+
+void propagate_remount(struct vfsmount *mnt)
+{
+	struct vfsmount *m = mnt;
 	struct super_block *sb = mnt->mnt_sb;
-	int ret = 0;
 
 	if (sb->s_op->copy_mnt_data) {
-		for (m = first_slave(mnt); m->mnt_slave.next != &mnt->mnt_slave_list; m = next_slave(m)) {
+		m = next_descendent(mnt, m);
+		while (m) {
 			sb->s_op->copy_mnt_data(m->data, mnt->data);
 		}
 	}
-
-	return ret;
 }
