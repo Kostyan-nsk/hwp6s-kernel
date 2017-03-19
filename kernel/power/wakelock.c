@@ -167,10 +167,6 @@ static int wakelock_stats_show(struct seq_file *m, void *unused)
 			ret = print_lock_stat(m, lock);
 	}
 
-    seq_puts(m,"The below msg is for the active WAKE_LOCKS_SUSPEND wakelocks \n");
-        list_for_each_entry(lock,&active_wake_locks[WAKE_LOCK_SUSPEND],link)
-            ret = print_lock_stat(m,lock);
-
 	spin_unlock_irqrestore(&list_lock, irqflags);
 	return 0;
 }
