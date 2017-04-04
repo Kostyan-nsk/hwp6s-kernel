@@ -2408,8 +2408,6 @@ static ssize_t k3_sensors_show(struct device *dev, struct device_attribute *attr
 }
 static DEVICE_ATTR(sensors, S_IRUGO, k3_sensors_show, NULL);
 
-extern void fake_csi_error(void);
-
 //misp debug start
 u32 misp_cmd_delay_time = 5;
 u32 misp_cmd_ae_mode = 0;
@@ -2547,8 +2545,6 @@ static ssize_t misp_debug_store(struct device *dev,
 				pos++;
 		}
 		misp_dump_meta_data = simple_strtoul(pos, NULL, 0);
-	}else if( 0==strncmp("fake_csi_error", pos, strlen("fake_csi_error")) ) {
-		fake_csi_error();
 	}
 
 	return count;

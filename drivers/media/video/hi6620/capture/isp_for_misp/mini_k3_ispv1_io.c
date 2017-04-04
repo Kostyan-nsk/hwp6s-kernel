@@ -98,64 +98,6 @@ static mini_ispio_hw_t ispv1_io;
 
 static void ispv1_io_set_default(void);
 
-
-void fake_csi_error(void)
-{
-	mini_ispio_hw_t *dev_data = &ispv1_io;
-
-	print_info("Enter %s", __func__);
-
-	if (!dev_data->mipi_csi_exception_already_report) {
-		dev_data->mipi_csi_exception_already_report = true;
-		schedule_work(&dev_data->mipi_csi_exception_work);
-		flush_work(&dev_data->mipi_csi_exception_work);
-	}
-}
-
-void get_time_stamp(char* timestamp_buf,unsigned int len)
-{
-	struct timeval tv;
-	struct rtc_time tm;
-
-	if (NULL == timestamp_buf) {
-		print_error("%s,timestamp is NULL", __func__);
-		return;
-	}
-	memset(&tv, 0, sizeof(struct timeval));
-	memset(&tm, 0, sizeof(struct rtc_time));
-	do_gettimeofday(&tv);
-	tv.tv_sec -= sys_tz.tz_minuteswest * 60;
-	rtc_time_to_tm(tv.tv_sec, &tm);
-	snprintf(timestamp_buf,len,"%04d%02d%02d%02d%02d%02d",
-		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-	print_info("%s,exception time=%s", __func__, timestamp_buf);
-}
-
-static void mipi_csi_exception_handler(struct work_struct *work)
-{
-	char cmd[256];
-	char time_stamp[16];
-
-	print_info("%s enter", __func__);
-
-	memset(time_stamp, 0, sizeof(time_stamp));
-	get_time_stamp(time_stamp, sizeof(time_stamp));
-
-	memset(cmd, 0, sizeof(cmd));
-	snprintf(cmd, sizeof(cmd),
-			"archive -i %s -i %s -i %s -o %s_CAMERA-MIPICSI -z zip",
-			"/data/android_logs/kmsgcat-log",
-			"/data/android_logs/kmsgcat-log.1",
-			"/data/k3_camera/misp.regx",
-			time_stamp);
-
-	print_info("%s:%s", __func__, linux_banner);
-	misp_flush_reg();
-	log_to_exception("CAMERA", cmd);
-}
-
-
 #ifdef REG_CSI_IRQ
 /*
  **************************************************************************
@@ -178,10 +120,6 @@ static irqreturn_t k3_csi0_isr(int irq, void *dev_id)
 
 	if ((irq_status1 | irq_status2) != 0) {
 		print_error("k3_csi_isr1 ERR1[%#x], ERR2[%#x]", irq_status1, irq_status2);
-		if (!dev_data->mipi_csi_exception_already_report) {
-			dev_data->mipi_csi_exception_already_report = true;
-			schedule_work(&dev_data->mipi_csi_exception_work);
-		}
 	}
 
 	/* automatic clear all interrupts */
@@ -211,10 +149,6 @@ static irqreturn_t k3_csi1_isr(int irq, void *dev_id)
 
 	if ((irq_status1 | irq_status2) != 0) {
 		print_error("k3_csi_isr2 ERR1[%#x], ERR2[%#x]", irq_status1, irq_status2);
-		if (!dev_data->mipi_csi_exception_already_report) {
-			dev_data->mipi_csi_exception_already_report = true;
-			schedule_work(&dev_data->mipi_csi_exception_work);
-		}
 	}
 	/* automatic clear all interrupts */
 
@@ -994,9 +928,6 @@ static int ispv1_io_hw_init(struct platform_device *pdev)
 
 	ispv1_io_set_default();
 
-	INIT_WORK(&ispv1_io.mipi_csi_exception_work, mipi_csi_exception_handler);
-	ispv1_io.mipi_csi_exception_already_report = false;
-
 	ispv1_io.pdev = pdev;
 
 #if 0 /* k3 code */
@@ -1026,8 +957,6 @@ static int ispv1_io_hw_init(struct platform_device *pdev)
 static int ispv1_io_hw_deinit(void)
 {
 	print_info("Enter %s", __func__);
-
-	flush_work(&ispv1_io.mipi_csi_exception_work);
 
 	return 0;
 }

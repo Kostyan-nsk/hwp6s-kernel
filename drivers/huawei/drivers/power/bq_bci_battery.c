@@ -162,42 +162,6 @@ static enum power_supply_property bq_bk_bci_battery_props[] = {
 
 static int modem_off = false;
 
-static void get_time_stamp(char* timestamp_buf,unsigned int len)
-{
-   struct timeval tv;
-   struct rtc_time tm;
-
-   if(NULL == timestamp_buf) {
-       return;
-   }
-   memset(&tv, 0, sizeof(struct timeval));
-   memset(&tm, 0, sizeof(struct rtc_time));
-   do_gettimeofday(&tv);
-   tv.tv_sec -= sys_tz.tz_minuteswest * 60;
-   rtc_time_to_tm(tv.tv_sec, &tm);
-   snprintf(timestamp_buf,len, "%04d%02d%02d%02d%02d%02d",
-            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-}
-
-static void bq_log_exception_archive(unsigned int bat_err)
-{
-    struct bq_bci_device_info *di = g_bq_bci_dev;
-    char cmd[ARCH_NAME_MAX];
-    char time_buf[16];
-    int ret = 0;
-
-    get_time_stamp(time_buf,16);
-    snprintf(cmd, ARCH_NAME_MAX, "%s%s%s%s%s%x%s",
-             "archive -i /data/android_logs/charge_log -i /data/android_logs/charge_log.1",
-                    " -i /data/android_logs/kmsgcat-log -i /data/android_logs/kmsgcat-log.1",
-                    " -o ", time_buf, "_BattErr0x", bat_err, " -z zip");
-
-    ret = log_to_exception("charge",cmd);
-    if(ret < 0 ){
-        dev_info(di->dev,"logexception sysfs err.\n");
-    }
-}
-
 int notify_mdm_off_to_pm(void)
 {
     if (system_state != SYSTEM_RUNNING)
@@ -550,8 +514,7 @@ static int bq_charger_event(struct notifier_block *nb, unsigned long event,
 
 int bq_get_error_info(struct bq_bci_device_info *di)
 {
-    static int pre_bat_err =0, archive_state = 1;
-    static unsigned long timeout_jiffies = 0;
+    static int pre_bat_err =0;
     static int first_in = 1;
     static int pre_uf_capacity = 0;
     static int pre_capacity = 0, capacity_stay_count = 0;;
@@ -696,17 +659,10 @@ int bq_get_error_info(struct bq_bci_device_info *di)
         di->bat_err |= ERROR_FCC_DEBOUNCE;
     }
 
-    if(di->bat_err != pre_bat_err && archive_state == 1){
-        timeout_jiffies = jiffies + msecs_to_jiffies(LOG_ARCH_DELAY_TIME);
-        archive_state = 0;
+    if(di->bat_err != pre_bat_err)
         dev_info(di->dev,"(%s) BATT ERR = %x\n", hisi_battery_brand(), di->bat_err);
-    }
-    pre_bat_err = di->bat_err;
 
-    if(time_is_before_jiffies(timeout_jiffies) && archive_state == 0){
-        bq_log_exception_archive(di->bat_err);
-        archive_state = 1;
-    }
+    pre_bat_err = di->bat_err;
 
     return di->bat_err;
 }

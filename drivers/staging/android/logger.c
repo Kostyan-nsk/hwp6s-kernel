@@ -545,9 +545,6 @@ static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
         /* if log device is events or main which its priority is more than ANDROID_LOG_INFO, we also pass it */
 	if ( (LOGCTL_OFF == logctl_flag)
-	  && strncmp(log->misc.name, LOGGER_LOG_EXCEPTION, strlen(LOGGER_LOG_EXCEPTION))
-	  && strncmp(log->misc.name, LOGGER_LOG_POWER, strlen(LOGGER_LOG_POWER))
-	  && strncmp(log->misc.name, LOGGER_LOG_JANK, strlen(LOGGER_LOG_JANK))
 	  && strncmp(log->misc.name, LOGGER_LOG_EVENTS, strlen(LOGGER_LOG_EVENTS))
 	  && (   strncmp(log->misc.name, LOGGER_LOG_MAIN, strlen(LOGGER_LOG_MAIN))
 	      || (priority < ANDROID_LOG_INFO)
@@ -803,14 +800,6 @@ static long logger_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		reader = file->private_data;
 		ret = logger_set_version(reader, argp);
-		break;
-	case FIONREAD:
-		if (!strncmp(log->misc.name, LOGGER_LOG_POWER, strlen(LOGGER_LOG_POWER))) {
-			ret = -ENOTTY;
-		}
-                if (!strncmp(log->misc.name, LOGGER_LOG_JANK, strlen(LOGGER_LOG_JANK))) {
-			ret = -ENOTTY;
-		}
 		break;
 	}
 
@@ -1082,15 +1071,6 @@ static int __init logger_init(void)
 	if (unlikely(ret))
 		goto out;
 
-	ret = create_log(LOGGER_LOG_EXCEPTION, 16*1024);	//must modified with EXCEPTION_LOG_BUF_LEN
-	if (unlikely(ret))
-		goto out;
-#if defined (CONFIG_LOG_JANK)
-	ret = create_log(LOGGER_LOG_JANK, 64*1024);
-	if (unlikely(ret))
-		goto out;
-#endif
-
 	log_tag = kzalloc(sizeof(struct logger_log_tag), GFP_KERNEL);
 	if (log_tag == NULL) {
 		pr_err("malloc buff for logger_log_tag struct failed.");
@@ -1116,13 +1096,6 @@ static int __init logger_init(void)
 	}
 	pr_info("log_tag_misc_dev:%s  register success.",log_tag_misc_dev.name);
 out:
-	/*<qindiwen 106479 20130607 begin */ //huangwen
-	ret = create_log(LOGGER_LOG_POWER, 256*1024);
-    if (unlikely(ret)) {
-        //do nothing
-    } else {
-    }
-	/* qindiwen 106479 20130607 end>*/
 	return ret;
 }
 
@@ -1176,82 +1149,6 @@ static int calc_iovc_ki_left(struct iovec *iov, int nr_segs)
         }
     return ret;
 }
-
-ssize_t write_log_to_exception(const char* category, char level, const char* msg)
-{
-    struct logger_log *log = get_log_from_name(LOGGER_LOG_EXCEPTION);
-
-    struct logger_entry header;
-    struct timespec now;
-    ssize_t ret = 0;
-    struct iovec vec[4];
-    struct iovec *iov = vec;
-    int nr_segs = sizeof(vec)/sizeof(vec[0]);
-    int iovc_ki_left_len = 0;
-
-    pr_info("%s:%s\n",__func__,msg);
-    /*according to the arguments, fill the iovec struct  */
-    vec[0].iov_base   = (unsigned char *) &level;
-    vec[0].iov_len    = 1;
-
-    vec[1].iov_base   = "message";
-    vec[1].iov_len    = strlen("message");  //here won't add \0
-
-    vec[2].iov_base   = (void *) category;
-    vec[2].iov_len    = strlen(category) + 1;
-
-    vec[3].iov_base   = (void *) msg;
-    vec[3].iov_len    = strlen(msg) + 1;
-
-    now = current_kernel_time();
-	iovc_ki_left_len = calc_iovc_ki_left(vec,nr_segs);
-
-    header.pid = 0;
-    header.tid = 0;
-    header.sec = now.tv_sec;
-    header.nsec = now.tv_nsec;
-    header.euid = 0;
-    header.len = min(iovc_ki_left_len,LOGGER_ENTRY_MAX_PAYLOAD);
-    header.hdr_size = sizeof(struct logger_entry);
-
-    /* null writes succeed, return zero */
-    if (unlikely(!header.len))
-        return 0;
-
-    mutex_lock(&log->mutex);
-
-    /*
-     * Fix up any readers, pulling them forward to the first readable
-     * entry after (what will be) the new write offset. We do this now
-     * because if we partially fail, we can end up with clobbered log
-     * entries that encroach on readable buffer.
-     */
-    fix_up_readers(log, sizeof(struct logger_entry) + header.len);
-
-    do_write_log(log, &header, sizeof(struct logger_entry));
-
-    while (nr_segs-- > 0) {
-        size_t len;
-        ssize_t nr = 0;
-
-        /* figure out how much of this vector we can keep */
-        len = min_t(size_t, iov->iov_len, header.len - ret);
-
-        /* write out this segment's payload */
-        do_write_log(log, iov->iov_base, len);
-
-        iov++;
-        ret += nr;
-    }
-
-    mutex_unlock(&log->mutex);
-
-    /* wake up any blocked readers */
-    wake_up_interruptible(&log->wq);
-
-    return ret;
-}
-EXPORT_SYMBOL(write_log_to_exception);
 
 device_initcall(logger_init);
 module_exit(logger_exit);

@@ -93,8 +93,3 @@ config FEATURE_HUAWEI_EMERGENCY_DATA
         Enables emergency data function when data partition is read-only, and backup user data.
 
         If you select Y here, then you will be able to turn on emergency data function.
-
-config HW_FEATURE_STORAGE_DIAGNOSE_LOG
-        bool "storage log support"
-        help
-          Enables storage log support for logging storage error.

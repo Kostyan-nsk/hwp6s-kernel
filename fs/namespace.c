@@ -35,9 +35,6 @@
 #include <asm/unistd.h>
 #include "pnode.h"
 #include "internal.h"
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-#include <linux/store_log.h>
-#endif
 
 #define HASH_SHIFT ilog2(PAGE_SIZE / sizeof(struct list_head))
 #define HASH_SIZE (1UL << HASH_SHIFT)
@@ -2525,13 +2522,6 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 
 	ret = do_mount(kernel_dev, kernel_dir, kernel_type, flags,
 		(void *) data_page);
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-    static bool need_log = true;
-    if (!ret && need_log) {
-        need_log = false;
-        MSG_WRAPPER(DEVICE_ACTION_BASE|DEVICE_STARTUP, "PowerOn");
-    }
-#endif
 
 	free_page(data_page);
 out_data:

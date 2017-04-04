@@ -348,24 +348,6 @@ int mntn_need_save_log(emntn_module etype)
 	return 1;
     }
 }
-static void apr_upload_modemcrash(char *logpath, char *dirname)
-{
-	char apr_cmd[MNTN_MAX_APR_CMD_LEN]={0};
-	int ret = 0;
-    if(logpath == NULL || dirname == NULL)
-    {
-        MNTN_FILESYS_PRINT(KERN_ERR"mntn_err: path is null!\n");
-        return;
-    }
-	snprintf(apr_cmd,MNTN_MAX_APR_CMD_LEN,"archive -d %s -o %s_%s -z zip", logpath, dirname, "modemcrash");
-	ret = log_to_exception("rild",apr_cmd);
-    MNTN_FILESYS_PRINT(KERN_ERR"mntn_info: apr upload path is %s.\n",apr_cmd);
-	if(ret < 0)
-	{
-		MNTN_FILESYS_PRINT(KERN_ERR"mntn_err: ret = %d, apr upload fail!\n",ret);
-	}
-}
-
 
 int mntn_mdm_reset_save_log(const char *preason)
 {
@@ -455,8 +437,6 @@ int mntn_mdm_reset_save_log(const char *preason)
 
     MNTN_FILESYS_PRINT(KERN_ERR"End of mntn_mdm_reset_save_log!iret = %d\n", iret);
 
-    /*update log to apr*/
-    (void)apr_upload_modemcrash(fullpath_arr, time_arr);
 oper_over:
     return iret;
 }

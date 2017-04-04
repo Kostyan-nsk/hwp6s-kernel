@@ -60,9 +60,6 @@
 
 DEFINE_MUTEX(emmc_mutex);
 #endif
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-#include <linux/store_log.h>
-#endif
 
 MODULE_ALIAS("mmc:block");
 #ifdef MODULE_PARAM_PREFIX
@@ -806,12 +803,6 @@ static int get_card_status(struct mmc_card *card, u32 *status, int retries)
 static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
 	bool status_valid, u32 status)
 {
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-	if (!is_log_partition_by_addr((unsigned long)blk_rq_pos(req)))
-		MSG_WRAPPER(STORAGE_ERROR_BASE|MMC_ERROR_BASE|MMC_ERROR_CMD,
-				"%s %s %#x %#x",
-				req->rq_disk->disk_name, name, error, status);
-#endif
 	switch (error) {
 	case -EILSEQ:
 		/* response crc error, retry the r/w cmd */
@@ -1305,15 +1296,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				(unsigned)blk_rq_pos(req),
 				(unsigned)blk_rq_sectors(req),
 				brq.cmd.resp[0], brq.stop.resp[0]);
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-		if (!is_log_partition_by_addr((unsigned long)blk_rq_pos(req)))
-			MSG_WRAPPER(STORAGE_ERROR_BASE|MMC_ERROR_BASE|MMC_ERROR_DATA,
-					"%s %#x %#x %#x %#x %#x",
-					req->rq_disk->disk_name, brq.data.error,
-					(unsigned)blk_rq_pos(req),
-					(unsigned)blk_rq_sectors(req),
-					brq.cmd.resp[0], brq.stop.resp[0]);
-#endif
 			if (rq_data_dir(req) == READ) {
 				if (brq.data.blocks > 1) {
 					/* Redo read one sector at a time */

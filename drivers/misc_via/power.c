@@ -116,48 +116,6 @@ static struct viatel_modem_data *vmdata;
 extern int modem_on_off_ctrl_chan(unsigned char on);
 extern void gpio_irq_cbp_rst_ind(void);
 
-static int cbp_need_apr = 0;
-static time_buf[16] ={0};
-
-static void set_time_stamp(void)
-{
-	struct timeval tv;
-	struct rtc_time tm;
-	memset(&tv, 0, sizeof(struct timeval));
-	memset(&tm, 0, sizeof(struct rtc_time));
-	do_gettimeofday(&tv);
-	tv.tv_sec -= sys_tz.tz_minuteswest * 60;
-	rtc_time_to_tm(tv.tv_sec, &tm);
-	memset(time_buf, 0, sizeof(time_buf));
-	pr_err("%s sizeof %d\n", __func__, sizeof(time_buf));
-	snprintf(time_buf, 16,"%04d%02d%02d%02d%02d%02d",tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-}
-
-static void get_time_stamp(char* timestamp_buf,  unsigned int len)
-{
-	pr_err("%s sizeof %d\n", __func__, sizeof(timestamp_buf));
-	strncpy(timestamp_buf, time_buf, len);
-}
-
-static void apr_log_entry(struct work_struct *dummy)
-{
-	char cmd[256];
-	char time_buf[16];
-	int ret = 0;
-	get_time_stamp(time_buf,16);
-	snprintf(cmd, 256, "%s%s%s%s%s",
-			"archive -i /data/flashless",
-			" -i /data/android_logs/kmsgcat-log -i /data/android_logs/kmsgcat-log.1",
-			" -o ", time_buf, "_VIAMODEM -z zip");
-	ret = log_to_exception("viamodem",cmd);
-	if(ret < 0 ){
-		pr_err("%s logexception sysfs err.\n", __func__);
-	}
-	pr_info("%s %d cmd %s ret %d\n", __func__, __LINE__, cmd, ret);
-
-}
-static DECLARE_DELAYED_WORK(apr_log_wk, apr_log_entry);
-
 //schedule a work to send uevent
 static void via_uevent_work_func(struct work_struct *data)
 {
@@ -253,12 +211,6 @@ void oem_power_on_modem(void)
       mdelay(MDM_PWR_HOLD_DELAY);
 	  printk("%s %d\n",__func__,__LINE__);
    }
-
-   if (cbp_need_apr){
-       set_time_stamp();
-       schedule_delayed_work(&apr_log_wk, msecs_to_jiffies(60*1000));/*wait for 1 minute due to ramdump may later*/
-       cbp_need_apr = 0;
-   }
    printk("Warnning: power on vmodem\n");
 
 }
@@ -293,10 +245,6 @@ int modem_err_indication_usr(int revocery)
 		oem_gpio_direction_output(cbp_backup_gpio, 1);
 		mdelay(150);
 		oem_gpio_direction_output(cbp_backup_gpio, 0);
-
-		//cbp_need_apr = 1;
-		set_time_stamp();
-		//schedule_delayed_work(&apr_log_wk, 0);
 		modem_notify_event(MDM_EVT_NOTIFY_HD_ERR);
 	}
 	else{

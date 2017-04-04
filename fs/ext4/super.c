@@ -400,65 +400,6 @@ static void save_error_info(struct super_block *sb, const char *func,
 	ext4_commit_super(sb, 1);
 }
 
-static void get_time_stamp(char* timestamp_buf,unsigned int len)
-{
-   struct timeval tv;
-   struct rtc_time tm;
-
-   if(NULL == timestamp_buf) {
-       return;
-   }
-   memset(&tv, 0, sizeof(struct timeval));
-   memset(&tm, 0, sizeof(struct rtc_time));
-   do_gettimeofday(&tv);
-   tv.tv_sec -= sys_tz.tz_minuteswest * 60;
-   rtc_time_to_tm(tv.tv_sec, &tm);
-   snprintf(timestamp_buf,len, "%04d%02d%02d%02d%02d%02d",
-            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-}
-
-static const char *shcmd = "/system/bin/sh";
-static const char *shenvp[] = { "HOME=/data", "TERM=vt100", "USER=root",\
-                          "PATH=/system/xbin:/system/bin", NULL };
-static const char *mnterror_script_path = "/fs_emmc_log/script/mntscript.sh";
-static const char *mnterror_log_path = "/fs_emmc_log/fs_log/mnterror.log";
-static const char *roerror_script_path = "/fs_emmc_log/script/roscript.sh";
-static const char *roerror_log_path = "/fs_emmc_log/fs_log/roerror.log";
-static int ext4_exception_archive(char* errtype,char* script_path,char* log_name)
-{
-	char cmd[256];
-	char time_buf[16];
-	char ** argv;
-	int ret = 0;
-
-	argv = (char **)kmalloc(sizeof(char *)*3, GFP_KERNEL);
-	if (NULL == argv){
-		printk(KERN_ERR"%s kmalloc fail\n", __FUNCTION__);
-		return -ENOMEM;
-	}
-
-	argv[0] = shcmd;
-	argv[1] = script_path;
-	argv[2] = NULL;
-	ret = call_usermodehelper(shcmd, argv, shenvp, UMH_WAIT_PROC) ;
-	if (ret < 0)
-	{
-		printk("%s : call_usermodehelper fail\n",__FUNCTION__);
-	}
-
-	get_time_stamp(time_buf,16);
-	snprintf(cmd, 256, "%s%s%s%s%s%s%s","archive -i ",log_name,
-			" -o ", time_buf, "_",errtype, " -z zip");
-	ret = log_to_exception("ext4",cmd);
-	if(ret < 0)
-	{
-		printk("%s : log_to_exception fail\n",__FUNCTION__);
-	}
-
-	kfree(argv);
-	return 0;
-}
-
 /* Deal with the reporting of failure conditions on a filesystem such as
  * inconsistencies detected or read IO failures.
  *
@@ -488,7 +429,6 @@ static void ext4_handle_error(struct super_block *sb)
 	}
 	if (test_opt(sb, ERRORS_RO)) {
 		ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
-		ext4_exception_archive ("roError",roerror_script_path,roerror_log_path);
 		sb->s_flags |= MS_RDONLY;
 	}
 	if (test_opt(sb, ERRORS_PANIC))
@@ -535,46 +475,6 @@ void __ext4_warning(struct super_block *sb, const char *function,
 	va_end(args);
 }
 
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-#include <linux/store_log.h>
-/**
- * ext4_msg_append() - support ext4_msg, and export error log
- * @code: error number
- * @sb: superblock
- * @prefix: message prefix
- * @fmt: message format
- */
-void ext4_msg_append(unsigned int code,
-        struct super_block *sb, const char *prefix, const char *fmt, ...)
-{
-    struct va_format vaf;
-    va_list args;
-    bool need_log = false;
-
-    if ((prefix[1] <= ((char*)KERN_ERR)[1]) &&
-        (prefix[1] >= ((char*)KERN_EMERG)[1]))
-        need_log = true;
-
-    va_start(args, fmt);
-    vaf.fmt = fmt;
-    vaf.va = &args;
-    printk("%sEXT4-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
-    if (need_log)
-        MSG_WRAPPER(code, "%s %pV", sb->s_id, &vaf);
-    va_end(args);
-}
-
-#define ext4_msgr(sb, prefix, fmt, a...) \
-    ext4_msg_append(STORAGE_ERROR_BASE|EXT4_MOUNT_ERROR_BASE|EXT4_MOUNT_READ_ERR, \
-        (sb), (prefix), (fmt), ## a)
-#define ext4_msgw(sb, prefix, fmt, a...) \
-    ext4_msg_append(STORAGE_ERROR_BASE|EXT4_MOUNT_ERROR_BASE|EXT4_MOUNT_WRITE_ERR, \
-        (sb), (prefix), (fmt), ## a)
-#define ext4_msg(sb, prefix, fmt, a...) \
-    ext4_msg_append(STORAGE_ERROR_BASE|EXT4_MOUNT_ERROR_BASE|EXT4_MOUNT_CHECK_ERR, \
-        (sb), (prefix), (fmt), ## a)
-#endif
-
 void __ext4_error(struct super_block *sb, const char *function,
 		  unsigned int line, const char *fmt, ...)
 {
@@ -586,11 +486,6 @@ void __ext4_error(struct super_block *sb, const char *function,
 	vaf.va = &args;
 	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: comm %s: %pV\n",
 	       sb->s_id, function, line, current->comm, &vaf);
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-	if (!is_log_partition_by_devname(sb->s_id))
-		MSG_WRAPPER(STORAGE_ERROR_BASE|EXT4_RUNNING_ERROR_BASE|EXT4_ERR,
-				"%s %s %#x", sb->s_id, function, line);
-#endif
 	va_end(args);
 	save_error_info(sb, function, line);
 
@@ -613,11 +508,6 @@ void ext4_error_inode(struct inode *inode, const char *function,
 	vaf.va = &args;
 	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: inode #%lu: ",
 	       inode->i_sb->s_id, function, line, inode->i_ino);
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-	if (!is_log_partition_by_devname(inode->i_sb->s_id))
-		MSG_WRAPPER(STORAGE_ERROR_BASE|EXT4_RUNNING_ERROR_BASE|EXT4_ERR_INODE,
-				"%s %s %#x %#lx", inode->i_sb->s_id, function, line, inode->i_ino);
-#endif
 	if (block)
 		printk(KERN_CONT "block %llu: ", block);
 	printk(KERN_CONT "comm %s: %pV\n", current->comm, &vaf);
@@ -645,11 +535,6 @@ void ext4_error_file(struct file *file, const char *function,
 	printk(KERN_CRIT
 	       "EXT4-fs error (device %s): %s:%d: inode #%lu: ",
 	       inode->i_sb->s_id, function, line, inode->i_ino);
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-	if (!is_log_partition_by_devname(inode->i_sb->s_id))
-		MSG_WRAPPER(STORAGE_ERROR_BASE|EXT4_RUNNING_ERROR_BASE|EXT4_ERR_FILE,
-				"%s %s %#x %#lx", inode->i_sb->s_id, function, line, inode->i_ino);
-#endif
 	if (block)
 		printk(KERN_CONT "block %llu: ", block);
 	va_start(args, fmt);
@@ -2075,7 +1960,6 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	else
 		goto normal;
 
-	ext4_exception_archive("mntError",mnterror_script_path,mnterror_log_path);
 normal:
 	if (!sbi->s_journal)
 		es->s_state &= cpu_to_le16(~EXT4_VALID_FS);
@@ -3258,11 +3142,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (!(bh = sb_bread(sb, logical_sb_block))) {
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-            ext4_msgr(sb, KERN_ERR, "unable to read superblock");
-#else
 		ext4_msg(sb, KERN_ERR, "unable to read superblock");
-#endif
 		goto out_fail;
 	}
 	/*
@@ -3410,13 +3290,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		offset = do_div(logical_sb_block, blocksize);
 		bh = sb_bread(sb, logical_sb_block);
 		if (!bh) {
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-                    ext4_msgr(sb, KERN_ERR,
-                            "Can't read superblock on 2nd try");
-#else
 			ext4_msg(sb, KERN_ERR,
 			       "Can't read superblock on 2nd try");
-#endif
 			goto failed_mount;
 		}
 		es = (struct ext4_super_block *)(((char *)bh->b_data) + offset);
@@ -4250,13 +4125,8 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 
 		error = buffer_write_io_error(sbh);
 		if (error) {
-#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
-                    ext4_msgw(sb, KERN_ERR, "I/O error while writing "
-                            "superblock");
-#else
 			ext4_msg(sb, KERN_ERR, "I/O error while writing "
 			       "superblock");
-#endif
 			clear_buffer_write_io_error(sbh);
 			set_buffer_uptodate(sbh);
 		}
