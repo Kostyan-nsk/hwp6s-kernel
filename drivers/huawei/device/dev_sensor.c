@@ -117,17 +117,27 @@ static struct ad7146_platform_data ad7146_i2c_platform_data = {
 #ifdef CONFIG_HUAWEI_FEATURE_SENSORS_ACC_GYRO_LSM330
 static struct lsm330_acc_platform_data lsm330_acc_pdata = {
 	.fs_range = LSM330_ACC_G_2G,
-	.poll_interval = 10,
+	.axis_map_x = 0,
+	.axis_map_y = 1,
+	.axis_map_z = 2,
+	.negate_x = 0,
+	.negate_y = 0,
+	.negate_z = 0,
+	.poll_interval = 100,
 	.min_interval = LSM330_ACC_MIN_POLL_PERIOD_MS,
 	.gpio_int1 = LSM330_ACC_DEFAULT_INT1_GPIO,
 	.gpio_int2 = LSM330_ACC_DEFAULT_INT2_GPIO,
 };
 static struct lsm330_gyr_platform_data lsm330_gyr_pdata = {
-	.fs_range = LSM330_GYR_FS_2000DPS,
-
-	.poll_interval = 10,
+	.fs_range = LSM330_GYR_FS_250DPS,
+	.axis_map_x = 0,
+	.axis_map_y = 1,
+	.axis_map_z = 2,
+	.negate_x = 0,
+	.negate_y = 0,
+	.negate_z = 0,
+	.poll_interval = 100,
 	.min_interval = LSM330_GYR_MIN_POLL_PERIOD_MS,	/* 2ms */
-
 	.gpio_int1 = LSM330_GYR_DEFAULT_INT1_GPIO,
 	.gpio_int2 = LSM330_GYR_DEFAULT_INT2_GPIO,	/* int for fifo */
 };
@@ -489,7 +499,7 @@ void sensor_layout_init(void)
 		lsm330_gyr_pdata.negate_x = 0;
 		lsm330_gyr_pdata.negate_y = 0;
 		lsm330_gyr_pdata.negate_z = 1;
- #endif
+#endif
              gs_platform_data.axis_map_x = 1;
 		gs_platform_data.axis_map_y = 0;
 		gs_platform_data.axis_map_z = 2;

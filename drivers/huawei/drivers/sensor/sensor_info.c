@@ -17,7 +17,6 @@
 extern unsigned int g_compass_softiron_type;
 static char *sensor_binder_input[SENSOR_MAX] = {NULL};
 static char *sensor_chip_info[SENSOR_MAX] = {NULL};
-static char *gyro_selfTest_result;
 static char *akm_selfTest_result;
 
 static char *input_sensor_name[SENSOR_MAX] = {
@@ -54,17 +53,6 @@ int set_sensor_event(const char *dev_name, const char *event_name)
 	return 0;
 }
 EXPORT_SYMBOL(set_sensor_event);
-
-int set_gyro_selfTest_result(enum input_sensor name, const char *result)
-{
-	if (name >= SENSOR_MAX || result == NULL) {
-		pr_err("gyro self test result = %s\n", result);
-		return -EINVAL;
-	}
-	gyro_selfTest_result = (char *)result;
-	return 0;
-}
-EXPORT_SYMBOL(set_gyro_selfTest_result);
 
 int set_compass_selfTest_result(enum input_sensor name, const char *result)
 {
@@ -211,39 +199,6 @@ static ssize_t sensor_show_ori_input(struct device *dev,
 }
 static DEVICE_ATTR(ori_input, S_IRUGO,
 				   sensor_show_ori_input, NULL);
-static ssize_t show_gyro_selfTest_result(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	if (dev == NULL) {
-		pr_err("gyro self test result is null\n");
-		return -EINVAL;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", gyro_selfTest_result);
-}
-static ssize_t attr_set_gyro_selftest(struct device *dev, struct device_attribute *attr,
-				const char *buf, size_t size)
-{
-	unsigned long val = 0;
-	int err = -1;
-	int i;
-
-	if (strict_strtoul(buf, 10, &val)) {
-		pr_err("gyro self test val invalid, val = %d\n", val);
-		return -EINVAL;
-	}
-	if (set_selftest_lm330(val)) {
-		set_gyro_selfTest_result(GYRO, "1");
-		pr_info("gyro self test success\n");
-	} else {
-		set_gyro_selfTest_result(GYRO, "0");
-		pr_err("gyro self test faild\n");
-	}
-
-	return size;
-}
-
-static DEVICE_ATTR(gyro_selfTest, 0664,
-				   show_gyro_selfTest_result, attr_set_gyro_selftest);
 static ssize_t show_akm_selfTest_result(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -350,7 +305,6 @@ static struct attribute *sensor_input_attributes[] = {
 	&dev_attr_gyro_info.attr,
 	&dev_attr_ps_info.attr,
 	&dev_attr_als_info.attr,
-	&dev_attr_gyro_selfTest.attr,
 	&dev_attr_akm_selfTest.attr,
 	&dev_attr_compass_softiron_type.attr,
 	&dev_attr_gyro_exist.attr,

@@ -14,6 +14,10 @@ menuconfig INPUT_ACCELEROMETER
 
 if INPUT_ACCELEROMETER
 
+config INPUT_LSM330_I2C
+	tristate
+	depends on HUAWEI_FEATURE_SENSORS_ACC_GYRO_LSM330
+	depends on I2C
 
 config HUAWEI_FEATURE_SENSORS_ACCELEROMETER_MMA8452
 	tristate "FREESCALE MMA8452 accelerometer"
@@ -52,6 +56,7 @@ config HUAWEI_FEATURE_SENSORS_ACC_COMPASS_LSM303D
 config HUAWEI_FEATURE_SENSORS_ACC_GYRO_LSM330
 	tristate "ST LSM330 accelerometer and gyroscope"
 	select SERIO
+	select INPUT_LSM330_I2C
 	default y
 	help
 		Say Y here if you have the ST LSM330.
