@@ -89,9 +89,6 @@ struct ion_platform_heap {
 	const char *name;
 	ion_phys_addr_t base;
 	size_t size;
-	#if defined(CONFIG_ARCH_K3V2) || defined(CONFIG_ARCH_HI6620)
-	unsigned cached;
-	#endif
 };
 
 /**

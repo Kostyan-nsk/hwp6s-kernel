@@ -106,7 +106,5 @@ extern unsigned long g_ion_free_size;
 extern int get_cma_type(void);
 
 unsigned long hisi_get_reserve_info(void);
-/*k3 add to calc free memory*/
-void hisi_ionsysinfo(struct sysinfo *si);
 
 #endif /* _LINUX_ION_H */
