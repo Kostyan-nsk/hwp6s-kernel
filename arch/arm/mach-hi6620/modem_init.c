@@ -115,7 +115,7 @@ static ssize_t modem_work_depend_file_write(struct file *file, const char __user
 	} else {
         	printk(KERN_ERR "the value modem depend write is illegal %s\n", __func__);
 	}
-	return 0;
+	return count;
 }
 
 static const struct file_operations modem_work_depend_file_ops = {
@@ -135,7 +135,7 @@ static int __init modem_init(void)
 		return -1;
 	}
 
-	entry = create_proc_entry("modem_depend", 0660, NULL);
+	entry = create_proc_entry("modem_depend", 0220, NULL);
 
 	if (!entry) {
 		printk(KERN_ERR "modem_depend: failed to create proc entry\n");
