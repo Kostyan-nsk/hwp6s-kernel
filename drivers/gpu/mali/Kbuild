@@ -1,19 +1,19 @@
 #
-# This confidential and proprietary software may be used only as
-# authorised by a licensing agreement from ARM Limited
-# (C) COPYRIGHT 2007-2011 ARM Limited
-# ALL RIGHTS RESERVED
-# The entire notice above must be reproduced on all authorised
-# copies and copies may only be made to the extent permitted
-# by a licensing agreement from ARM Limited.
+# Copyright (C) 2010-2011 ARM Limited. All rights reserved.
+# 
+# This program is free software and is provided to you under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+# 
+# A copy of the licence is included with the program, and can also be obtained from Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
 # This file is called by the Linux build system.
 MALISRC := $(srctree)/drivers/gpu/mali
 MALI_PLATFORM_FILES := platform/balong/*.c
+
 # set up defaults if not defined by the user
 TIMESTAMP ?= default
-#USING_UMP ?= 1
 USING_OS_MEMORY ?= 1
 OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB ?= 16
 USING_GPU_UTILIZATION ?= 1
@@ -25,13 +25,11 @@ MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED ?= 0
 MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS ?= 0
 MALI_UPPER_HALF_SCHEDULING ?= 1
 MALI_ENABLE_CPU_CYCLES ?= 0
-#CONFIG_MALI400_DEBUG := n
-#CONFIG_MALI400_UMP   := y
-#CONFIG_MALI400	     := y
 CONFIG_MALI_SHARED_INTERRUPTS :=y
 CONFIG_MALI450 :=y
 CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH:=y
 CONFIG_MALI_DVFS := n
+
 
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
@@ -71,11 +69,20 @@ mali-y += \
 	linux/mali_osk_mali.o \
 	linux/mali_osk_notification.o \
 	linux/mali_osk_time.o \
-	linux/mali_osk_timers.o
+	linux/mali_osk_timers.o \
+	linux/mali_osk_bitmap.o
 
 mali-y += linux/mali_memory.o linux/mali_memory_os_alloc.o
 mali-y += linux/mali_memory_external.o
 mali-y += linux/mali_memory_block_alloc.o
+mali-y += linux/mali_memory_swap_alloc.o
+
+mali-y += \
+	linux/mali_memory_manager.o \
+	linux/mali_memory_virtual.o \
+	linux/mali_memory_util.o \
+	linux/mali_memory_cow.o \
+	linux/mali_memory_defer_bind.o
 
 mali-y += \
 	linux/mali_ukk_mem.o \
@@ -85,11 +92,14 @@ mali-y += \
 	linux/mali_ukk_soft_job.o \
 	linux/mali_ukk_timeline.o
 
+mali-$(CONFIG_MALI_DEVFREQ) += \
+	linux/mali_devfreq.o \
+	common/mali_pm_metrics.o
+
 # Source files which always are included in a build
 mali-y += \
 	common/mali_kernel_core.o \
 	linux/mali_kernel_linux.o \
-	common/mali_kernel_descriptor_mapping.o \
 	common/mali_session.o \
 	linux/mali_device_pause_resume.o \
 	common/mali_kernel_vsync.o \
@@ -124,6 +134,10 @@ mali-y += \
 	linux/mali_pmu_power_up_down.o \
 	__malidrv_build_info.o
 
+ifneq ($(wildcard $(src)/linux/mali_slp_global_lock.c),)
+	mali-y += linux/mali_slp_global_lock.o
+endif
+
 ifneq ($(MALI_PLATFORM_FILES),)
 	#mali-y += $(MALI_PLATFORM_FILES:.c=.o)
 	mali-y += platform/balong/mali_balong.o \
@@ -135,10 +149,12 @@ mali-$(CONFIG_MALI400_PROFILING) += linux/mali_ukk_profiling.o
 mali-$(CONFIG_MALI400_PROFILING) += linux/mali_osk_profiling.o
 
 mali-$(CONFIG_MALI400_INTERNAL_PROFILING) += linux/mali_profiling_internal.o timestamp-$(TIMESTAMP)/mali_timestamp.o
-ccflags-$(CONFIG_MALI400_INTERNAL_PROFILING) += -I$(MALISRC)/timestamp-$(TIMESTAMP)
+ccflags-$(CONFIG_MALI400_INTERNAL_PROFILING) += -I$(src)/timestamp-$(TIMESTAMP)
 
 mali-$(CONFIG_DMA_SHARED_BUFFER) += linux/mali_memory_dma_buf.o
+mali-$(CONFIG_DMA_SHARED_BUFFER) += linux/mali_memory_secure.o
 mali-$(CONFIG_SYNC) += linux/mali_sync.o
+mali-$(CONFIG_MALI_DMA_BUF_FENCE) += linux/mali_dma_fence.o
 ccflags-$(CONFIG_SYNC) += -Idrivers/staging/android
 
 mali-$(CONFIG_MALI400_UMP) += linux/mali_memory_ump.o
@@ -171,7 +187,7 @@ endif
 ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
 
 # Use our defines when compiling
-ccflags-y += -I$(MALISRC) -I$(MALISRC)/include -I$(MALISRC)/common -I$(MALISRC)/linux -I$(MALISRC)/platform/balong -I$(MALISRC)/linux/license/gpl
+ccflags-y += -I$(MALISRC) -I$(MALISRC)/include -I$(MALISRC)/common -I$(MALISRC)/linux -I$(MALISRC)/platform/balong
 ccflags-y += -I$(MALISRC)/linux/license/gpl
 
 # Get subversion revision number, fall back to only ${MALI_RELEASE_NAME} if no svn info is available
@@ -191,7 +207,6 @@ else # SVN
 GIT_REV := $(shell cd $(MALISRC); git describe --always 2>/dev/null)
 ifneq ($(GIT_REV),)
 # Git detected
-#DRIVER_REV := $(MALI_RELEASE_NAME)-$(GIT_REV)
 DRIVER_REV := $(MALI_RELEASE_NAME)
 CHANGE_DATE := $(shell cd $(MALISRC); git log -1 --format="%ci")
 CHANGED_REVISION := $(GIT_REV)

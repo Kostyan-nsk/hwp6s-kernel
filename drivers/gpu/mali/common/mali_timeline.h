@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2013-2016 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef __MALI_TIMELINE_H__
@@ -18,6 +18,7 @@
 #include "mali_spinlock_reentrant.h"
 #include "mali_sync.h"
 #include "mali_scheduler_types.h"
+#include <linux/version.h>
 
 /**
  * Soft job timeout.
@@ -140,6 +141,8 @@ struct mali_timeline {
 
 #if defined(CONFIG_SYNC)
 	struct sync_timeline         *sync_tl;      /**< Sync timeline that corresponds to this timeline. */
+	mali_bool destroyed;
+	struct mali_spinlock_reentrant *spinlock;       /**< Spin lock protecting the timeline system */
 #endif /* defined(CONFIG_SYNC) */
 
 	/* The following fields are used to time out soft job trackers. */
@@ -187,6 +190,10 @@ struct mali_timeline_tracker {
 	struct sync_fence             *sync_fence;   /**< The sync fence this tracker is waiting on. */
 	_mali_osk_list_t               sync_fence_cancel_list; /**< List node used to cancel sync fence waiters. */
 #endif /* defined(CONFIG_SYNC) */
+
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+	struct mali_timeline_waiter   *waiter_dma_fence; /**< A direct pointer to timeline waiter representing dma fence. */
+#endif
 
 	struct mali_timeline_system   *system;       /**< Timeline system. */
 	struct mali_timeline          *timeline;     /**< Timeline, or NULL if not on a timeline. */
@@ -515,6 +522,11 @@ void mali_timeline_debug_print_tracker(struct mali_timeline_tracker *tracker, _m
  */
 void mali_timeline_debug_print_timeline(struct mali_timeline *timeline, _mali_osk_print_ctx *print_ctx);
 
+#if !(LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0))
+void mali_timeline_debug_direct_print_tracker(struct mali_timeline_tracker *tracker);
+void mali_timeline_debug_direct_print_timeline(struct mali_timeline *timeline);
+#endif
+
 /**
  * Print debug information about timeline system.
  *
@@ -523,5 +535,14 @@ void mali_timeline_debug_print_timeline(struct mali_timeline *timeline, _mali_os
 void mali_timeline_debug_print_system(struct mali_timeline_system *system, _mali_osk_print_ctx *print_ctx);
 
 #endif /* defined(MALI_TIMELINE_DEBUG_FUNCTIONS) */
+
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+/**
+ * The timeline dma fence callback when dma fence signal.
+ *
+ * @param pp_job_ptr The pointer to pp job that link to the signaled dma fence.
+ */
+void mali_timeline_dma_fence_callback(void *pp_job_ptr);
+#endif
 
 #endif /* __MALI_TIMELINE_H__ */

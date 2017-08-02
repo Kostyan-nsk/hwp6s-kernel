@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "mali_kernel_common.h"
 #include "mali_osk.h"
@@ -68,7 +68,7 @@ typedef enum mali_l2_cache_status {
 #define MALI400_L2_MAX_READS_NOT_SET -1
 
 static struct mali_l2_cache_core *
-		mali_global_l2s[MALI_MAX_NUMBER_OF_L2_CACHE_CORES] = { NULL, };
+	mali_global_l2s[MALI_MAX_NUMBER_OF_L2_CACHE_CORES] = { NULL, };
 static u32 mali_global_num_l2s = 0;
 
 int mali_l2_max_reads = MALI400_L2_MAX_READS_NOT_SET;
@@ -203,7 +203,8 @@ void mali_l2_cache_power_up(struct mali_l2_cache_core *cache)
 
 	mali_l2_cache_reset(cache);
 
-	MALI_DEBUG_ASSERT(MALI_FALSE == cache->power_is_on);
+	if ((1 << MALI_DOMAIN_INDEX_DUMMY) != cache->pm_domain->pmu_mask)
+		MALI_DEBUG_ASSERT(MALI_FALSE == cache->power_is_on);
 	cache->power_is_on = MALI_TRUE;
 
 	mali_l2_cache_unlock(cache);

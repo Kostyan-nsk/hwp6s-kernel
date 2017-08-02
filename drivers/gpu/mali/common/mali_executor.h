@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012, 2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2012, 2014-2016 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef __MALI_EXECUTOR_H__
@@ -58,7 +58,6 @@ void mali_executor_schedule_from_mask(mali_scheduler_mask mask, mali_bool deferr
 _mali_osk_errcode_t mali_executor_interrupt_gp(struct mali_group *group, mali_bool in_upper_half);
 _mali_osk_errcode_t mali_executor_interrupt_pp(struct mali_group *group, mali_bool in_upper_half);
 _mali_osk_errcode_t mali_executor_interrupt_mmu(struct mali_group *group, mali_bool in_upper_half);
-
 void mali_executor_group_power_up(struct mali_group *groups[], u32 num_groups);
 void mali_executor_group_power_down(struct mali_group *groups[], u32 num_groups);
 
@@ -96,4 +95,8 @@ MALI_STATIC_INLINE mali_bool mali_executor_hint_is_enabled(mali_executor_hint hi
 	return mali_executor_hints[hint];
 }
 
+void mali_executor_running_status_print(void);
+void mali_executor_status_dump(void);
+void mali_executor_lock(void);
+void mali_executor_unlock(void);
 #endif /* __MALI_EXECUTOR_H__ */
