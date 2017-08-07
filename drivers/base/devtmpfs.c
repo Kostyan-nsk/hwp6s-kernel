@@ -75,7 +75,7 @@ static int dev_mkdir(const char *name, mode_t mode)
 	int err;
 
 	err = vfs_path_lookup(dev_mnt->mnt_root, dev_mnt,
-			      name, LOOKUP_PARENT, &nd);
+			      name, LOOKUP_PARENT, &nd.path);
 	if (err)
 		return err;
 
@@ -157,11 +157,11 @@ int devtmpfs_create_node(struct device *dev)
 	curr_cred = override_creds(&init_cred);
 
 	err = vfs_path_lookup(dev_mnt->mnt_root, dev_mnt,
-			      nodename, LOOKUP_PARENT, &nd);
+			      nodename, LOOKUP_PARENT, &nd.path);
 	if (err == -ENOENT) {
 		create_path(nodename);
 		err = vfs_path_lookup(dev_mnt->mnt_root, dev_mnt,
-				      nodename, LOOKUP_PARENT, &nd);
+				      nodename, LOOKUP_PARENT, &nd.path);
 	}
 	if (err)
 		goto out;
@@ -199,34 +199,26 @@ out:
 static int dev_rmdir(const char *name)
 {
 	struct nameidata nd;
+	struct path parent;
 	struct dentry *dentry;
 	int err;
 
-	err = vfs_path_lookup(dev_mnt->mnt_root, dev_mnt,
-			      name, LOOKUP_PARENT, &nd);
-	if (err)
-		return err;
-
-	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_one_len(nd.last.name, nd.path.dentry, nd.last.len);
-	if (!IS_ERR(dentry)) {
-		if (dentry->d_inode) {
-			if (dentry->d_inode->i_private == &dev_mnt)
-				err = vfs_rmdir(nd.path.dentry->d_inode,
-						dentry);
-			else
-				err = -EPERM;
-		} else {
-			err = -ENOENT;
-		}
-		dput(dentry);
-	} else {
-		err = PTR_ERR(dentry);
+	dentry = kern_path_locked(name, &parent);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	if (dentry->d_inode) {
+		if (dentry->d_inode->i_private == &thread)
+			err = vfs_rmdir(parent.dentry->d_inode, dentry);
+		else
+			err = -EPERM;
+ 	} else {
+		err = -ENOENT;
 	}
 
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	path_put(&nd.path);
-	return err;
+	dput(dentry);
+	mutex_unlock(&parent.dentry->d_inode->i_mutex);
+	path_put(&parent);
+ 	return err;
 }
 
 static int delete_path(const char *nodepath)
@@ -297,7 +289,7 @@ int devtmpfs_delete_node(struct device *dev)
 
 	curr_cred = override_creds(&init_cred);
 	err = vfs_path_lookup(dev_mnt->mnt_root, dev_mnt,
-			      nodename, LOOKUP_PARENT, &nd);
+			      nodename, LOOKUP_PARENT, &nd.path);
 	if (err)
 		goto out;
 

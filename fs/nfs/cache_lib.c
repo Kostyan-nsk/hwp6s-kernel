@@ -120,7 +120,7 @@ int nfs_cache_register(struct cache_detail *cd)
 	mnt = rpc_get_mount();
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
-	ret = vfs_path_lookup(mnt->mnt_root, mnt, "/cache", 0, &nd);
+	ret = vfs_path_lookup(mnt->mnt_root, mnt, "/cache", 0, &nd.path);
 	if (ret)
 		goto err;
 	ret = sunrpc_cache_register_pipefs(nd.path.dentry,

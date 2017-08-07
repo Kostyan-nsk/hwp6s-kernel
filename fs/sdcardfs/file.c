@@ -164,6 +164,7 @@ static int sdcardfs_mmap(struct file *file, struct vm_area_struct *vma)
 		       "support writeable mmap\n");
 		goto out;
 	}
+
 	/*
 	 * find and save lower vm_ops.
 	 *
@@ -175,6 +176,13 @@ static int sdcardfs_mmap(struct file *file, struct vm_area_struct *vma)
 			printk(KERN_ERR "sdcardfs: lower mmap failed %d\n", err);
 			goto out;
 		}
+		saved_vm_ops = vma->vm_ops; /* save: came from lower ->mmap */
+		err = do_munmap(current->mm, vma->vm_start,
+				vma->vm_end - vma->vm_start);
+		if (err) {
+			printk(KERN_ERR "sdcardfs: do_munmap failed %d\n", err);
+			goto out;
+		}
 	}
 
 	/*
@@ -182,9 +190,8 @@ static int sdcardfs_mmap(struct file *file, struct vm_area_struct *vma)
 	 * don't want its test for ->readpage which returns -ENOEXEC.
 	 */
 	file_accessed(file);
-    fput(file);
-    get_file(lower_file);
-    vma->vm_file = lower_file;
+	vma->vm_ops = &sdcardfs_vm_ops;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
 
 	file->f_mapping->a_ops = &sdcardfs_aops; /* set our aops */
 	if (!SDCARDFS_F(file)->lower_vm_ops) /* save for our ->fault */
@@ -289,20 +296,23 @@ static int sdcardfs_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int
-sdcardfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+static int sdcardfs_fsync(struct file *file, int datasync)
 {
 	int err;
 	struct file *lower_file;
 	struct path lower_path;
 	struct dentry *dentry = file->f_path.dentry;
 
+	err = generic_file_fsync(file, datasync);
+	if (err)
+		goto out;
+
 	lower_file = sdcardfs_lower_file(file);
 	sdcardfs_get_lower_path(dentry, &lower_path);
-        printk("vfs fsync range\n");
-        err = vfs_fsync_range(lower_file, start, end, datasync);
+	err = vfs_fsync(lower_file, datasync);
 	sdcardfs_put_lower_path(dentry, &lower_path);
 
+out:
 	return err;
 }
 

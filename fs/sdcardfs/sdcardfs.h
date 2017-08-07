@@ -42,12 +42,7 @@
 #include <linux/types.h>
 #include <linux/security.h>
 #include <linux/string.h>
-#include <linux/version.h>
 #include "multiuser.h"
-
-//#define LOOKUP_CASE_INSENSITIVE 0x8000
-/* the file system magic number */
-#define SDCARDFS_SUPER_MAGIC	0xb550ca10
 
 /* the file system name */
 #define SDCARDFS_NAME "sdcardfs"
@@ -165,6 +160,8 @@ extern int new_dentry_private_data(struct dentry *dentry);
 extern void free_dentry_private_data(struct dentry *dentry);
 extern struct dentry *sdcardfs_lookup(struct inode *dir, struct dentry *dentry,
 				    struct nameidata *nd);
+extern struct inode *sdcardfs_iget(struct super_block *sb,
+				 struct inode *lower_inode);
 extern int sdcardfs_interpose(struct dentry *dentry, struct super_block *sb,
 			    struct path *lower_path);
 
@@ -406,32 +403,22 @@ static inline int prepare_dir(const char *path_s, uid_t uid, gid_t gid, mode_t m
 {
 	int err;
 	struct dentry *dent;
-	struct path path;
 	struct iattr attrs;
+	struct path parent;
 
-        /* kern_path_create_sdcardfs is backport for lower kernel version */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,00))
-	dent = kern_path_create(AT_FDCWD, path_s, &path, LOOKUP_DIRECTORY);
-#else
-	dent = kern_path_create_sdcardfs(AT_FDCWD, path_s, &path, LOOKUP_DIRECTORY);
-#endif
-
+	dent = kern_path_locked(path_s, &parent);
 	if (IS_ERR(dent)) {
 		err = PTR_ERR(dent);
 		if (err == -EEXIST)
 			err = 0;
-		return err;
+		goto out_unlock;
 	}
 
-	err = mnt_want_write(path.mnt);
-	if (err)
-		goto out;
-
-	err = vfs_mkdir(path.dentry->d_inode, dent, mode);
+	err = vfs_mkdir(parent.dentry->d_inode, dent, mode);
 	if (err) {
 		if (err == -EEXIST)
 			err = 0;
-		goto out_drop;
+		goto out_dput;
 	}
 
 	attrs.ia_uid = uid;
@@ -441,14 +428,14 @@ static inline int prepare_dir(const char *path_s, uid_t uid, gid_t gid, mode_t m
 	notify_change(dent, &attrs);
 	mutex_unlock(&dent->d_inode->i_mutex);
 
-out_drop:
-	mnt_drop_write(path.mnt);
-
-out:
+out_dput:
 	dput(dent);
-	/* parent dentry locked by kern_path_create */
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+
+out_unlock:
+	/* parent dentry locked by lookup_create */
+	mutex_unlock(&parent.dentry->d_inode->i_mutex);
+	path_put(&parent);
+
 	return err;
 }
 
@@ -495,14 +482,6 @@ static inline int check_min_free_space(struct dentry *dentry, size_t size, int d
 		return 0;
 	} else
 		return 1;
-}
-
-static inline void sdcardfs_set_nlink(struct inode *inode, unsigned int nlink)
-{
-  if (!nlink)
-    clear_nlink(inode);
-  else
-    inode->i_nlink = nlink;
 }
 
 #endif	/* not _SDCARDFS_H_ */

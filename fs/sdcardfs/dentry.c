@@ -179,3 +179,4 @@ const struct dentry_operations sdcardfs_ci_dops = {
 	.d_hash 	= sdcardfs_hash_ci,
 	.d_compare	= sdcardfs_cmp_ci,
 };
+

@@ -851,14 +851,10 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		 * Get the parent directory, calculate the hash for last
 		 * component.
 		 */
-		err = kern_path_parent(sunaddr->sun_path, &nd);
-		if (err)
-			goto out_mknod_parent;
-
-		dentry = lookup_create(&nd, 0);
+		dentry = kern_path_create(AT_FDCWD, sunaddr->sun_path, &nd.path, 0);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
-			goto out_mknod_unlock;
+			goto out_mknod_parent;
 
 		/*
 		 * All right, let's create it.
@@ -914,7 +910,6 @@ out:
 
 out_mknod_dput:
 	dput(dentry);
-out_mknod_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 	path_put(&nd.path);
 out_mknod_parent:

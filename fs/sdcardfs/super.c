@@ -193,15 +193,25 @@ static void sdcardfs_umount_begin(struct super_block *sb)
 		lower_sb->s_op->umount_begin(lower_sb);
 }
 
-static int sdcardfs_show_options(struct seq_file *m, struct vfsmount *vfs)
+static int sdcardfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 {
-	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(vfs->mnt_sb);
+	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(mnt->mnt_sb);
 	struct sdcardfs_mount_options *opts = &sbi->options;
 
 	if (opts->fs_low_uid != 0)
 		seq_printf(m, ",uid=%u", opts->fs_low_uid);
 	if (opts->fs_low_gid != 0)
 		seq_printf(m, ",gid=%u", opts->fs_low_gid);
+
+	if (opts->derive == DERIVE_NONE)
+		seq_printf(m, ",derive=none");
+	else if (opts->derive == DERIVE_LEGACY)
+		seq_printf(m, ",derive=legacy");
+	else if (opts->derive == DERIVE_UNIFIED)
+		seq_printf(m, ",derive=unified");
+
+	if (opts->reserved_mb != 0)
+		seq_printf(m, ",reserved=%uMB", opts->reserved_mb);
 
 	return 0;
 };

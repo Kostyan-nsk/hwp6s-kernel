@@ -1641,9 +1641,27 @@ static int do_path_lookup(int dfd, const char *name,
 	return retval;
 }
 
-int kern_path_parent(const char *name, struct nameidata *nd)
+/* does lookup, returns the object with parent locked */
+struct dentry *kern_path_locked(const char *name, struct path *path)
 {
-	return do_path_lookup(AT_FDCWD, name, LOOKUP_PARENT, nd);
+	struct nameidata nd;
+	struct dentry *d;
+	int err = do_path_lookup(AT_FDCWD, name, LOOKUP_PARENT, &nd);
+	if (err)
+		return ERR_PTR(err);
+	if (nd.last_type != LAST_NORM) {
+		path_put(&nd.path);
+		return ERR_PTR(-EINVAL);
+	}
+	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+	d = lookup_one_len(nd.last.name, nd.path.dentry, nd.last.len);
+	if (IS_ERR(d)) {
+		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+		path_put(&nd.path);
+		return d;
+	}
+	*path = nd.path;
+	return d;
 }
 
 int kern_path(const char *name, unsigned int flags, struct path *path)
@@ -1661,16 +1679,22 @@ int kern_path(const char *name, unsigned int flags, struct path *path)
  * @mnt: pointer to vfs mount of the base directory
  * @name: pointer to file name
  * @flags: lookup flags
- * @nd: pointer to nameidata
+ * @path: pointer to struct path to fill
  */
 int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    const char *name, unsigned int flags,
-		    struct nameidata *nd)
+		    struct path *path)
 {
-	nd->root.dentry = dentry;
-	nd->root.mnt = mnt;
-	/* the first argument of do_path_lookup() is ignored with LOOKUP_ROOT */
-	return do_path_lookup(AT_FDCWD, name, flags | LOOKUP_ROOT, nd);
+	struct nameidata nd;
+	int err;
+	nd.root.dentry = dentry;
+	nd.root.mnt = mnt;
+	BUG_ON(flags & LOOKUP_PARENT);
+ 	/* the first argument of do_path_lookup() is ignored with LOOKUP_ROOT */
+	err = do_path_lookup(AT_FDCWD, name, flags | LOOKUP_ROOT, &nd);
+	if (!err)
+		*path = nd.path;
+	return err;
 }
 
 static struct dentry *__lookup_hash(struct qstr *name,
@@ -1709,6 +1733,58 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 {
 	return __lookup_hash(&nd->last, nd->path.dentry, nd);
 }
+
+struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path, int is_dir)
+{
+	struct dentry *dentry = ERR_PTR(-EEXIST);
+	struct nameidata nd;
+	int error = do_path_lookup(dfd, pathname, LOOKUP_PARENT, &nd);
+	if (error)
+		return ERR_PTR(error);
+
+	/*
+	 * Yucky last component or no last component at all?
+	 * (foo/., foo/.., /////)
+	 */
+	if (nd.last_type != LAST_NORM)
+		goto out;
+	nd.flags &= ~LOOKUP_PARENT;
+	nd.flags |= LOOKUP_CREATE | LOOKUP_EXCL;
+	nd.intent.open.flags = O_EXCL;
+
+	/*
+	 * Do the final lookup.
+	 */
+	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+	dentry = lookup_hash(&nd);
+	if (IS_ERR(dentry))
+		goto fail;
+
+	if (dentry->d_inode)
+		goto eexist;
+	/*
+	 * Special case - lookup gave negative, but... we had foo/bar/
+	 * From the vfs_mknod() POV we just have a negative dentry -
+	 * all is fine. Let's be bastards - you had / on the end, you've
+	 * been asking for (non-existent) directory. -ENOENT for you.
+	 */
+	if (unlikely(!is_dir && nd.last.name[nd.last.len])) {
+		dput(dentry);
+		dentry = ERR_PTR(-ENOENT);
+		goto fail;
+	}
+	*path = nd.path;
+	return dentry;
+eexist:
+	dput(dentry);
+	dentry = ERR_PTR(-EEXIST);
+fail:
+	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+out:
+	path_put(&nd.path);
+	return dentry;
+}
+EXPORT_SYMBOL(kern_path_create);
 
 /**
  * lookup_one_len - filesystem helper to lookup single pathname component
@@ -2351,79 +2427,6 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 		file = path_openat(-1, name, &nd, op, flags | LOOKUP_REVAL);
 	return file;
 }
-
-/*
- * this function is backport for sdcardfs2.0
- */
-struct dentry *kern_path_create_sdcardfs(int dfd, const char *pathname,
-				struct path *path, unsigned int lookup_flags)
-{
-	struct dentry *dentry = ERR_PTR(-EEXIST);
-	struct nameidata nd;
-	int err2;
-	int error;
-	bool is_dir = (lookup_flags & LOOKUP_DIRECTORY);
-
-	/*
-	 * Note that only LOOKUP_REVAL and LOOKUP_DIRECTORY matter here. Any
-	 * other flags passed in are ignored!
-	 */
-	lookup_flags &= LOOKUP_REVAL;
-
-	error = do_path_lookup(dfd, pathname, LOOKUP_PARENT|lookup_flags, &nd);
-	if (error)
-		return ERR_PTR(error);
-
-	/*
-	 * Yucky last component or no last component at all?
-	 * (foo/., foo/.., /////)
-	 */
-	if (nd.last_type != LAST_NORM)
-		goto out;
-	nd.flags &= ~LOOKUP_PARENT;
-	nd.flags |= LOOKUP_CREATE | LOOKUP_EXCL;
-
-	/* don't fail immediately if it's r/o, at least try to report other errors */
-	err2 = mnt_want_write(nd.path.mnt);
-	/*
-	 * Do the final lookup.
-	 */
-	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_hash(&nd);
-	if (IS_ERR(dentry))
-		goto unlock;
-
-	error = -EEXIST;
-	if (dentry->d_inode)
-		goto fail;
-	/*
-	 * Special case - lookup gave negative, but... we had foo/bar/
-	 * From the vfs_mknod() POV we just have a negative dentry -
-	 * all is fine. Let's be bastards - you had / on the end, you've
-	 * been asking for (non-existent) directory. -ENOENT for you.
-	 */
-	if (unlikely(!is_dir && nd.last.name[nd.last.len])) {
-		error = -ENOENT;
-		goto fail;
-	}
-	if (unlikely(err2)) {
-		error = err2;
-		goto fail;
-	}
-	*path = nd.path;
-	return dentry;
-fail:
-	dput(dentry);
-	dentry = ERR_PTR(error);
-unlock:
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	if (!err2)
-		mnt_drop_write(nd.path.mnt);
-out:
-	path_put(&nd.path);
-	return dentry;
-}
-EXPORT_SYMBOL(kern_path_create_sdcardfs);
 
 /**
  * lookup_create - lookup a dentry, creating it if it doesn't exist
@@ -3484,7 +3487,7 @@ EXPORT_SYMBOL(page_readlink);
 EXPORT_SYMBOL(__page_symlink);
 EXPORT_SYMBOL(page_symlink);
 EXPORT_SYMBOL(page_symlink_inode_operations);
-EXPORT_SYMBOL(kern_path_parent);
+EXPORT_SYMBOL(kern_path_locked);
 EXPORT_SYMBOL(kern_path);
 EXPORT_SYMBOL(vfs_path_lookup);
 EXPORT_SYMBOL(inode_permission);

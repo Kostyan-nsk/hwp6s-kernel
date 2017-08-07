@@ -2799,7 +2799,7 @@ static struct dentry *nfs_follow_remote_path(struct vfsmount *root_mnt,
 		goto out_put_mnt_ns;
 
 	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
-			export_path, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, nd);
+			export_path, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, nd.path);
 
 	nfs_referral_loop_unprotect();
 	put_mnt_ns(ns_private);
