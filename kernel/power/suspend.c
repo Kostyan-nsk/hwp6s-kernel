@@ -111,8 +111,7 @@ static int suspend_prepare(void)
 	if (!error)
 		return 0;
 
-	suspend_stats.failed_freeze++;
-	dpm_save_failed_step(SUSPEND_FREEZE);	usermodehelper_enable();
+	suspend_thaw_processes();
  Finish:
 	pm_notifier_call_chain(PM_POST_SUSPEND);
 	pm_restore_console();

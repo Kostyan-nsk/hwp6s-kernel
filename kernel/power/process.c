@@ -153,6 +153,8 @@ int freeze_processes(void)
 	printk("\n");
 	BUG_ON(in_atomic());
 
+	if (error)
+		thaw_processes();
 	return error;
 }
 
@@ -163,9 +165,6 @@ int freeze_kernel_threads(void)
 {
 	int error;
 
-	error = suspend_sys_sync_wait();
-	if (error)
-		goto Exit;
 	printk("Freezing remaining freezable tasks ... ");
 	pm_nosig_freezing = true;
 	error = try_to_freeze_tasks(false);
