@@ -299,7 +299,7 @@ static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
 		err = PTR_ERR(inode);
 		goto out_sput;
 	}
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_alloc_root(inode);
  	if (!sb->s_root) {
  		err = -ENOMEM;
 		goto out_iput;

@@ -255,8 +255,6 @@ extern int d_invalidate(struct dentry *);
 /* only used at mount-time */
 extern struct dentry * d_alloc_root(struct inode *);
 
-extern struct dentry *d_make_root(struct inode *root_inode);
-
 /* <clickety>-<click> the ramfs-type tree */
 extern void d_genocide(struct dentry *);
 
