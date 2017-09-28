@@ -1039,7 +1039,6 @@ static struct file_system_type rpc_pipe_fs_type = {
 	.mount		= rpc_mount,
 	.kill_sb	= kill_litter_super,
 };
-MODULE_ALIAS_FS("rpc_pipefs");
 
 static void
 init_once(void *foo)

@@ -117,7 +117,6 @@ static struct file_system_type configfs_fs_type = {
 	.mount		= configfs_do_mount,
 	.kill_sb	= kill_litter_super,
 };
-MODULE_ALIAS_FS("configfs");
 
 int configfs_pin_fs(void)
 {

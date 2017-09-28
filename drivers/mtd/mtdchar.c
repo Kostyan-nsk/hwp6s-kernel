@@ -1166,7 +1166,6 @@ static struct mtd_notifier mtdchar_notifier = {
 	.add = mtdchar_notify_add,
 	.remove = mtdchar_notify_remove,
 };
-MODULE_ALIAS_FS("mtd_inodefs");
 
 static int __init init_mtdchar(void)
 {
