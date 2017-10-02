@@ -2,7 +2,7 @@
 menuconfig V_GPU
     bool "Vivante GPU Support"
 
-if V_GPU
+#if V_GPU
 
 config G2D 
     bool "G2D Support"
@@ -19,4 +19,4 @@ config G2D_CLK_RATE
 config G2D_K3
     bool "K3 TESTCHIP POWER"
 
-endif
+#endif
