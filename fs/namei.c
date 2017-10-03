@@ -272,9 +272,11 @@ int generic_permission(struct inode *inode, int mask)
  * flag in inode->i_opflags, that says "this has not special
  * permission function, use the fast case".
  */
-static inline int do_inode_permission(struct inode *inode, int mask)
+static inline int do_inode_permission(struct vfsmount *mnt, struct inode *inode, int mask)
 {
 	if (unlikely(!(inode->i_opflags & IOP_FASTPERM))) {
+		if (likely(mnt && inode->i_op->permission2))
+			return inode->i_op->permission2(mnt, inode, mask);
 		if (likely(inode->i_op->permission))
 			return inode->i_op->permission(inode, mask);
 
@@ -317,7 +319,7 @@ int inode_permission2(struct vfsmount *mnt, struct inode *inode, int mask)
 			return -EACCES;
 	}
 
-	retval = do_inode_permission(inode, mask);
+	retval = do_inode_permission(mnt, inode, mask);
 	if (retval)
 		return retval;
 
@@ -1501,6 +1503,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 		}
 	} else {
 		struct dentry *dentry;
+		struct vfsmount *mnt;
 
 		file = fget_raw_light(dfd, &fput_needed);
 		retval = -EBADF;
@@ -1508,13 +1511,14 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 			goto out_fail;
 
 		dentry = file->f_path.dentry;
+		mnt = file->f_path.mnt;
 
 		if (*name) {
 			retval = -ENOTDIR;
 			if (!S_ISDIR(dentry->d_inode->i_mode))
 				goto fput_fail;
 
-			retval = inode_permission(dentry->d_inode, MAY_EXEC);
+			retval = inode_permission2(mnt, dentry->d_inode, MAY_EXEC);
 			if (retval)
 				goto fput_fail;
 		}
