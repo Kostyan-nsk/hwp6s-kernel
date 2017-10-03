@@ -651,7 +651,7 @@ static void sdcardfs_put_link(struct dentry *dentry, struct nameidata *nd,
 }
 #endif
 
-static int sdcardfs_permission_wrn(struct inode *inode, int mask, unsigned int flags)
+static int sdcardfs_permission_wrn(struct inode *inode, int mask)
 {
 	WARN_RATELIMIT(1, "sdcardfs does not support permission. Use permission2.\n");
 	return -EINVAL;
@@ -676,7 +676,7 @@ void copy_attrs(struct inode *dest, const struct inode *src)
 #endif
 }
 
-static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int mask, unsigned int flags)
+static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int mask)
 {
 	int err;
 	struct inode tmp;
@@ -705,7 +705,7 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 	tmp.i_sb = inode->i_sb;
 	if (IS_POSIXACL(inode))
 		pr_warn("%s: This may be undefined behavior... \n", __func__);
-	err = generic_permission(&tmp, mask, 0, inode->i_op->check_acl);
+	err = generic_permission(&tmp, mask);
 	/* XXX
 	 * Original sdcardfs code calls inode_permission(lower_inode,.. )
 	 * for checking inode permission. But doing such things here seems
