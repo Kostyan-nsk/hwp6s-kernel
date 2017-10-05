@@ -1749,10 +1749,6 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	struct dentry *dentry;
 	int err;
 
-	err = inode_permission(inode, MAY_EXEC);
-	if (err)
-		return ERR_PTR(err);
-
 	/*
 	 * Don't bother with __d_lookup: callers are for creat as
 	 * well as unlink, so a lot of the time it would cost
