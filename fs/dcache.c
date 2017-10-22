@@ -2620,32 +2620,6 @@ char *d_absolute_path(const struct path *path,
 }
 
 /*
- * this function backport for sdcardfs2.0
- */
-char *d_absolute_path_sdcardfs(const struct path *path,
-	       char *buf, int buflen)
-{
-	struct path root = {};
-	char *res = buf + buflen;
-	int error;
-
-	prepend(&res, &buflen, "\0", 1);
-
-        /* backport modify  */
-        /*br_read_lock(vfsmount_lock);*/
-	write_seqlock(&rename_lock);
-	error = prepend_path(path, &root, &res, &buflen);
-	write_sequnlock(&rename_lock);
-	/*br_read_unlock(vfsmount_lock);*/
-
-	if (error > 1)
-		error = -EINVAL;
-	if (error < 0)
-		return ERR_PTR(error);
-	return res;
-}
-
-/*
  * same as __d_path but appends "(deleted)" for unlinked files.
  */
 static int path_with_deleted(const struct path *path,
