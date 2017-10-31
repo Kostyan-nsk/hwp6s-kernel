@@ -4713,7 +4713,8 @@ STATIC void k3_fb_set_bl_brightness(struct led_classdev *led_cdev,
 		sbl_bkl_set(k3fd, bl_lvl);
 	k3_fb_set_backlight(k3fd, k3fd->bl_level);
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	msleep(50);
+	if (!bl_lvl)
+		msleep(20);
 #endif
 }
 
