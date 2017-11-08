@@ -2913,11 +2913,6 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	if (error)
 		goto exit4;
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	error = fsnotify_move_perm(&nd.path, dentry, FS_DELETE_PERM, 0);
-	if (error)
-		goto exit4;
-#endif
 	error = vfs_rmdir2(nd.path.mnt, nd.path.dentry->d_inode, dentry);
 exit4:
 	mnt_drop_write(nd.path.mnt);
@@ -3016,11 +3011,6 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 		error = security_path_unlink(&nd.path, dentry);
 		if (error)
 			goto exit3;
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-		error = fsnotify_move_perm(&nd.path, dentry, FS_DELETE_PERM, 0);
-		if (error)
-			goto exit3;
-#endif
 		error = vfs_unlink2(nd.path.mnt, nd.path.dentry->d_inode, dentry);
 exit3:
 		mnt_drop_write(nd.path.mnt);
@@ -3417,10 +3407,6 @@ SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 	char *to;
 	int error;
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	u32 fs_cookie = fsnotify_get_cookie();
-#endif
-
 	error = user_path_parent(olddfd, oldname, &oldnd, &from);
 	if (error)
 		goto exit;
@@ -3485,21 +3471,8 @@ SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 	if (error)
 		goto exit6;
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	error = fsnotify_move_perm(&oldnd.path, old_dentry, FS_MOVED_FROM_PERM, fs_cookie);
-	if (error)
-		goto exit6;
-#endif
-
 	error = vfs_rename2(oldnd.path.mnt, old_dir->d_inode, old_dentry,
 				   new_dir->d_inode, new_dentry);
-
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	if (error)
-		goto exit6;
-
-	fsnotify_move_perm(&newnd.path, old_dentry, FS_MOVED_TO_PERM, fs_cookie);
-#endif
 
 exit6:
 	mnt_drop_write(oldnd.path.mnt);
