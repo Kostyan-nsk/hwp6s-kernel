@@ -127,59 +127,11 @@ static int lmdev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t lmdev_write(struct file * file, const char __user * buf, size_t count, loff_t * pos)
-{
-	u32 ctValue[9] = {0};
-	char kernelbuf[12] = {0};
-	int i, ret;
-	struct miscdevice *mdev = (struct miscdevice *)file->private_data;
-	struct lcd_mdevice *lmdev = container_of(mdev, struct lcd_mdevice, mdev);
-	struct lcd_tuning_dev *ltd = 0;
-
-	ltd = &lmdev->ltd;
-
-	if(!ltd->ops) {
-		pr_err("%s: no ops\n", __func__);
-		return -EINVAL;
-	}
-
-	if (count > 12) {
-		pr_err("%s: write count is too large\n", __func__);
-		return -EINVAL;
-	}
-
-	ret = copy_from_user(kernelbuf, buf, count);
-	if(ret != 0) {
-		pr_err("%s: copy to kernel buffer failed\n", __func__);
-		return -EINVAL;
-	}
-
-	ret = sscanf(kernelbuf, "%u %u %u", &ctValue[0], &ctValue[4], &ctValue[8]);
-	if (ret != 3) {
-		pr_err("%s: buffer value is invalid\n", __func__);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < 9; i += 4) {
-		if (ctValue[i] > 256)
-			ctValue[i] = 256;
-		else if (ctValue[i] < 1)
-			 ctValue[i] = 1;
-	}
-
-	if(ltd->ops->set_color_temperature)
-		ltd->ops->set_color_temperature(ltd, ctValue);
-
-	return count;
-}
-
-
 static struct file_operations mdev_fops = 
 {
 	.owner		= THIS_MODULE,
 	.open		= lmdev_open,
 	.unlocked_ioctl = lmdev_ioctl,
-	.write		= lmdev_write,
 };
 
 
