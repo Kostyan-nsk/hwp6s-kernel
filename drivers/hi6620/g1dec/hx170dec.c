@@ -19,6 +19,7 @@
  *
 ------------------------------------------------------------------------------*/
 #include <linux/kernel.h>
+#include <linux/wait.h>
 #include <linux/module.h>
 /* needed for __init,__exit directives */
 #include <linux/init.h>
@@ -133,10 +134,11 @@ typedef struct {
 	int open_count;
 	unsigned int irq;
 	unsigned int done;
-	wait_queue_head_t dec_queue;
 	struct semaphore busy_lock;
-	struct fasync_struct *async_queue_dec;
-	struct fasync_struct *async_queue_pp;
+	atomic_t dec_seqno;
+	wait_queue_head_t wait_queue_dec;
+	atomic_t pp_seqno;
+	wait_queue_head_t wait_queue_pp;
 	struct cdev cdev;
 	struct device dev;
 	struct clk *clock;
@@ -277,34 +279,26 @@ static long hx170dec_ioctl(struct file *filp,
 		case HX170DEC_PP_INSTANCE:
 			filp->private_data = &hx_pp_instance;
 			break;
-		case HX170DEC_IOC_WAIT_DONE:
-
-			/* timeout: arg second */
-
-            if (!wait_event_interruptible_timeout(hx170dec_data.dec_queue,
-                                                  hx170dec_data.done,
-                                                  arg*HZ*DECODER_WAIT_TIMEOUT_COEFF)) {
-
-
-				printk(KERN_INFO "hx170dec:wait event timeout\n");
-				return -ETIME;
-			} else if (signal_pending(current)) {
-				printk(KERN_INFO "hx170dec:signal pending\n");
-				hx170dec_data.done = 0;
-
-				return -ERESTARTSYS;
-			}
-
-			hx170dec_data.done = 0;
-			break;
-
+		case HX170DEC_IOC_WAITFORDEC:
+			if(atomic_xchg(&hx170dec_data.dec_seqno, 0))
+				return 0;
+			err = wait_event_interruptible(hx170dec_data.wait_queue_dec, atomic_read(&hx170dec_data.dec_seqno));
+			if(err == 0)
+				atomic_dec(&hx170dec_data.dec_seqno);
+			return err;
+		case HX170DEC_IOC_WAITFORPP:
+			if(atomic_xchg(&hx170dec_data.pp_seqno, 0))
+				return 0;
+			err = wait_event_interruptible(hx170dec_data.wait_queue_pp, atomic_read(&hx170dec_data.pp_seqno));
+			if(err == 0)
+				atomic_dec(&hx170dec_data.pp_seqno);
+			return err;
 		case HX170DEC_IOC_CLOCK_ON:
 #if 0
 			ret = regulator_enable(hx170dec_data.reg);
 			if ( ret ) {
 				printk(KERN_ERR "hx170dec: regulator_enable failed\n");
 			}
-
 
 			ret = clk_enable(hx170dec_data.clock);
 			if ( ret ) {
@@ -320,15 +314,8 @@ static long hx170dec_ioctl(struct file *filp,
 #endif
 			break;
 
-		case HX170DEC_IOCHARDRESET:
-			/*
-			 * reset the counter to 1, to allow unloading in case
-			 * of problems. Use 1, not 0, because the invoking
-			 * process has the device open.
-			 */
-			module_put(THIS_MODULE);
-			break;
 		default:
+			printk(KERN_ERR "%s: unknown cmd = %u\n", __func__, cmd);
 			break;
 	}
 	return 0;
@@ -404,38 +391,6 @@ static int hx170dec_open(struct inode *inode, struct file *filp)
 	up(&(hx170dec_data.busy_lock));
 
 	return 0;
-}
-
-/*------------------------------------------------------------------------------
-    Function name   : hx170dec_fasync
-    Description     : Method for signing up for a interrupt
-
-    Return type     : int
-------------------------------------------------------------------------------*/
-
-static int hx170dec_fasync(int fd, struct file *filp, int mode)
-{
-
-	hx170dec_t *dev = &hx170dec_data;
-
-	/*PDEBUG("dec %x pp %x this %x\n",
-	 * &hx_dec_instance,
-	 * &hx_pp_instance,
-	 * (u32 *)filp->private_data); */
-
-	/* select which interrupt this instance will sign up for */
-
-	if (((u32 *) filp->private_data) == &hx_dec_instance) {
-		/* decoder interrupt */
-		printk(KERN_INFO "hx170dec:decoder fasync called %d %x %d %x\n",
-		       fd, (u32) filp, mode, (u32)&dev->async_queue_dec);
-		return fasync_helper(fd, filp, mode, &dev->async_queue_dec);
-	} else {
-		/* pp interrupt */
-		printk(KERN_INFO "hx170dec:pp fasync called %d %x %d %x\n",
-		       fd, (u32) filp, mode, (u32)&dev->async_queue_dec);
-		return fasync_helper(fd, filp, mode, &dev->async_queue_pp);
-	}
 }
 
 /*------------------------------------------------------------------------------
@@ -600,18 +555,10 @@ static irqreturn_t hx170dec_isr(int irq, void *dev_id)
 			/* clear dec IRQ */
 			writel(irq_status_dec & (~HX_DEC_INTERRUPT_BIT),
 			       dev->hwregs + X170_INTERRUPT_REGISTER_DEC);
-			/* fasync kill for decoder instances */
-			if (dev->async_queue_dec != NULL) {
-				kill_fasync(&dev->async_queue_dec,
-				            SIGIO, POLL_IN);
-			} else {
-				/*printk(KERN_WARNING "x170: IRQ received w/o
-				 * anybody waiting for it!\n");
-				 */
-			}
 
-			hx170dec_data.done = 1;
-			wake_up_interruptible(&hx170dec_data.dec_queue);
+			atomic_inc(&dev->dec_seqno);
+			wake_up_interruptible(&dev->wait_queue_dec);
+			PDEBUG("decoder IRQ received!\n");
 		}
 
 		if (irq_status_pp & HX_PP_INTERRUPT_BIT) {
@@ -619,16 +566,9 @@ static irqreturn_t hx170dec_isr(int irq, void *dev_id)
 			writel(irq_status_pp & (~HX_PP_INTERRUPT_BIT),
 			       dev->hwregs + X170_INTERRUPT_REGISTER_PP);
 
-			/* kill fasync for PP instances */
-			if (dev->async_queue_pp != NULL) {
-				kill_fasync(&dev->async_queue_pp,
-				            SIGIO, POLL_IN);
-			} else {
-                mntn_print_log(EN_ID_MNTN_BLVIDEO_DRV_DEC, EN_VIDEO_LOG_LEVLE_DEBUG, "hx170dec: IRQ received w/o anybody waiting for it!");
-			}
-			/*PDEBUG("pp IRQ received!\n"); */
-			hx170dec_data.done = 1;
-			wake_up_interruptible(&hx170dec_data.dec_queue);
+			atomic_inc(&dev->pp_seqno);
+			wake_up_interruptible(&dev->wait_queue_pp);
+			 PDEBUG("pp IRQ received!\n");
 		}
 
 		handled = 1;
@@ -681,7 +621,6 @@ static int hx170dec_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long start = vma->vm_start;
 	unsigned long size = vma->vm_end - vma->vm_start;
 	int retval = 0;
-
 	if (!get_cma_type()) {
 		unsigned int  cfg_size;
 		unsigned long pyhs_start = vma->vm_pgoff << PAGE_SHIFT;
@@ -718,7 +657,6 @@ static int hx170dec_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	if (remap_pfn_range(vma, start, vma->vm_pgoff, size, vma->vm_page_prot))
 		retval = -ENOBUFS;
-
 	return retval;
 }
 
@@ -730,8 +668,6 @@ release :
 	hx170dec_release,
 unlocked_ioctl :
 	hx170dec_ioctl,
-fasync :
-	hx170dec_fasync,
 mmap :
 	hx170dec_mmap,
 };
@@ -1238,7 +1174,10 @@ static int hx170dec_dev_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	init_waitqueue_head(&hx170dec_data.dec_queue);
+	atomic_set(&hx170dec_data.dec_seqno, 0);
+	init_waitqueue_head(&hx170dec_data.wait_queue_dec);
+	atomic_set(&hx170dec_data.pp_seqno, 0);
+	init_waitqueue_head(&hx170dec_data.wait_queue_pp);
 
     if (0 != vdec_dbgfs_pwdncfg) {
         /* 配置VDEC IP、VDEC总线桥时钟关闭 */
@@ -1362,7 +1301,8 @@ static struct platform_driver hx170dec_driver = {
 int __init hx170dec_init(void)
 {
 	int result;
-    printk(KERN_INFO "hx170dec:enter hx170dec_init\n");
+
+	printk(KERN_INFO "hx170dec:enter hx170dec_init\n");
 
 	result = platform_driver_register(&hx170dec_driver);
 
