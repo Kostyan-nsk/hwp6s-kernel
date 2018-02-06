@@ -42,12 +42,6 @@
 #include <linux/proc_fs.h>
 #endif
 
-#if defined (CONFIG_ARCH_HI6620)
-#include <linux/pm_qos_params.h>
-extern struct pm_qos_request_list g_cpunum_policy_qos;
-extern struct pm_qos_request_list g_ddr_policy_qos;
-#endif
-
 #define TRUE				    (1)
 #define FALSE				    (0)
 
@@ -98,7 +92,7 @@ static int k3v2_power_key_open(struct input_dev *dev)
 
 static void k3v2_power_key_close(struct input_dev *dev)
 {
-	return 0;
+
 }
 
 static irqreturn_t k3v2_power_key_irq_handler(int irq, void *dev_id)
@@ -304,7 +298,7 @@ static int __devexit k3v2_power_key_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int k3v2_power_key_suspend(struct platform_device *pdev)
+static int k3v2_power_key_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct k3v2_power_key *power_key =  platform_get_drvdata(pdev);
 
@@ -320,10 +314,6 @@ static int k3v2_power_key_resume(struct platform_device *pdev)
 
 	if (TRUE == power_key->key_pressed_flag){
 		wake_lock_timeout(&power_key->wake_lock, HZ/2);
-#if defined (CONFIG_ARCH_HI6620)
-		pm_qos_update_request(&g_cpunum_policy_qos, PM_QOS_CPU_NUMBER_MIN_VALUE_FOR_DISPLAY);
-		pm_qos_update_request(&g_ddr_policy_qos, 533000);
-#endif
 	}
 
 	pr_info("[%s]resume successfully\n", __FUNCTION__);
@@ -339,10 +329,10 @@ struct platform_driver k3v2_power_key_driver = {
 		.name = "k3v2_power_key",
 		.owner = THIS_MODULE,
 	},
-	#ifdef CONFIG_PM
+#ifdef CONFIG_PM
 	.suspend = k3v2_power_key_suspend,
 	.resume = k3v2_power_key_resume,
-	#endif
+#endif
 };
 
 static int __init k3v2_power_key_init(void)

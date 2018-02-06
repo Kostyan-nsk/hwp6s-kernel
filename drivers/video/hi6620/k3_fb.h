@@ -363,14 +363,6 @@ struct k3_fb_data_type {
 	u32 ovc_ch_display_addr[MAX_EDC_CHANNEL];
 	//overlay play cfg_ok once
 	struct overlay_data ovc_req[MAX_EDC_CHANNEL];
-	u32    ddrIdleCount;
-	u32 ddr_min_freq;
-	u32 ddr_min_freq_saved;
-	u32 ddr_curr_freq;
-	u32 ovc_ddr_failed;
-	struct pm_qos_request_list ovc_ddrminprofile;
-	struct work_struct ovc_ddr_work;
-	struct workqueue_struct *ovc_ddr_wq;
 #endif
 	//Multi Resolution====begin
 	int switch_res_flag;

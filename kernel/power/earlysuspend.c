@@ -161,6 +161,16 @@ static void late_resume(struct work_struct *work)
 			pr_info("late_resume: abort, state %d\n", state);
 		goto abort;
 	}
+
+#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
+	pm_qos_update_request(&g_specialpolicy, PM_QOS_IPPS_POLICY_DEFAULT_VALUE);
+#endif
+
+#if defined (CONFIG_ARCH_HI6620)
+	pm_qos_update_request(&g_cpunum_policy_qos, PM_QOS_CPU_NUMBER_MIN_VALUE_FOR_DISPLAY);
+	pm_qos_update_request(&g_ddr_policy_qos, 800000);
+#endif
+
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: call handlers\n");
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link) {
@@ -171,15 +181,6 @@ static void late_resume(struct work_struct *work)
 			pos->resume(pos);
 		}
 	}
-
-#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_update_request(&g_specialpolicy, PM_QOS_IPPS_POLICY_DEFAULT_VALUE);
-#endif
-
-#if defined (CONFIG_ARCH_HI6620)
-	pm_qos_update_request(&g_cpunum_policy_qos, PM_QOS_CPU_NUMBER_MIN_VALUE_FOR_DISPLAY);
-	pm_qos_update_request(&g_ddr_policy_qos, PM_QOS_DDR_MINPROFILE_VALUE_FOR_DISPLAY);
-#endif
 
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");

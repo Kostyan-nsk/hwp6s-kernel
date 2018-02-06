@@ -128,10 +128,6 @@ static camera_capability k3_cap[] = {
 static void k3_isp_set_default(void);
 static void k3_isp_calc_zoom(camera_state state, scale_strategy_t scale_strategy, u32 *in_width, u32 *in_height);
 
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-static struct pm_qos_request_list g_specialpolicy;
-#endif
-
 /*
  **************************************************************************
  * FunctionName: k3_isp_check_config;
@@ -674,12 +670,6 @@ int k3_isp_stream_on(struct v4l2_pix_format *pixfmt,
 	int ret = 0;
 	flash_lum_level capflash_level;
 
-	if (CAMERA_ZSL_ON == k3_isp_get_zsl_state()) {
-		k3_isp_lock_ddr_freq(ISP_DDR_BLOCK_PROFILE);
-	}else{
-		k3_isp_try_ddr_freq(pixfmt->sizeimage, state);
-	}
-
 	if(isp_data.sensor->effect != NULL){
 		capflash_level =
 			isp_data.sensor->effect->flash.flash_capture.capflash_level;
@@ -741,9 +731,6 @@ int k3_isp_stream_on(struct v4l2_pix_format *pixfmt,
 			isp_data.sensor->update_flip(isp_data.pic_attr[state].in_width, isp_data.pic_attr[state].in_height);
 	}
 	if (state == STATE_PREVIEW) {
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-		/* pm_qos_update_request(&isp_data.qos_request, DDR_PREVIEW_MIN_PROFILE); */
-#endif
 		ret = isp_hw_ctl->start_preview(&isp_data.pic_attr[state], isp_data.sensor, isp_data.cold_boot, isp_data.scene);
 	} else if (state == STATE_CAPTURE) {
 		camera_flashlight *flashlight = get_camera_flash();
@@ -752,10 +739,6 @@ int k3_isp_stream_on(struct v4l2_pix_format *pixfmt,
 				flashlight->turn_on(FLASH_MODE, capflash_level);
 			}
 		}
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-		/* pm_qos_update_request(&isp_data.qos_request, DDR_CAPTURE_MIN_PROFILE); */
-#endif
-
 
         if (CAMERA_ZSL_ON == k3_isp_get_zsl_state())
         {
@@ -996,11 +979,6 @@ int k3_isp_init(struct platform_device *pdev, data_queue_t *data_queue)
 
     k3_isp_try_cpuidle_vote();
 
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_add_request(&g_specialpolicy, PM_QOS_IPPS_POLICY, PM_QOS_IPPS_POLICY_DEFAULT_VALUE);
-	pm_qos_add_request(&isp_data.qos_request, PM_QOS_DDR_MIN_PROFILE, DDR_PREVIEW_MIN_PROFILE);
-	pm_qos_add_request(&isp_data.qos_request_gpu, PM_QOS_GPU_PROFILE_BLOCK, GPU_INIT_BLOCK_PROFILE);
-#endif
 	/* init registers */
 	isp_hw_ctl = get_isp_hw_controller();
 
@@ -1040,9 +1018,6 @@ int k3_isp_exit(void *par)
 	if (NULL != isp_data.sensor && isp_data.sensor->isp_location == CAMERA_USE_K3ISP)
 		if (isp_hw_ctl->isp_tune_ops_exit)
 			isp_hw_ctl->isp_tune_ops_exit();
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_update_request(&g_specialpolicy, PM_QOS_IPPS_POLICY_DEFAULT_VALUE);
-#endif
 
 	if (isp_data.sensor) {
 		isp_data.sensor->reset(POWER_OFF);
@@ -1053,15 +1028,6 @@ int k3_isp_exit(void *par)
 	k3_isp_poweroff();
 	k3_ispio_deinit();
 	isp_hw_ctl->isp_hw_deinit();
-
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_remove_request(&isp_data.qos_request);
-	pm_qos_remove_request(&g_specialpolicy);
-	pm_qos_remove_request(&isp_data.qos_request_gpu);
-#endif
-
-    /* cancel and release ddr freq lock */
-    k3_isp_unlock_ddr_freq();
 
     k3_isp_cancel_cpuidle_vote();
 
@@ -1921,15 +1887,6 @@ int k3_isp_set_zoom_and_center(
 		}
 	}
 
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	if (0 == ret) {
-		if (zoom > 10) { // total is 30 steps
-			pm_qos_update_request(&isp_data.qos_request_gpu, GPU_BLOCK_PROFILE);
-		} else {
-			pm_qos_update_request(&isp_data.qos_request_gpu, GPU_INIT_BLOCK_PROFILE);
-		}
-	}
-#endif
 	return ret;
 }
 
@@ -2462,9 +2419,7 @@ void k3_isp_set_shoot_mode(camera_shoot_mode shoot_mode)
 
 void k3_isp_set_pm_mode(u8 pm_mode)
 {
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_update_request(&g_specialpolicy, pm_mode);
-#endif
+
 }
 
 int k3_isp_get_current_vts(void)
@@ -3232,153 +3187,6 @@ int k3_isp_zsl_refresh_fmt(struct v4l2_format *preview_fmt,
     print_info("leave %s.",__func__);
 
 	return 0;
-}
-
-int get_ddr_valid_maxfreq(void)
-{
-    int             len = 0;
-    int             count = 0;
-    char            buf[DDR_VALID_FREQ_BUF_MAX_LEN] = {0};
-    int             ddr_freq = 0;
-    int             freq = 0;
-    struct file    *fp  = NULL;
-    mm_segment_t    fs;
-    loff_t          pos = 0;
-    char           *token = NULL;
-    char           *dup_buf = NULL;
-    char           *s = NULL;
-
-    fp = (struct file *) filp_open(DDR_VALID_MAX_FREQ_PATH, O_RDONLY, 0);
-    if (IS_ERR(fp)) {
-        print_error("filp_open %s error, fp = %d !", DDR_VALID_MAX_FREQ_PATH, (int)fp);
-        return -EEXIST;
-    }
-
-    fs = get_fs();
-    set_fs(KERNEL_DS);
-    len = vfs_read(fp, buf, DDR_VALID_FREQ_BUF_MAX_LEN, &pos);
-    filp_close(fp, NULL);
-    set_fs(fs);
-
-    if (len <= 0) {
-        print_error("read file %s error, read %d byte.", DDR_VALID_MAX_FREQ_PATH, len);
-        return -EIO;
-    }
-
-	buf[len-1] = '\0';
-    print_debug("%s: ddr valid freq list = %s, len = %d.", __func__, buf, len);
-
-    dup_buf = kstrdup(buf, GFP_KERNEL);
-    if (NULL == dup_buf) {
-        print_error("%s, alloc dup buffer fail.", __func__);
-        return -ENOMEM;
-    }
-
-    s = strstrip(dup_buf);
-
-    token = strsep(&s, " ");
-    while (NULL != token) {
-        if ('\0' == *token) {
-            continue;
-        }
-
-        count = sscanf(token, "%d", &freq);
-        if ((count > 0) && (freq > ddr_freq)) {
-            ddr_freq = freq;
-            print_debug("%s: ddr valid freq = %d.", __func__, freq);
-        }
-
-        token = strsep(&s, " ");
-    } 
-	kfree(dup_buf);
-
-    print_info("%s: freq = %d.", __func__, ddr_freq);
-
-    return ddr_freq;
-}
-
-void k3_isp_try_ddr_freq(u32 sizeimage, camera_state state)
-{
-	int ddr_freq;
-	int val = 0;
-
-       bool ret = 0;
-	ret = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
-	if (!ret) {
-		val = 0;
-		print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
-	}
-
-	print_info("%s state = %d", __func__, state);
-	if (STATE_CAPTURE == state){
-		if(1 == val){
-			ddr_freq = ISP_DDR2_MIN_PROFILE_CAPTURE;
-		}else{
-			ddr_freq = ISP_DDR_MIN_PROFILE_CAPTURE;
-		}		
-	}else if(STATE_PREVIEW == state){
-		ddr_freq = ISP_DDR_MIN_PROFILE_PREVIEW;
-	}else{
-		print_error("%s wrong state do nothing", __func__);
-		return;
-	}
-
-	k3_isp_lock_ddr_freq(ddr_freq);
-}
-
-void k3_isp_lock_ddr_freq(int freq)
-{
-    int max_freq = 0;
-    int ddr_freq = 0;
-	int val = 0;
-	int maxPlatformDDRFreq = 0;
-
-       bool ret = 0;
-	ret = get_hw_config_int("camera/h30lCamHardwareUnique", &val, NULL);
-	if (!ret) {
-		val = 0;
-		print_info("%s get camera/h30lCamHardwareUnique fail", __func__);
-	}
-
-	if(1 == val){
-		maxPlatformDDRFreq = ISP_DDR2_BLOCK_PROFILE;
-	}else{
-		maxPlatformDDRFreq = ISP_DDR_BLOCK_PROFILE;
-	}	
-    max_freq = get_ddr_valid_maxfreq();
-    if ((max_freq <= 0) || (max_freq > maxPlatformDDRFreq)) {
-        print_error("get ddr valid max freq (%d) failed, use default freq %d!\n", max_freq, maxPlatformDDRFreq);
-        max_freq = maxPlatformDDRFreq;
-    }
-
-    ddr_freq = (max_freq < freq) ? max_freq : freq;
-    print_debug("%s lock_freq = %d isp_data.ddr_lock_freq = %d ",__func__, ddr_freq, isp_data.ddr_lock_freq);
-
-    if (!pm_qos_request_active(&isp_data.qos_req_ddr_min_profile)) {
-        pm_qos_add_request(&isp_data.qos_req_ddr_min_profile, PM_QOS_DDR_MIN_PROFILE, ddr_freq);
-        print_info("%s, lock ddr freq %d.", __func__, ddr_freq);
-        isp_data.ddr_lock_freq = ddr_freq;
-    } else {
-        if (ddr_freq == isp_data.ddr_lock_freq) {
-            print_info("%s, ddr freq %d not change, do nothing.", __func__, ddr_freq);
-        } else {
-            pm_qos_update_request(&isp_data.qos_req_ddr_min_profile, ddr_freq);
-            print_info("%s, update lock ddr freq %d.", __func__, ddr_freq);
-            isp_data.ddr_lock_freq = ddr_freq;
-        }
-    }
-}
-
-void k3_isp_unlock_ddr_freq(void)
-{
-    if (!pm_qos_request_active(&isp_data.qos_req_ddr_min_profile)) {
-        print_warn("%s, now ddr freq hasn't been locked.",__func__);
-        return;
-    }
-
-    pm_qos_remove_request(&isp_data.qos_req_ddr_min_profile);
-    print_info("%s, unlock ddr freq %d.", __func__, isp_data.ddr_lock_freq);
-    isp_data.ddr_lock_freq = 0;
 }
 
 void k3_isp_try_cpuidle_vote(void)

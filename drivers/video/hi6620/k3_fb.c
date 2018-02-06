@@ -56,13 +56,9 @@
 
 struct pm_qos_request_list gedc_pm_qos_req;
 struct pm_qos_request_list gdfs_pm_qos_req;
-struct pm_qos_request_list g_cpunum_qos;
 
 #if defined(CONFIG_OVERLAY_COMPOSE)
 #include <linux/proc_fs.h>
-#ifndef PC_UT_TEST_ON
-#include <linux/ipps.h>
-#endif
 #ifdef	CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/string.h>
@@ -98,7 +94,6 @@ int g_debug_camerause = 0;
 static int lcd_check_esd = 1;
 u32 frame_count = 0;
 int isFHD = 0;
-#define PM_QOS_CPU_MIN_NUMBER (2)
 
 STATIC int k3_fb_resource_initialized;
 static struct platform_device *pdev_list[K3_FB_MAX_DEV_LIST] = {0};
@@ -765,195 +760,6 @@ STATIC void k3_fb_overlay_compose_edc1_poweroff(struct k3_fb_data_type *k3fd)
 }
 #endif //EDC_CH_CHG_SUPPORT
 
-
-static void k3_fb_ippsclient_add(struct ipps_device *device)
-{
-}
-
-static void k3_fb_ippsclient_remove(struct ipps_device *device)
-{
-}
-
-#ifndef PC_UT_TEST_ON
-static struct ipps_client k3_fb_ipps_client = {
-    .name   = "k3_fb_ddr_ipps",
-    .add    = k3_fb_ippsclient_add,
-    .remove = k3_fb_ippsclient_remove
-};
-
-static u32 k3_fb_get_current_ddr_freq(void)
-{
-    /*
-        return value:
-        58000, 120000, 360000,450000
-    */
-    u32 freq = 0;
-
-    ipps_get_current_freq(&k3_fb_ipps_client, IPPS_OBJ_DDR, &freq);
-    k3fb_logi_display_debugfs("get_current_ddr_freq[%d]\n",freq);
-    return freq;
-}
-
-static void k3_fb_overlay_compose_ddr_workqueue(struct work_struct *ws)
-{
-    unsigned long flags;
-    struct k3_fb_data_type *k3fd = NULL;
-    bool need_request = false;
-    u32 curr_ddr_freq;
-
-    k3fd  = container_of(ws, struct k3_fb_data_type, ovc_ddr_work);
-    BUG_ON(k3fd == NULL);
-
-    curr_ddr_freq = k3_fb_get_current_ddr_freq();
-
-    spin_lock_irqsave(&gralloc_overlay_slock, flags);
-    k3fb_logi_display_debugfs("ddr_workqueue: old_min = %d, new_min = %d , curr freq = %d \n", k3fd->ddr_min_freq_saved, k3fd->ddr_min_freq, curr_ddr_freq);
-    /* printk("ddr_workqueue: old_min = %d, new_min = %d , curr freq = %d \n", ddr_min_freq_saved, k3fd->ddr_min_freq, curr_ddr_freq); */
-    if (k3fd->ddr_min_freq_saved !=  k3fd->ddr_min_freq) {
-        if ((k3fd->ddr_min_freq_saved > k3fd->ddr_min_freq)){
-            curr_ddr_freq = 0;
-        }
-        need_request = true;
-        k3fd->ddr_min_freq_saved = k3fd->ddr_min_freq;
-    }
-
-    k3fd->ddr_curr_freq = curr_ddr_freq;
-    spin_unlock_irqrestore(&gralloc_overlay_slock, flags);
-
-    if (need_request) {
-        pm_qos_update_request(&k3fd->ovc_ddrminprofile, k3fd->ddr_min_freq_saved);
-    }
-}
-
-static int k3_fb_overlay_compose_create_ddr_workqueue(struct k3_fb_data_type *k3fd)
-{
-    k3fd->ovc_ddr_wq = create_singlethread_workqueue("ovc_ddr_freq_workqueue");
-    if (!k3fd->ovc_ddr_wq) {
-        k3fb_loge("failed to create ovc ddr workqueue!\n");
-        return -1;
-    }
-
-    INIT_WORK(&k3fd->ovc_ddr_work, k3_fb_overlay_compose_ddr_workqueue);
-    return 0;
-}
-#endif
-static int k3_fb_overlay_compose_destroy_ddr_workqueue(struct k3_fb_data_type *k3fd)
-{
-    if (k3fd->ovc_ddr_wq) {
-        destroy_workqueue(k3fd->ovc_ddr_wq);
-        k3fd->ovc_ddr_wq = NULL;
-    }
-    return 0;
-}
-
-
-#define MIN_FULL_OVC_0 (75000)
-#define MIN_FULL_OVC_1 (266000)
-#define MIN_FULL_OVC_1_ROTATE (360000)
-#define MIN_FULL_OVC_2 (360000)
-#define MIN_FULL_OVC_2_ROTATE (533000)
-#define MIN_FULL_OVC_3 (360000)
-#define MIN_FULL_OVC_3_ROTATE (533000)
-#define MIN_FULL_OVC_4 (533000)
-#define MIN_FULL_OVC_4_ROTATE (533000)
-#define MIN_FULL_OVC_5 (533000)
-#define MIN_FULL_OVC_5_ROTATE (533000)
-#define LAYER_INTERSECT_COUNT_1  (266000)
-#define LAYER_INTERSECT_COUNT_2  (360000)
-#define LAYER_INTERSECT_COUNT_3  (533000)
-#define OVC_EDC_THICK_MAX_LANE  (400)
-
-STATIC u32 k3_fb_overlay_compose_get_target_ddr_min_freq(u32 count, u32 rotate)
-{
-    u32 min_ddr_freq = 0;
-    if (isFHD) {
-	switch (count) {
-	case 1:
-		min_ddr_freq = LAYER_INTERSECT_COUNT_1;
-		break;
-	case 2:
-		min_ddr_freq = LAYER_INTERSECT_COUNT_2;
-		break;
-	case 3:
-		min_ddr_freq = LAYER_INTERSECT_COUNT_3;
-		break;
-	default:
-		min_ddr_freq = MIN_FULL_OVC_0;
-		break;
-	}
-    } else {
-    switch (count) {
-        case 1:
-            min_ddr_freq = (rotate == 0) ? MIN_FULL_OVC_1 : MIN_FULL_OVC_1_ROTATE;
-            break;
-        case 2:
-            min_ddr_freq = (rotate == 0) ? MIN_FULL_OVC_2 : MIN_FULL_OVC_2_ROTATE;
-            break;
-        case 3:
-            min_ddr_freq = (rotate == 0) ? MIN_FULL_OVC_3 : MIN_FULL_OVC_3_ROTATE;
-            break;
-	  case 4:
-            min_ddr_freq = (rotate == 0) ? MIN_FULL_OVC_4 : MIN_FULL_OVC_4_ROTATE;
-            break;
-	  case 5:
-            min_ddr_freq = (rotate == 0) ? MIN_FULL_OVC_5 : MIN_FULL_OVC_5_ROTATE;
-            break;
-        default:
-            min_ddr_freq = MIN_FULL_OVC_0;
-            break;
-    }
-    }
-    return min_ddr_freq;
-}
-
-STATIC int k3_fb_overlay_compose_check_ddr_min_freq(struct k3_fb_data_type *k3fd, u32 count, u32 rotate)
-{
-    /* 0: overlay enable
-       -1: overlay disbale
-    */
-    unsigned long flags;
-    u32 min_ddr_freq = 0;
-    int ret = -1;
-    bool need_qw = false;
-
-    BUG_ON(k3fd->ovc_ddr_wq == NULL);
-
-    min_ddr_freq = k3_fb_overlay_compose_get_target_ddr_min_freq(count, rotate);
-
-    spin_lock_irqsave(&gralloc_overlay_slock, flags);
-    k3fb_logi_display_debugfs("INCREASE: target ddr = %d, curr ddr = %d \n", min_ddr_freq, k3fd->ddr_min_freq);
-    /* printk("INCREASE: target ddr = %d, curr ddr = %d \n", min_ddr_freq, k3fd->ddr_min_freq); */
-    if (isFHD == 1) {
-		 k3fd->ddr_min_freq = min_ddr_freq;
-	        queue_work(k3fd->ovc_ddr_wq, &k3fd->ovc_ddr_work);
-		  if (k3fd->ddr_curr_freq >= min_ddr_freq) {
-	        	ret = 0;
-	    	  }
-     } else {
-
-	    if (min_ddr_freq > k3fd->ddr_min_freq) {
-	        need_qw = true;
-	        k3fd->ddr_min_freq = min_ddr_freq;
-	        queue_work(k3fd->ovc_ddr_wq, &k3fd->ovc_ddr_work);
-	    }
-
-	    k3fb_logi_display_debugfs(" k3_fb_get_current_ddr_freq = %d \n",  k3fd->ddr_curr_freq);
-	    /* printk("%s: k3_fb_get_current_ddr_freq = %d \n", __func__, k3fd->ddr_curr_freq); */
-	    if (k3fd->ddr_curr_freq >= min_ddr_freq) {
-	        ret = 0;
-	    } else {
-	        if (!need_qw) {
-	            queue_work(k3fd->ovc_ddr_wq, &k3fd->ovc_ddr_work);
-	        }
-	        k3fd->ovc_ddr_failed = 1;
-	    }
-      }
-    spin_unlock_irqrestore(&gralloc_overlay_slock, flags);
-
-    return ret;
-}
-
-
 void k3_fb_overlay_compose_data_clear(struct k3_fb_data_type *k3fd)
 {
     int i;
@@ -983,20 +789,6 @@ void k3_fb_overlay_compose_data_clear(struct k3_fb_data_type *k3fd)
         k3fd->ovc_ch_display_addr[i] = 0;
         memset(&k3fd->ovc_req[i], 0, sizeof(k3fd->ovc_req[i]));
     }
-
-    if (k3fd->ddr_min_freq > 0) {
-        k3fd->ddr_min_freq = 0;
-#ifndef PC_UT_TEST_ON
-        pm_qos_update_request(&k3fd->ovc_ddrminprofile, k3fd->ddr_min_freq);
-#endif
-    }
-    k3fd->ddr_min_freq_saved = 0;
-    k3fd->ddr_curr_freq = 0;
-    k3fd->ovc_ddr_failed = 0;
-#if defined(CONFIG_OVERLAY_COMPOSE)
-    k3fd->ddrIdleCount = 0;
-#endif
-
 }
 
 int k3_fb_overlay_fence_create(struct sw_sync_timeline * timeline, const char * fence_name, unsigned value)
@@ -1069,7 +861,6 @@ static void k3_fb_gralloc_overlay_ch_process(struct k3_fb_data_type *k3fd)
     volatile u32 ch_addr[MAX_EDC_CHANNEL];
     int i;
     volatile u32 ch1_rotate = 0;
-    u32 min_ddr_freq = 0;
     bool addr_changed = false;
 
     spin_lock(&gralloc_overlay_slock);
@@ -1127,22 +918,7 @@ static void k3_fb_gralloc_overlay_ch_process(struct k3_fb_data_type *k3fd)
         k3fd->ovc_ch_display_addr[i] = ch_addr[i];
     }
 
-    if (isFHD == 0) {
-	    	min_ddr_freq = k3_fb_overlay_compose_get_target_ddr_min_freq(ch1_en + ch2_en + gnew1_en + gnew2_en + crs_en, ch1_rotate);
-		if (min_ddr_freq < k3fd->ddr_min_freq) {
-		        if (k3fd->ovc_ddr_failed && addr_changed) {
-		            k3fd->ovc_ddr_failed = 0;
-		        } else if (k3fd->ovc_ddr_failed == 0) {
-		            k3fd->ddr_min_freq = min_ddr_freq;
-		            if (k3fd->ovc_ddr_wq) {
-		                queue_work(k3fd->ovc_ddr_wq, &k3fd->ovc_ddr_work);
-		            }
-		        }
-	    }
-    }
-
     spin_unlock(&gralloc_overlay_slock);
-
 }
 
 static char gBufferUsed = 0;
@@ -1347,11 +1123,6 @@ static int k3_fb_overlay_compose_play(struct fb_info *info, struct overlay_data 
 	    trace_dot(SF, "8", 0);
 	#endif
         if (cmd_mode) {
-        #if defined(CONFIG_OVERLAY_COMPOSE)
-    	    /* Clear idle count */
-	    k3fd->ddrIdleCount = 0;
-	    #endif
-
             k3fb_te_inc(k3fd, true, false);
             set_LDI_CTRL_ldi_en(k3fd->edc_base, K3_ENABLE);
 
@@ -1554,38 +1325,6 @@ STATIC int k3_fb_overlay_compose_partial_play(struct fb_var_screeninfo *var, str
 
 #endif
 
-
-STATIC int k3fb_ovc_check_ddr_freq(struct fb_info *info, unsigned long *argp)
-{
-    char buf[8];
-    int buf_len;
-    int ret = 0;
-    struct k3_fb_data_type *k3fd = NULL;
-    u32 hwc_count;
-    u32 hwc_rotate;
-
-    BUG_ON(info == NULL);
-    k3fd = (struct k3_fb_data_type *)info->par;
-    BUG_ON(k3fd == NULL);
-
-    if (argp == NULL) {
-        return -EFAULT;
-    }
-    buf_len = min(strlen((char *)argp), sizeof(buf) - 1);
-    ret = copy_from_user(buf, argp, buf_len);
-    if (ret) {
-        k3fb_loge("copy from user failed \n");
-        return -EFAULT;
-    }
-
-    buf[buf_len] = '\0';
-    k3_fb_overlay_compose_parse_buffer(buf, &hwc_count, &hwc_rotate);
-    /* printk("%s: count = %d, rotate = %d \n", __func__, hwc_count, hwc_rotate); */
-    ret = k3_fb_overlay_compose_check_ddr_min_freq(k3fd, hwc_count, hwc_rotate);
-    k3fb_logi_display_debugfs("check_ddr_freq return[%d]\n",ret);
-    return ret;
-}
-
 #ifdef CONFIG_FB_CHECK_MIPI_TR
 static int k3_fb_monitor_lcd_status(struct k3_fb_data_type *k3fd)
 {
@@ -1723,18 +1462,6 @@ static int k3_fb_overlay_compose_init(struct k3_fb_data_type *k3fd)
     ent->read_proc = k3_fb_gralloc_overlay_read_proc;
     ent->write_proc = k3_fb_gralloc_overlay_write_proc;
 
-#ifndef PC_UT_TEST_ON
-    pm_qos_add_request(&k3fd->ovc_ddrminprofile, PM_QOS_DDR_MIN_PROFILE, 0);
-
-    err = ipps_register_client(&k3_fb_ipps_client);
-    if (err != 0) {
-        k3fb_loge("k3_fb_ddr_ipps register client failed, please check!");
-        return err;
-    }
-
-    k3_fb_overlay_compose_create_ddr_workqueue(k3fd);
-#endif
-
     return err;
 }
 
@@ -1742,13 +1469,6 @@ static int k3_fb_overlay_compose_init(struct k3_fb_data_type *k3fd)
 static void k3_fb_overlay_compose_deinit(struct k3_fb_data_type *k3fd)
 {
     remove_proc_entry(OVC_BUFFER_SYNC_FILE, NULL);
-#ifndef PC_UT_TEST_ON
-    pm_qos_remove_request(&k3fd->ovc_ddrminprofile);
-    ipps_unregister_client(&k3_fb_ipps_client);
-#endif
-    k3_fb_overlay_compose_destroy_ddr_workqueue(k3fd);
-
-
 }
 
 static void k3_fb_overlay_compose_reset_pipe(struct fb_info *info)
@@ -1978,10 +1698,10 @@ static int k3fb_frc_get_fps(struct k3_fb_data_type *k3fd)
 		case K3_FB_FRC_GAME_PLAYING:
 		case K3_FB_FRC_GAME_PLAYING | K3_FB_FRC_IDLE_PLAYING:
 			fps = K3_FB_FRC_GAME_FPS;
-		    break;
-        case K3_FB_FRC_SPECIAL_GAME_PLAYING:
-        case K3_FB_FRC_SPECIAL_GAME_PLAYING | K3_FB_FRC_IDLE_PLAYING:
-            fps = K3_FB_FRC_SPECIAL_GAME_FPS;
+			break;
+		case K3_FB_FRC_SPECIAL_GAME_PLAYING:
+		case K3_FB_FRC_SPECIAL_GAME_PLAYING | K3_FB_FRC_IDLE_PLAYING:
+			fps = K3_FB_FRC_SPECIAL_GAME_FPS;
 			break;
 		case K3_FB_FRC_VIDEO_IN_GAME:
 		case K3_FB_FRC_VIDEO_IN_GAME | K3_FB_FRC_IDLE_PLAYING:
@@ -1995,11 +1715,9 @@ static int k3fb_frc_get_fps(struct k3_fb_data_type *k3fd)
 		case K3_FB_FRC_WEBKIT_PLAYING | K3_FB_FRC_IDLE_PLAYING:
 			fps = K3_FB_FRC_WEBKIT_FPS;
 			break;
-
-	    case K3_FB_FRC_VIDEO_PLAYING:
-	        fps = K3_FB_FRC_IDLE_FPS;
+		case K3_FB_FRC_VIDEO_PLAYING:
+			fps = K3_FB_FRC_IDLE_FPS;
 			break;
-
 		case K3_FB_FRC_NONE_PLAYING:
 		default:
 			fps = K3_FB_FRC_NORMAL_FPS;
@@ -2468,31 +2186,6 @@ static enum hrtimer_restart k3fb_cmd_vsync(struct hrtimer *timer)
 		k3fd->vsync_info.timestamp = ktime_get();
 		wake_up_interruptible_all(&k3fd->vsync_info.wait);
 	}
-
-#if defined(CONFIG_OVERLAY_COMPOSE)
-	/*for overlay idle detect (only cmd display mode)*/
-	if(!k3fd->vsync_info.active && k3fd->panel_info.type == PANEL_MIPI_CMD){
-
-		if(k3fd->ddrIdleCount < K3_FB_EDC_IDLE_TIMEOUT){
-			k3fd->ddrIdleCount++;
-			if( k3fd->ddrIdleCount == K3_FB_EDC_IDLE_TIMEOUT) {
-				u32 min_ddr_freq;
-
-				min_ddr_freq = k3_fb_overlay_compose_get_target_ddr_min_freq(0, 0);
-				spin_lock(&gralloc_overlay_slock);
-				if (min_ddr_freq < k3fd->ddr_min_freq && k3fd->ovc_ddr_wq){
-					k3fd->ddr_min_freq = min_ddr_freq;
-					queue_work(k3fd->ovc_ddr_wq, &k3fd->ovc_ddr_work);
-				}
-				spin_unlock(&gralloc_overlay_slock);
-
-			}
-		}
-	}else{
-		k3fd->ddrIdleCount = 0;
-	}
-#endif
-
 	hrtimer_start(&k3fd->cmd_vsync_hrtimer, ktime_set(0, NSEC_PER_SEC / fps), HRTIMER_MODE_REL);
 	return HRTIMER_NORESTART;
 }
@@ -3138,11 +2831,6 @@ STATIC int k3fb_vsync_int_set(struct fb_info *info, unsigned long *argp)
     			k3fb_te_dec(k3fd, false, false);
     		} else {
     			k3fd->use_cmd_vsync = true;
-
-    		#if defined(CONFIG_OVERLAY_COMPOSE)
-    			// Clear idle count
-			k3fd->ddrIdleCount = 0;
-		    #endif
     			k3fb_te_inc(k3fd, false, false);
     		}
         }
@@ -3333,7 +3021,6 @@ void k3_fb_power_off_vote(struct k3_fb_data_type *k3fd)
     if (k3fd->index == 0){
         pm_qos_remove_request(&gedc_pm_qos_req);
         pm_qos_remove_request(&gdfs_pm_qos_req);
-	 pm_qos_remove_request(&g_cpunum_qos);
     }
 }
 
@@ -3397,10 +3084,9 @@ int k3_fb_blank_sub(int blank_mode, struct fb_info *info,bool sem)
 				}
 
 				if (k3fd->index == 0) {
-				#if defined(CONFIG_OVERLAY_COMPOSE)
-				k3fd->ddrIdleCount = 0;
+#if defined(CONFIG_OVERLAY_COMPOSE)
 		        k3fd->dsi_clk_last = k3fd->panel_info.mipi.dsi_bit_clk;
-                #endif
+#endif
             if (k3fd->panel_info.type == PANEL_MIPI_CMD)
 					hrtimer_restart(&k3fd->cmd_vsync_hrtimer);
 				}
@@ -3970,10 +3656,6 @@ STATIC int k3_fb_pan_display_cmd_mode(struct fb_var_screeninfo *var,
 		up(&k3_fb_blank_sem);
 		return -ETIME;
 	}
-#if defined(CONFIG_OVERLAY_COMPOSE)
-	/* Clear idle count */
-       k3fd->ddrIdleCount = 0;
-#endif
 	k3fb_te_inc(k3fd, true, false);
       set_LDI_CTRL_ldi_en(k3fd->edc_base, K3_ENABLE);
     /* enable fake vsync timer */
@@ -4538,11 +4220,6 @@ STATIC int k3_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 	case K3FB_G2D_LOCK_FREQ:
 		ret = k3fb_g2d_lock_freq(info, argp);
 		break;
-#if defined(CONFIG_OVERLAY_COMPOSE)
-	case K3FB_OVC_CHECK_DDR_FREQ:
-		ret = k3fb_ovc_check_ddr_freq(info, argp);
-		break;
-#endif /* CONFIG_OVERLAY_COMPOSE */
 #ifdef CONFIG_FOLLOWABILITY
         case K3FB_FOLLOW_START:
             k3fb_follow_start();
@@ -4753,8 +4430,6 @@ static void k3fb_late_resume(struct early_suspend *h)
 	k3fb_logi("index=%d, enter!\n", k3fd->index);
 
 	if (k3fd->index == 0) {
-		pm_qos_add_request(&g_cpunum_qos, PM_QOS_CPU_NUMBER_MIN, 0);
-	       pm_qos_update_request(&g_cpunum_qos, PM_QOS_CPU_MIN_NUMBER);
 
 		if (k3_fb_blank_sub(FB_BLANK_UNBLANK, k3fd->fbi,1) != 0) {
 			k3fb_loge("failed to late resume!\n");
@@ -5151,8 +4826,6 @@ if(0==get_resolution_type())
 		k3fd->panel_power_on = true;
 
 	       k3_fb_power_on_vote(k3fd);
-              pm_qos_add_request(&g_cpunum_qos, PM_QOS_CPU_NUMBER_MIN, 0);
-	       pm_qos_update_request(&g_cpunum_qos, PM_QOS_CPU_MIN_NUMBER);
 
 		if (pdata && pdata->set_fastboot) {
 			pdata->set_fastboot(k3fd->pdev);

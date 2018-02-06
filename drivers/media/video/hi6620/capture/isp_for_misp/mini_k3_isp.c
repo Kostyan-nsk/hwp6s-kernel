@@ -116,10 +116,6 @@ static mini_camera_capability k3_cap[] = {
 static void k3_isp_set_default(void);
 static void k3_isp_calc_zoom(camera_state state, scale_strategy_t scale_strategy, u32 *in_width, u32 *in_height);
 
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-static struct pm_qos_request_list g_specialpolicy;
-#endif
-
 /*
  **************************************************************************
  * FunctionName: k3_isp_check_config;
@@ -717,9 +713,6 @@ int mini_k3_isp_stream_on(struct v4l2_pix_format *pixfmt,
 			isp_data.sensor->update_flip(isp_data.pic_attr[state].in_width, isp_data.pic_attr[state].in_height);
 	//}
 	if (state == STATE_PREVIEW) {
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-		/* pm_qos_update_request(&isp_data.qos_request, DDR_PREVIEW_MIN_PROFILE); */
-#endif
 		ret = isp_hw_ctl->start_preview(&isp_data.pic_attr[state], isp_data.sensor, isp_data.cold_boot, isp_data.scene);
 
 		//add for zoom expo
@@ -755,10 +748,6 @@ int mini_k3_isp_stream_on(struct v4l2_pix_format *pixfmt,
 			}
 			/* modify by zhoutian for mini-ISP flash end >*/
 		}
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-		/* pm_qos_update_request(&isp_data.qos_request, DDR_CAPTURE_MIN_PROFILE); */
-#endif
-
 
         if (CAMERA_ZSL_ON == mini_k3_isp_get_zsl_state())
         {
@@ -1008,16 +997,8 @@ int mini_k3_isp_init(struct platform_device *pdev, mini_data_queue_t *data_queue
 	/* init isp_data struct */
 	k3_isp_set_default();
 
-    /* req ddr freq lock */
-    mini_k3_isp_lock_ddr_freq();
-
     mini_k3_isp_try_cpuidle_vote();
 
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_add_request(&g_specialpolicy, PM_QOS_IPPS_POLICY, PM_QOS_IPPS_POLICY_DEFAULT_VALUE);
-	pm_qos_add_request(&isp_data.qos_request, PM_QOS_DDR_MIN_PROFILE, DDR_PREVIEW_MIN_PROFILE);
-	pm_qos_add_request(&isp_data.qos_request_gpu, PM_QOS_GPU_PROFILE_BLOCK, GPU_INIT_BLOCK_PROFILE);
-#endif
 	/* init registers */
 	isp_hw_ctl = mini_get_isp_hw_controller();
 
@@ -1082,9 +1063,6 @@ int mini_k3_isp_exit(void *par)
 	if (NULL != isp_data.sensor && isp_data.sensor->isp_location == CAMERA_USE_K3ISP)
 		if (isp_hw_ctl->isp_tune_ops_exit)
 			isp_hw_ctl->isp_tune_ops_exit();
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_update_request(&g_specialpolicy, PM_QOS_IPPS_POLICY_DEFAULT_VALUE);
-#endif
 
 	if (isp_data.sensor) {
 		misp_flush_log();
@@ -1102,15 +1080,6 @@ int mini_k3_isp_exit(void *par)
 	mini_k3_isp_poweroff();
 	mini_k3_ispio_deinit();
 	isp_hw_ctl->isp_hw_deinit();
-
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_remove_request(&isp_data.qos_request);
-	pm_qos_remove_request(&g_specialpolicy);
-	pm_qos_remove_request(&isp_data.qos_request_gpu);
-#endif
-
-    /* cancel and release ddr freq lock */
-    mini_k3_isp_unlock_ddr_freq();
 
     mini_k3_isp_cancel_cpuidle_vote();
 
@@ -1953,15 +1922,6 @@ int mini_k3_isp_set_zoom_and_center(char preview_running, u32 zoom, u32 user_cen
 		}
 	}
 
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	if (0 == ret) {
-		if (zoom > 10) { // total is 30 steps
-			pm_qos_update_request(&isp_data.qos_request_gpu, GPU_BLOCK_PROFILE);
-		} else {
-			pm_qos_update_request(&isp_data.qos_request_gpu, GPU_INIT_BLOCK_PROFILE);
-		}
-	}
-#endif
 	return ret;
 }
 
@@ -2486,9 +2446,7 @@ void mini_k3_isp_set_shoot_mode(camera_shoot_mode shoot_mode)
 
 void mini_k3_isp_set_pm_mode(u8 pm_mode)
 {
-#if 0 //#ifdef CONFIG_CPU_FREQ_GOV_K3HOTPLUG
-	pm_qos_update_request(&g_specialpolicy, pm_mode);
-#endif
+
 }
 
 int mini_k3_isp_get_current_vts(void)
@@ -3346,30 +3304,6 @@ int mini_get_ddr_valid_maxfreq(void)
     print_info("%s: freq = %d.", __func__, ddr_freq);
 
     return ddr_freq;
-}
-
-void mini_k3_isp_lock_ddr_freq(void)
-{
-    int  ddr_freq;
-
-    ddr_freq = mini_get_ddr_valid_maxfreq();
-    if (ddr_freq <= 0) {
-        print_error("get ddr valid max freq (%d) failed, use default freq %d!\n", ddr_freq, (int)ISP_DDR_BLOCK_PROFILE);
-        ddr_freq = ISP_DDR_BLOCK_PROFILE;
-    }
-
-    if (ddr_freq > ISP_DDR_BLOCK_PROFILE) {
-        ddr_freq = ISP_DDR_BLOCK_PROFILE;
-    }
-
-    pm_qos_add_request(&isp_data.qos_req_ddr_freq, PM_QOS_DDR_PROFILE_BLOCK, ddr_freq);
-    print_info("%s, lock ddr freq is %d.", __func__, ddr_freq);
-}
-
-void mini_k3_isp_unlock_ddr_freq(void)
-{
-    pm_qos_remove_request(&isp_data.qos_req_ddr_freq);
-    print_info("%s, unlock ddr freq.", __func__);
 }
 
 void mini_k3_isp_try_cpuidle_vote(void)

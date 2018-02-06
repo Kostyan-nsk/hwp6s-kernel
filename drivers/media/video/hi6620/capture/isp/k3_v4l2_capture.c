@@ -2789,8 +2789,6 @@ static int k3_v4l2_suspend(struct platform_device *pdev, pm_message_t state)
 		/* close camera & isp hardware */
 		k3_isp_poweroff();
 
-        k3_isp_unlock_ddr_freq()/* cancel and release ddr freq lock */;
-
         k3_isp_cancel_cpuidle_vote();
 	}
 	print_info("Camera suspend successfully");

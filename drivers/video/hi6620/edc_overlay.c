@@ -35,7 +35,7 @@
 
 #define CAMERA_XRES_TEST 320
 #define CAMERA_YRES_TEST 480
-#define DDR_FREQ_POWER_ON 533000
+//#define DDR_FREQ_POWER_ON 533000
 
 /*--------------------VERTICLE--------------------*/
 /* enlarge */
@@ -3028,24 +3028,9 @@ int edc_fb_resume(struct fb_info *info)
 
 	edc_base = k3fd->edc_base;
 
-	down(&k3fd->sem);   
-    
+	down(&k3fd->sem);
 
-    if (k3fd->index == 0) {
-#ifndef PC_UT_TEST_ON
-
-        	k3fd->ddr_min_freq = DDR_FREQ_POWER_ON;
-        	pm_qos_update_request(&k3fd->ovc_ddrminprofile, k3fd->ddr_min_freq);
-		 k3fd->ddr_min_freq_saved = k3fd->ddr_min_freq;
-#endif
-
-    }
-   	
-    if (k3fd->index == 0) {
-        edc_clk = EDC_CORE_CLK_RATE;		
-    } else {
-        edc_clk = EDC_CORE_CLK_RATE;//(k3fd->panel_info.yres < 720) ? EDC_CORE_CLK_RATE : ( k3fd->panel_info.clk_rate * 12 / 10);
-    }
+        edc_clk = EDC_CORE_CLK_RATE;
 
     /* 1: set clk division, and choose pll source */
 	if (clk_set_rate(k3fd->edc_clk, edc_clk) != 0) {

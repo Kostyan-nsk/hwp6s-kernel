@@ -2976,8 +2976,6 @@ static int k3_v4l2_resume(struct platform_device *pdev)
 		print_error("BUG: should not be HERE !! [open_count=%d]",
 			    v4l2_ctl.open_count);
 
-        mini_k3_isp_lock_ddr_freq()/* req ddr freq lock */;
-
         mini_k3_isp_try_cpuidle_vote();
 
         #if 0
@@ -3026,8 +3024,6 @@ static int k3_v4l2_suspend(struct platform_device *pdev, pm_message_t state)
 
 		/* close camera & isp hardware */
 		mini_k3_isp_poweroff();
-
-        mini_k3_isp_unlock_ddr_freq()/* cancel and release ddr freq lock */;
 
         mini_k3_isp_cancel_cpuidle_vote();
 	}
