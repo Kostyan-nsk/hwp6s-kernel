@@ -369,7 +369,14 @@ out:
 static ssize_t show_##file_name				\
 (struct cpufreq_policy *policy, char *buf)		\
 {							\
-	return sprintf(buf, "%u\n", policy->object);	\
+	unsigned int ret;				\
+	struct cpufreq_policy cpu_policy;		\
+							\
+	ret = cpufreq_get_policy(&cpu_policy, 0);	\
+	if (ret)					\
+		return -EINVAL;				\
+							\
+	return sprintf(buf, "%u\n", cpu_policy.object);	\
 }
 
 show_one(cpuinfo_min_freq, cpuinfo.min_freq);
