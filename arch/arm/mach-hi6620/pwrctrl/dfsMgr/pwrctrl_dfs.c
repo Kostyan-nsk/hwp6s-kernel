@@ -9,6 +9,8 @@
 #include <mali_balong_pmm.h>
 #include "soc_ao_sctrl_interface.h"
 #include <linux/wakelock.h>
+#include <mach/pmussi_drv.h>
+#include <asm/cacheflush.h>
 
 
 /* CPU 当前频率值保存,避免频繁发消息获取 0-3字节:acpu 4-7字节:DDR 8-11字节:GPU*/
@@ -112,6 +114,28 @@ local_t dfs_ret pwrctrl_dfs_cmd_set_policy(s32_t policy_id, void *policy_buf, un
     
     if(DFS_POLICY_ID_ACPU == policy_id)
     {
+	unsigned int sc_ctrl1;
+	void *p;
+
+	sc_ctrl1 = ioread32(AOSCTRL_SC_SYS_CTRL1);
+	sc_ctrl1 |= 0xc0000000;
+	sc_ctrl1 &= ~0x0000c000;
+	iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
+
+	p = ioremap(REG_BASE_SRAM_MCU, REG_SRAM_MCU_IOSIZE);
+	if (p) {
+	    iowrite32(IO_ADDRESS(ACPU_POLICY_STROE_AREA) + POLICY_LEN * MAX_PROFILE_NUM_CPU * poli_id, p + 0x00017DB0);
+	    iounmap(p);
+	    flush_all_cpu_caches();
+	    outer_flush_all();
+	}
+	else
+	    pr_err("%s ioremap failed \n", __func__);
+
+	sc_ctrl1 = readl(AOSCTRL_SC_SYS_CTRL1);
+	sc_ctrl1 |= 0xc000c000;
+	iowrite32(sc_ctrl1, AOSCTRL_SC_SYS_CTRL1);
+
         cur_poli_addr = IO_ADDRESS(ACPU_POLICY_CUR_POLICY);
     }
     else if(DFS_POLICY_ID_DDR == policy_id)
