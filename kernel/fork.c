@@ -889,7 +889,6 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 {
 #ifdef CONFIG_BLOCK
 	struct io_context *ioc = current->io_context;
-	struct io_context *new_ioc;
 
 	if (!ioc)
 		return 0;
@@ -901,12 +900,11 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 		if (unlikely(!tsk->io_context))
 			return -ENOMEM;
 	} else if (ioprio_valid(ioc->ioprio)) {
-		new_ioc = get_task_io_context(tsk, GFP_KERNEL, NUMA_NO_NODE);
-		if (unlikely(!new_ioc))
+		tsk->io_context = alloc_io_context(GFP_KERNEL, -1);
+		if (unlikely(!tsk->io_context))
 			return -ENOMEM;
 
-		new_ioc->ioprio = ioc->ioprio;
-		put_io_context(new_ioc);
+		tsk->io_context->ioprio = ioc->ioprio;
 	}
 #endif
 	return 0;

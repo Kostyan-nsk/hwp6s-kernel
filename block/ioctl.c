@@ -179,26 +179,6 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
 
 /*
- * Is it an unrecognized ioctl? The correct returns are either
- * ENOTTY (final) or ENOIOCTLCMD ("I don't know this one, try a
- * fallback"). ENOIOCTLCMD gets turned into ENOTTY by the ioctl
- * code before returning.
- *
- * Confused drivers sometimes return EINVAL, which is wrong. It
- * means "I understood the ioctl command, but the parameters to
- * it were wrong".
- *
- * We should aim to just fix the broken drivers, the EINVAL case
- * should go away.
- */
-static inline int is_unrecognized_ioctl(int ret)
-{
-	return	ret == -EINVAL ||
-		ret == -ENOTTY ||
-		ret == -ENOIOCTLCMD;
-}
-
-/*
  * always keep this in sync with compat_blkdev_ioctl()
  */
 int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
@@ -215,7 +195,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			return -EACCES;
 
 		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
-		if (!is_unrecognized_ioctl(ret))
+		/* -EINVAL to handle old uncorrected drivers */
+		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
 
 		fsync_bdev(bdev);
@@ -224,7 +205,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 
 	case BLKROSET:
 		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
-		if (!is_unrecognized_ioctl(ret))
+		/* -EINVAL to handle old uncorrected drivers */
+		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
