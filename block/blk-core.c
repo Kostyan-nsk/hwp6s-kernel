@@ -987,11 +987,6 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	struct request *rq;
 
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-		return NULL;
-
-	BUG_ON(rw != READ && rw != WRITE);
-
 	spin_lock_irq(q->queue_lock);
 	if (gfp_mask & __GFP_WAIT)
 		rq = get_request_wait(q, rw, NULL);
@@ -1565,9 +1560,6 @@ generic_make_request_checks(struct bio *bio)
 		       queue_max_hw_sectors(q));
 		goto end_io;
 	}
-
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-		goto end_io;
 
 	part = bio->bi_bdev->bd_part;
 	if (should_fail_request(part, bio->bi_size) ||
