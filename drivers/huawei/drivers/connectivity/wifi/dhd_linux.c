@@ -5039,14 +5039,6 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 #endif /* CONFIG_BCMDHD_NVRAM_PATH */
 	}
 	
-#ifdef CONFIG_BCMDHD_FW_PATH
-	bcm_strncpy_s(dhdinfo->fw_path, sizeof(dhdinfo->fw_path), CONFIG_BCMDHD_FW_PATH, MOD_PARAM_PATHLEN-1);
-	if (g_wifilte_coex){
-		strncat(dhdinfo->fw_path, "_lte", 4);
-	}
-	HW_PRINT((WIFI_TAG"fw_path: %s\n", dhdinfo->fw_path));
-#endif /* CONFIG_BCMDHD_FW_PATH */
-
 	/* check if we need to initialize the path */
 	if (dhdinfo->fw_path[0] == '\0') {
 		if (adapter && adapter->fw_path && adapter->fw_path[0] != '\0')
@@ -5055,15 +5047,6 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 	if (dhdinfo->nv_path[0] == '\0') {
 		if (adapter && adapter->nv_path && adapter->nv_path[0] != '\0')
 			nv = adapter->nv_path;
-	}
-
-	dhd_common_init_nvpath(nv);
-
-	if ( fw_bak_path[0] != '\0' ) {
-		fw = fw_bak_path;
-	}
-	if ( nv_bak_path[0] != '\0' ) {
-		nv = nv_bak_path;
 	}
 
 	/* Use module parameter if it is valid, EVEN IF the path has not been initialized
