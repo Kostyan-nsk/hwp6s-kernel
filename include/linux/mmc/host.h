@@ -286,8 +286,8 @@ struct mmc_host {
 	int			claim_cnt;	/* "claim" nesting count */
 
 	struct delayed_work	detect;
-	int         detect_change; /* card detection flag */
-	struct wake_lock	detect_wake_lock;
+	int			detect_change;	/* card detect flag */
+	struct wakeup_source	detect_wake_lock;
 
 	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
 	unsigned int		bus_refs;	/* reference counter */
