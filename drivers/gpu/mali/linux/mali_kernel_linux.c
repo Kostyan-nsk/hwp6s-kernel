@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2017 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -194,13 +194,13 @@ static int mali_driver_runtime_resume(struct device *dev);
 static int mali_driver_runtime_idle(struct device *dev);
 #endif
 
-#if 1//defined(MALI_FAKE_PLATFORM_DEVICE)
+#if defined(MALI_FAKE_PLATFORM_DEVICE)
 extern int mali_platform_device_register(void);
 extern int mali_platform_device_unregister(void);
 #endif
 
 /* Linux power management operations provided by the Mali device driver */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29))
 struct pm_ext_ops mali_dev_ext_pm_ops = {
 	.base =
 	{
@@ -231,7 +231,6 @@ static const struct of_device_id mali_gpu_match[] = {
 		.compatible = "hisilicon,mali_gpu",
 		.data = NULL,
 	},
-};
 
 MODULE_DEVICE_TABLE(of, base_dt_ids);
 #endif
@@ -248,7 +247,7 @@ static struct platform_driver mali_platform_driver = {
 		.name   = MALI_GPU_NAME_UTGARD,
 		.owner  = THIS_MODULE,
 		.bus = &platform_bus_type,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
 		.pm = &mali_dev_pm_ops,
 #endif
 	},
@@ -267,7 +266,6 @@ struct file_operations mali_fops = {
 	.compat_ioctl = mali_ioctl,
 	.mmap = mali_mmap
 };
-
 
 #if MALI_ENABLE_CPU_CYCLES
 void mali_init_cpu_time_counters(int reset, int enable_divide_by_64)
@@ -403,7 +401,7 @@ int mali_module_init(void)
 #endif
 
 	/* Initialize module wide settings */
-#if 1//defined(MALI_FAKE_PLATFORM_DEVICE)
+#ifdef MALI_FAKE_PLATFORM_DEVICE
 	MALI_DEBUG_PRINT(2, ("mali_module_init() registering device\n"));
 	err = mali_platform_device_register();
 	if (0 != err) {
@@ -417,7 +415,7 @@ int mali_module_init(void)
 
 	if (0 != err) {
 		MALI_DEBUG_PRINT(2, ("mali_module_init() Failed to register driver (%d)\n", err));
-#if 1//defined(MALI_FAKE_PLATFORM_DEVICE)
+#ifdef MALI_FAKE_PLATFORM_DEVICE
 		mali_platform_device_unregister();
 #endif
 		mali_platform_device = NULL;
@@ -451,13 +449,13 @@ int mali_module_init(void)
 
 void mali_module_exit(void)
 {
-	MALI_DEBUG_PRINT(2, ("Unloading Mali v%d device driver.\n",_MALI_API_VERSION));
+	MALI_DEBUG_PRINT(2, ("Unloading Mali v%d device driver.\n", _MALI_API_VERSION));
 
 	MALI_DEBUG_PRINT(2, ("mali_module_exit() unregistering driver\n"));
 
 	platform_driver_unregister(&mali_platform_driver);
 
-#if 1//defined(MALI_FAKE_PLATFORM_DEVICE)
+#if defined(MALI_FAKE_PLATFORM_DEVICE)
 	MALI_DEBUG_PRINT(2, ("mali_module_exit() unregistering device\n"));
 	mali_platform_device_unregister();
 #endif
@@ -473,8 +471,7 @@ void mali_module_exit(void)
 #if defined(CONFIG_MALI400_INTERNAL_PROFILING)
 	_mali_internal_profiling_term();
 #endif
-
-    mali_platform_deinit();
+	mali_platform_deinit();
 	MALI_PRINT(("Mali device driver unloaded\n"));
 }
 
@@ -570,8 +567,10 @@ static int mali_probe(struct platform_device *pdev)
 			if (0 == err) {
 				/* Setup sysfs entries */
 				err = mali_sysfs_register(mali_dev_name);
+
 				if (0 == err) {
 					MALI_DEBUG_PRINT(2, ("mali_probe(): Successfully initialized driver for platform device %s\n", pdev->name));
+
 					return 0;
 				} else {
 					MALI_PRINT_ERROR(("mali_probe(): failed to register sysfs entries"));
@@ -606,6 +605,7 @@ clock_prepare_failed:
 #endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
 	mali_device_free(mdev);
 #endif
+
 	mali_platform_device = NULL;
 	return -EFAULT;
 }

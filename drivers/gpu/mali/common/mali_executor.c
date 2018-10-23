@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2016 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2017 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -1801,8 +1801,7 @@ static void mali_executor_schedule(void)
 	is_gpu_secure_mode = _mali_osk_gpu_secure_mode_is_enabled();
 
 	if ((MALI_FALSE == gpu_secure_mode_is_needed && MALI_FALSE == is_gpu_secure_mode)
-		||(MALI_TRUE == gpu_secure_mode_is_needed && MALI_TRUE == is_gpu_secure_mode))
-	{
+	    || (MALI_TRUE == gpu_secure_mode_is_needed && MALI_TRUE == is_gpu_secure_mode)) {
 		if (MALI_TRUE == trigger_pm_update) {
 			trigger_pm_update = MALI_FALSE;
 			mali_pm_update_async();

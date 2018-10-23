@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2016 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2017 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -76,8 +76,6 @@ static void mali_dma_fence_context_work_func(struct work_struct *work_handle)
 	MALI_DEBUG_ASSERT_POINTER(work_handle);
 
 	dma_fence_context = container_of(work_handle, struct mali_dma_fence_context, work_handle);
-
-	mali_dma_fence_context_cleanup(dma_fence_context);
 
 	dma_fence_context->cb_func(dma_fence_context->pp_job_ptr);
 }

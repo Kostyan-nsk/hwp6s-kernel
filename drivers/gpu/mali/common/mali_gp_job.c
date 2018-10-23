@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2016 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2017 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -173,7 +173,7 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 				}
 			}
 
-			if (uargs->varying_memsize > MALI_UK_BIG_VARYING_SIZE) {
+			if (job->uargs.varying_memsize > MALI_UK_BIG_VARYING_SIZE) {
 				job->big_job = 1;
 			}
 		}
