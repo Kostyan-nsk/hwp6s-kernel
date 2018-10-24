@@ -85,7 +85,7 @@ static int gsensor_offset[3] = {0, 0, 0};
 static int read_gsensor_offset_from_nv(void);
 
 //#define LSM330_DEBUG		1
-
+#define ACCL_DATA_SIZE_LSM330 6
 #define LOAD_SM1_PROGRAM	0
 #define LOAD_SM1_PARAMETERS	0
 #define LOAD_SM2_PROGRAM	1
@@ -1466,7 +1466,20 @@ static ssize_t attr_get_enable_state_prog(struct device *dev,
 	return sprintf(buf, "0x%02x\n", val);
 }
 
+static ssize_t attr_get_accl_data(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct lsm330_acc_data *acc = dev_get_drvdata(dev);
 
+	mutex_lock(&acc->lock);
+
+	*((int16_t *)&buf[0]) = accl_data[0];
+	*((int16_t *)&buf[2]) = accl_data[1];
+	*((int16_t *)&buf[4]) = accl_data[2];
+
+	mutex_unlock(&acc->lock);
+
+	return ACCL_DATA_SIZE_LSM330;
+}
 #ifdef LSM330_DEBUG
 /* PAY ATTENTION: These LSM330_DEBUG funtions don't manage resume_state */
 static ssize_t attr_reg_set(struct device *dev, struct device_attribute *attr,
@@ -1528,6 +1541,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(enable_polling, 0666, attr_get_enable_polling, attr_set_enable_polling),
 	__ATTR(enable_state_prog, 0666, attr_get_enable_state_prog,
 						attr_set_enable_state_prog),
+	__ATTR(accl_data, 0664, attr_get_accl_data, NULL),
 #ifdef LSM330_DEBUG
 	__ATTR(reg_value, 0600, attr_reg_get, attr_reg_set),
 	__ATTR(reg_addr, 0200, NULL, attr_addr_set),
