@@ -18,7 +18,7 @@ extern "C" {
 #include <linux/cdev.h>     /* character device definitions */
 #include <linux/idr.h>
 #include <linux/rbtree.h>
-#include "mali_kernel_license.h"
+#include "license/gpl/mali_kernel_license.h"
 #include "mali_osk_types.h"
 #include <linux/version.h>
 
