@@ -140,9 +140,9 @@ static PWRCTRL_HOTPLUG_LEVEL_STRU hotplug_up_defaultlevel[NR_CPUS_NUMBER]=
     {-1,-1,5,5},
     {-1,-1,-1,-1}
 #else
-    {60,25,0,2},
-    {70,40,0,4},
-    {80,55,0,4},
+    {60,20,0,1},
+    {65,30,0,1},
+    {75,40,0,1},
     {-1,-1,-1,-1}
 #endif
 };
@@ -156,9 +156,9 @@ static PWRCTRL_HOTPLUG_LEVEL_STRU hotplug_down_defaultlevel[NR_CPUS_NUMBER]=
     {0,0,1,5}
 #else
     {0,0,-1,-1},
-    {25,15,4,4},
-    {50,35,4,4},
-    {60,45,4,4}
+    {25,10,3,3},
+    {45,20,3,3},
+    {50,30,3,3}
 #endif
 };
 
@@ -500,8 +500,8 @@ int pwrctrl_set_load_task_cnt(u32_t load, u32_t task, u32_t cpu_online_num, PWRC
         cpu_freq = cpufreq_get(0);
 
         /*¼ÓºË·ÖÖ§*/
-        if(((cpu_freq > CPU_FREQ_ADD_THLD) && (cnt_thread_add > pwrctrl_hotplug_para.hotplug_up_level[cpu_online_num-1].cnt_task)) || \
-            ((cnt_load_add > pwrctrl_hotplug_para.hotplug_up_level[cpu_online_num-1].cnt_load) && (cnt_thread_add > pwrctrl_hotplug_para.hotplug_up_level[cpu_online_num-1].cnt_task)))
+        if ((cpu_freq > CPU_FREQ_ADD_THLD) && (cnt_load_add > pwrctrl_hotplug_para.hotplug_up_level[cpu_online_num-1].cnt_load) &&
+	    (cnt_thread_add > pwrctrl_hotplug_para.hotplug_up_level[cpu_online_num-1].cnt_task))
         {
             if(RET_OK == pwrctrl_cpu_up_verify())
             {
