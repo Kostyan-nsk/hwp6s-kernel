@@ -4061,11 +4061,11 @@ STATIC int k3_fb_switch_resolution_process(struct k3_fb_data_type * k3fd)
 	pdata = (struct k3_fb_panel_data *)k3fd->pdev->dev.platform_data;
 	if ((!pdata) || (!pdata->set_disp_resolution)) {
 		k3fb_loge("no panel operation detected!\n");
-		return 0;
+		return -1;
 	}
 	if (pdata->set_disp_resolution(k3fd->pdev) != 0) {
 		k3fb_loge("set_disp_resolution error!\n");
-		return 0;
+		return -1;
 	}
 
 	fbi->var.pixclock = k3fd->panel_info.clk_rate;
@@ -4391,7 +4391,7 @@ STATIC void k3_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	k3_fb_set_backlight(k3fd, k3fd->bl_level);
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
 	if (!bl_lvl)
-		msleep(20);
+		msleep(25);
 #endif
 }
 
