@@ -16,16 +16,30 @@
 #define LDR1W_SHIFT	0
 #define STR1W_SHIFT	0
 
+#ifdef CONFIG_USE_LDRDSTRD_OVER_LDMSTM
+/* Enforce destination cache line alignment */
+#undef CALGN
+#define CALGN(x...) x
+#endif
+
+
 	.macro ldr1w ptr reg abort
 	W(ldr) \reg, [\ptr], #4
 	.endm
 
-	.macro ldr4w ptr reg1 reg2 reg3 reg4 abort
-	ldmia \ptr!, {\reg1, \reg2, \reg3, \reg4}
-	.endm
 
 	.macro ldr8w ptr reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
-	ldmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
+#ifdef CONFIG_USE_LDRDSTRD_OVER_LDMSTM
+ 	tst \ptr, #7
+ 	ldreqd \reg1, \reg2, [\ptr], #8
+ 	ldreqd \reg3, \reg4, [\ptr], #8
+ 	ldreqd \reg5, \reg6, [\ptr], #8
+ 	ldreqd \reg7, \reg8, [\ptr], #8
+ 	ldmneia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
+#else
+ 	ldmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
+#endif
+
 	.endm
 
 	.macro ldr1b ptr reg cond=al abort
@@ -37,8 +51,24 @@
 	.endm
 
 	.macro str8w ptr reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
-	stmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
-	.endm
+#ifdef CONFIG_USE_LDRDSTRD_OVER_LDMSTM
+	 strd \reg1, \reg2, [\ptr], #8
+	 strd \reg3, \reg4, [\ptr], #8
+ 	strd \reg5, \reg6, [\ptr], #8
+ 	strd \reg7, \reg8, [\ptr], #8
+#else
+ stmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
+#endif
+
+	 .macro cpy8w dst src reg1 reg2 abort
+	 .irp offset, #0, #8, #16, #24
+	 ldrd \reg1, \reg2, [\src, \offset]
+	 strd \reg1, \reg2, [\dst, \offset]
+	 .endr
+	 add \src, \src, #32
+	 add \dst, \dst, #32
+	 .endm
+
 
 	.macro str1b ptr reg cond=al abort
 	str\cond\()b \reg, [\ptr], #1
