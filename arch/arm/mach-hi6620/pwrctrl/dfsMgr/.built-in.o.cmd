@@ -1,1 +1,0 @@
-cmd_arch/arm/mach-hi6620/pwrctrl/dfsMgr/built-in.o :=  /home/sunniva/dev/huawei-p7/los13.1-src/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8/bin/arm-eabi-ld -EL    -r -o arch/arm/mach-hi6620/pwrctrl/dfsMgr/built-in.o arch/arm/mach-hi6620/pwrctrl/dfsMgr/pwrctrl_dfs.o 
