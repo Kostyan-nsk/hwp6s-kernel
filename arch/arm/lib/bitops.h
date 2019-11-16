@@ -1,3 +1,5 @@
+#include <asm/assembler.h>
+
 #if __LINUX_ARM_ARCH__ >= 6
 	.macro	bitop, instr
 	ands	ip, r1, #3
