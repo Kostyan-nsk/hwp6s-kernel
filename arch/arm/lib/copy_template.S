@@ -101,9 +101,14 @@
 	PLD(	pld	[r1, #92]		)
 
 3:	PLD(	pld	[r1, #124]		)
+#ifdef	CONFIG_USE_LDRDSTRD_OVER_LDMSTM
+4:		cpy8w	r0, r1, r4, r5, abort = 20f
+		subs	r2, r2, #32
+#else
 4:		ldr8w	r1, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
 		subs	r2, r2, #32
 		str8w	r0, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+#endif
 		bge	3b
 	PLD(	cmn	r2, #96			)
 	PLD(	bge	4b			)
