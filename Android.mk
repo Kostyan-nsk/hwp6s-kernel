@@ -1,4 +1,7 @@
 #Android makefile to build kernel as a part of Android Build
+# KERNEL_TOOLCHAIN_PREFIX overrides CROSS_COMPLE in 13.1
+# And you cannot set it here...
+# KERNEL_TOOLCHAIN_PREFIX= arm-eabi- #$(CROSS_COMPILE)
 
 #ifeq ($(TARGET_PREBUILT_KERNEL),)
 
@@ -59,9 +62,6 @@ GPIO_CONFIG_TARGET := $(KERNEL_OUT)/gpio_config
 .PHONY: $(GPIO_CONFIG_TARGET)
 $(GPIO_CONFIG_TARGET) : FORCE
 
-# KERNEL_TOOLCHAIN_PREFIX overrides CROSS_COMPLE in 13.1
-KERNEL_TOOLCHAIN_PREFIX= arm-eabi- #$(CROSS_COMPILE)
-
 ifeq ($(OBB_PRINT_CMD), true)
 $(KERNEL_CONFIG): MAKEFLAGS := 
 endif
@@ -75,7 +75,7 @@ ifeq ($(OBB_PRINT_CMD), true)
 	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-4.9-abe-gnueabbihf/bin/arm-linux-gnueabihf- vmlinux
 	touch $@
 else
-	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-4.9abe-gnueabihf/bin/arm-linux-gnueabihf- # arm-linux-androideabi-
+	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-4.9-abe-gnueabihf/bin/arm-linux-gnueabihf- # arm-linux-androideabi-
 endif
 
 KERNEL_HEADERS_INSTALL := $(KERNEL_OUT)/usr
@@ -85,7 +85,7 @@ KERNEL_MODULES_OUT := $(TARGET_OUT)/lib/modules
 
 kernelconfig: $(KERNEL_GEN_CONFIG_PATH)
 	mkdir -p $(KERNEL_OUT)
-	$(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-5.3.1-abe-gnueabihf/bin/arm-linux-gnueabihf- $(KERNEL_GEN_CONFIG_FILE) menuconfig
+	$(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-4.9-abe-gnueabihf/bin/arm-linux-gnueabihf- $(KERNEL_GEN_CONFIG_FILE) menuconfig
 	@rm -frv $(KERNEL_GEN_CONFIG_PATH)
 
 zImage:$(TARGET_PREBUILT_KERNEL)
@@ -93,5 +93,5 @@ zImage:$(TARGET_PREBUILT_KERNEL)
 	@cp -fp $(TARGET_PREBUILT_KERNEL) $(INSTALLED_KERNEL_TARGET)
 
 pclint_kernel: $(KERNEL_CONFIG)
-	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-5.3.1-abe-gnueabihf/bin/arm-linux-gnueabihf- pc_lint_all
+	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-4.9-abe-gnueabihf/bin/arm-linux-gnueabihf- pc_lint_all
 

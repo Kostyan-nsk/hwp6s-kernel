@@ -249,7 +249,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89 
 HOSTCXXFLAGS = -O2
 
 # Decide whether to build built-in, modular, or both.
@@ -331,17 +331,12 @@ $(srctree)/scripts/Kbuild.include: ;
 include $(srctree)/scripts/Kbuild.include
 
 # Make variables (CC, etc...)
-AS		= $(SOURCEANALYZER) $(CROSS_COMPILE)as
 
-ifeq ($(HUTAF_HLT_COV),true)
-	LD		= $(HUTAF_HLT_WRAPPER) $(CROSS_COMPILE)ld
-else
-	LD		= $(SOURCEANALYZER) $(CROSS_COMPILE)ld
-endif
-
-CC		= $(SOURCEANALYZER) $(CROSS_COMPILE)gcc
+AS		= $(CROSS_COMPILE)as
+LD		= $(CROSS_COMPILE)ld
+REAL_CC		= $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
-AR		= $(SOURCEANALYZER) $(CROSS_COMPILE)ar
+AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
 STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
@@ -353,6 +348,10 @@ DEPMOD		= /sbin/depmod
 KALLSYMS	= scripts/kallsyms
 PERL		= perl
 CHECK		= sparse
+
+# Use the wrapper for the compiler.  This wrapper scans for new
+# warnings and causes the build to stop upon encountering them.
+CC		= $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
@@ -406,13 +405,17 @@ LINUXINCLUDE += -I$(srctree)/../vendor/hisi/include/taf/
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
-KERNELFLAGS	= -pipe -DNDEBUG -O3 -ffast-math -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon-vfpv3 -ftree-vectorize -mvectorize-with-neon-quad -munaligned-access -fgcse-lm -fgcse-sm -fsingle-precision-constant -fforce-addr -fsched-spec-load -funroll-loops -fpredictive-commoning -floop-nest-optimize -fgraphite -fgraphite-identity -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-flatten
-
+#KERNELFLAGS	= -pipe -DNDEBUG -O3 -ffast-math -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon-vfpv3 -ftree-vectorize -mvectorize-with-neon-quad -munaligned-access -fgcse-lm -fgcse-sm -fsingle-precision-constant -fforce-addr -fsched-spec-load -funroll-loops -fpredictive-commoning -floop-nest-optimize -fgraphite -fgraphite-identity -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-flatten
+ 
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks
+		   -fno-delete-null-pointer-checks \
+		    -march=armv7-a \
+	            -mcpu=cortex-a9  \
+		    -mtune=cortex-a9 \
+		   -std=gnu89
 
 ifeq ($(USE_MINI_ISP),true)
 	KBUILD_CFLAGS += -DCONFIG_MINI_ISP
