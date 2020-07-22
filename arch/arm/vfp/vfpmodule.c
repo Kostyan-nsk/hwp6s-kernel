@@ -488,7 +488,7 @@ static void vfp_pm_resume(void)
 }
 
 static struct syscore_ops vfp_pm_syscore_ops = {
-	.suspend	= vfp_pm_suspend,
+	.suspend 	= vfp_pm_suspend,
 	.resume		= vfp_pm_resume,
 };
 
