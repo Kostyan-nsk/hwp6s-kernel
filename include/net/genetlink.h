@@ -160,6 +160,22 @@ static inline void *genlmsg_put(struct sk_buff *skb, u32 pid, u32 seq,
 }
 
 /**
+ * genlmsg_nlhdr - Obtain netlink header from user specified header
+ * @user_hdr: user header as returned from genlmsg_put()
+ * @family: generic netlink family
+ *
+ * Returns pointer to netlink header.
+ */
+static inline struct nlmsghdr *genlmsg_nlhdr(void *user_hdr,
+					     struct genl_family *family)
+{
+	return (struct nlmsghdr *)((char *)user_hdr -
+				   family->hdrsize -
+				   GENL_HDRLEN -
+				   NLMSG_HDRLEN);
+}
+
+/**
  * genl_dump_check_consistent - check if sequence is consistent and advertise if not
  * @cb: netlink callback structure that stores the sequence number
  * @user_hdr: user header as returned from genlmsg_put()
