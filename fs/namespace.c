@@ -939,10 +939,10 @@ void replace_mount_options(struct super_block *sb, char *options)
 EXPORT_SYMBOL(replace_mount_options);
 
 #ifdef CONFIG_PROC_FS
-/* iterator; we want it to have access to namespace_sem, thus here... */
+/* iterator */
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct proc_mounts *p = container_of(m, struct proc_mounts, m);
+	struct proc_mounts *p = m->private;
 
 	down_read(&namespace_sem);
 	return seq_list_start(&p->ns->list, *pos);
@@ -950,7 +950,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct proc_mounts *p = container_of(m, struct proc_mounts, m);
+	struct proc_mounts *p = m->private;
 
 	return seq_list_next(v, &p->ns->list, pos);
 }
@@ -960,17 +960,108 @@ static void m_stop(struct seq_file *m, void *v)
 	up_read(&namespace_sem);
 }
 
-static int m_show(struct seq_file *m, void *v)
+int mnt_had_events(struct proc_mounts *p)
 {
-	struct proc_mounts *p = container_of(m, struct proc_mounts, m);
-	struct mount *r = list_entry(v, struct mount, mnt_list);
-	return p->show(m, &r->mnt);
+	struct mnt_namespace *ns = p->ns;
+	int res = 0;
+
+	br_read_lock(vfsmount_lock);
+	if (p->event != ns->event) {
+		p->event = ns->event;
+		res = 1;
+	}
+	br_read_unlock(vfsmount_lock);
+
+	return res;
+}
+
+struct proc_fs_info {
+	int flag;
+	const char *str;
+};
+
+static int show_sb_opts(struct seq_file *m, struct super_block *sb)
+{
+	static const struct proc_fs_info fs_info[] = {
+		{ MS_SYNCHRONOUS, ",sync" },
+		{ MS_DIRSYNC, ",dirsync" },
+		{ MS_MANDLOCK, ",mand" },
+		{ 0, NULL }
+	};
+	const struct proc_fs_info *fs_infop;
+
+	for (fs_infop = fs_info; fs_infop->flag; fs_infop++) {
+		if (sb->s_flags & fs_infop->flag)
+			seq_puts(m, fs_infop->str);
+	}
+
+	return security_sb_show_options(m, sb);
+}
+
+static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
+{
+	static const struct proc_fs_info mnt_info[] = {
+		{ MNT_NOSUID, ",nosuid" },
+		{ MNT_NODEV, ",nodev" },
+		{ MNT_NOEXEC, ",noexec" },
+		{ MNT_NOATIME, ",noatime" },
+		{ MNT_NODIRATIME, ",nodiratime" },
+		{ MNT_RELATIME, ",relatime" },
+		{ 0, NULL }
+	};
+	const struct proc_fs_info *fs_infop;
+
+	for (fs_infop = mnt_info; fs_infop->flag; fs_infop++) {
+		if (mnt->mnt_flags & fs_infop->flag)
+			seq_puts(m, fs_infop->str);
+	}
+}
+
+static void show_type(struct seq_file *m, struct super_block *sb)
+{
+	mangle(m, sb->s_type->name);
+	if (sb->s_subtype && sb->s_subtype[0]) {
+		seq_putc(m, '.');
+		mangle(m, sb->s_subtype);
+	}
+}
+
+static int show_vfsmnt(struct seq_file *m, void *v)
+{
+	struct vfsmount *mnt = list_entry(v, struct vfsmount, mnt_list);
+	int err = 0;
+	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
+
+	if (mnt->mnt_sb->s_op->show_devname) {
+		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
+		if (err)
+			goto out;
+	} else {
+		mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
+	}
+	seq_putc(m, ' ');
+	seq_path(m, &mnt_path, " \t\n\\");
+	seq_putc(m, ' ');
+	show_type(m, mnt->mnt_sb);
+	seq_puts(m, __mnt_is_readonly(mnt) ? " ro" : " rw");
+	err = show_sb_opts(m, mnt->mnt_sb);
+	if (err)
+		goto out;
+	show_mnt_opts(m, mnt);
+	if (mnt->mnt_sb->s_op->show_options2)
+			err = mnt->mnt_sb->s_op->show_options2(mnt, m, mnt_path.dentry);
+	else if (mnt->mnt_sb->s_op->show_options)
+		err = mnt->mnt_sb->s_op->show_options(m, mnt);
+	seq_puts(m, " 0 0\n");
+out:
+	return err;
 }
 
 const struct seq_operations mounts_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
+	.show	= show_vfsmnt
 };
 
 static int show_mountinfo(struct seq_file *m, void *v)
@@ -1086,7 +1177,7 @@ const struct seq_operations mountstats_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
-	.show	= m_show,
+	.show	= show_vfsstat,
 };
 #endif  /* CONFIG_PROC_FS */
 
