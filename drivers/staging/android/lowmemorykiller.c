@@ -52,7 +52,7 @@
 #endif
 
 
-static uint32_t lowmem_debug_level = 1;
+static u32 lowmem_debug_level = 1;
 static int lowmem_adj[6] = {
 	0,
 	1,
@@ -69,7 +69,7 @@ static int lowmem_minfree[6] = {
 };
 
 static int lowmem_minfree_size = 4;
-
+static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
 
 #define lowmem_print(level, x...)			\
@@ -78,8 +78,32 @@ static unsigned long lowmem_deathpending_timeout;
 			pr_info(x);			\
 	} while (0)
 
+static int
+task_notify_func(struct notifier_block *self, unsigned long val, void *data);
+
+static struct notifier_block task_nb = {
+	.notifier_call	= task_notify_func,
+};
+
+static int
+task_notify_func(struct notifier_block *self, unsigned long val, void *data)
+{
+	struct task_struct *task = data;
+
+	if (task == lowmem_deathpending)
+		lowmem_deathpending = NULL;
+	return NOTIFY_OK;
+}
+
+#ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
+static struct task_struct *pick_next_from_adj_tree(struct task_struct *task);
+static struct task_struct *pick_first_task(void);
+static struct task_struct *pick_last_task(void);
+#endif
+
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
+	struct task_struct *tsk;
 #ifdef ENHANCED_LMK_ROUTINE
 	struct task_struct *selected[LOWMEM_DEATHPENDING_DEPTH] = {NULL,};
 #else
@@ -88,10 +112,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int rem = 0;
 	int tasksize;
 	int i;
-	short min_score_adj = OOM_SCORE_ADJ_MAX + 1;
-	int minfree = 0;
-	int selected_tasksize = 0;
-	short selected_oom_score_adj;
 	int min_score_adj = OOM_SCORE_ADJ_MAX + 1;
 	int minfree = 0;
 #ifdef ENHANCED_LMK_ROUTINE
@@ -112,6 +132,17 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 #endif
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
+
+	/*
+	 * If we already have a death outstanding, then
+	 * bail out right away; indicating to vmscan
+	 * that we have nothing further to offer on
+	 * this pass.
+	 *
+	 */
+	if (lowmem_deathpending &&
+	    time_before_eq(jiffies, lowmem_deathpending_timeout))
+		return 0;
 
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
@@ -137,15 +168,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     sc->nr_to_scan, sc->gfp_mask, rem);
 		return rem;
 	}
-	selected_oom_score_adj = min_score_adj;
-
-	rcu_read_lock();
-	for_each_process(tsk) {
-		struct task_struct *p;
-		short oom_score_adj;
-
-		if (tsk->flags & PF_KTHREAD)
-			continue;
 
 #ifdef ENHANCED_LMK_ROUTINE
 	for (i = 0; i < LOWMEM_DEATHPENDING_DEPTH; i++)
@@ -154,6 +176,11 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	selected_oom_score_adj = min_score_adj;
 #endif
 	rcu_read_lock();
+#ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
+	for (tsk = pick_first_task();
+		tsk != pick_last_task() && tsk != NULL;
+		tsk = pick_next_from_adj_tree(tsk)) {
+#else
 	for_each_process(tsk) {
 		struct task_struct *p;
 		int oom_score_adj;
@@ -167,21 +194,12 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (!p)
 			continue;
 
-		sig = p->signal;
-		if (!sig) {
-			task_unlock(p);
-
-		p = find_lock_task_mm(tsk);
-		if (!p)
-			continue;
-
 		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
 		    time_before_eq(jiffies, lowmem_deathpending_timeout)) {
 			task_unlock(p);
 			rcu_read_unlock();
 			return 0;
 		}
-
 		oom_score_adj = p->signal->oom_score_adj;
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
@@ -216,6 +234,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			force_sig(SIGKILL, selected[i]);
 			rem -= selected_tasksize[i];
 		}
+>>>>>>> 60a864d62b9... lowmemorykiller: make default lowmemorykiller debug message useful
 	}
 	if (selected) {
 		task_lock(selected);
