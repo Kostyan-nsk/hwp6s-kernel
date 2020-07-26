@@ -512,10 +512,9 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d, int is_bdev)
 	return 1;
 }
 
-static int fuse_show_options(struct seq_file *m, struct dentry *root)
+static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 {
-	struct super_block *sb = root->d_sb;
-	struct fuse_conn *fc = get_fuse_conn_super(sb);
+	struct fuse_conn *fc = get_fuse_conn_super(mnt->mnt_sb);
 
 	seq_printf(m, ",user_id=%u", fc->user_id);
 	seq_printf(m, ",group_id=%u", fc->group_id);
@@ -525,8 +524,9 @@ static int fuse_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",allow_other");
 	if (fc->max_read != ~0)
 		seq_printf(m, ",max_read=%u", fc->max_read);
-	if (sb->s_bdev && sb->s_blocksize != FUSE_DEFAULT_BLKSIZE)
-		seq_printf(m, ",blksize=%lu", sb->s_blocksize);
+	if (mnt->mnt_sb->s_bdev &&
+	    mnt->mnt_sb->s_blocksize != FUSE_DEFAULT_BLKSIZE)
+		seq_printf(m, ",blksize=%lu", mnt->mnt_sb->s_blocksize);
 	return 0;
 }
 

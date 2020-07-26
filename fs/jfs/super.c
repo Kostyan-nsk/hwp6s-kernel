@@ -610,9 +610,9 @@ static int jfs_sync_fs(struct super_block *sb, int wait)
 	return 0;
 }
 
-static int jfs_show_options(struct seq_file *seq, struct dentry *root)
+static int jfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
-	struct jfs_sb_info *sbi = JFS_SBI(root->d_sb);
+	struct jfs_sb_info *sbi = JFS_SBI(vfs->mnt_sb);
 
 	if (sbi->uid != -1)
 		seq_printf(seq, ",uid=%d", sbi->uid);

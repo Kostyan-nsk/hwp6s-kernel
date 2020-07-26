@@ -1262,18 +1262,18 @@ static int is_ancestor(const struct dentry *d1, const struct dentry *d2)
 /**
  * gfs2_show_options - Show mount options for /proc/mounts
  * @s: seq_file structure
- * @root: root of this (sub)tree
+ * @mnt: vfsmount
  *
  * Returns: 0 on success or error code
  */
 
-static int gfs2_show_options(struct seq_file *s, struct dentry *root)
+static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
-	struct gfs2_sbd *sdp = root->d_sb->s_fs_info;
+	struct gfs2_sbd *sdp = mnt->mnt_sb->s_fs_info;
 	struct gfs2_args *args = &sdp->sd_args;
 	int val;
 
-	if (is_ancestor(root, sdp->sd_master_dir))
+	if (is_ancestor(mnt->mnt_root, sdp->sd_master_dir))
 		seq_printf(s, ",meta");
 	if (args->ar_lockproto[0])
 		seq_printf(s, ",lockproto=%s", args->ar_lockproto);

@@ -721,9 +721,9 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 /*
  * Describe the mount options on this VFS mountpoint
  */
-static int nfs_show_options(struct seq_file *m, struct dentry *root)
+static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 {
-	struct nfs_server *nfss = NFS_SB(root->d_sb);
+	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
 
 	nfs_show_mount_options(m, nfss, 0);
 

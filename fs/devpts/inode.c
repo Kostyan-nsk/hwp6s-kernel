@@ -246,9 +246,9 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	return err;
 }
 
-static int devpts_show_options(struct seq_file *seq, struct dentry *root)
+static int devpts_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
-	struct pts_fs_info *fsi = DEVPTS_SB(root->d_sb);
+	struct pts_fs_info *fsi = DEVPTS_SB(vfs->mnt_sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
 
 	if (opts->setuid)
