@@ -200,7 +200,7 @@ unsigned int mnt_get_count(struct mount *mnt)
 
 static struct mount *alloc_vfsmnt(const char *name)
 {
-	struct mount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
+	struct vfsmount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
 	if (mnt) {
 		int err;
 
@@ -2747,7 +2747,7 @@ void __init mnt_init(void)
 
 	init_rwsem(&namespace_sem);
 
-	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct mount),
+	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct vfsmount),
 			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 
 	mount_hashtable = (struct list_head *)__get_free_page(GFP_ATOMIC);
