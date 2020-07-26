@@ -1532,9 +1532,9 @@ bail:
 	return status;
 }
 
-static int ocfs2_show_options(struct seq_file *s, struct dentry *root)
+static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
-	struct ocfs2_super *osb = OCFS2_SB(root->d_sb);
+	struct ocfs2_super *osb = OCFS2_SB(mnt->mnt_sb);
 	unsigned long opts = osb->s_mount_opt;
 	unsigned int local_alloc_megs;
 
@@ -1566,7 +1566,8 @@ static int ocfs2_show_options(struct seq_file *s, struct dentry *root)
 	if (osb->preferred_slot != OCFS2_INVALID_SLOT)
 		seq_printf(s, ",preferred_slot=%d", osb->preferred_slot);
 
-	seq_printf(s, ",atime_quantum=%u", osb->s_atime_quantum);
+	if (!(mnt->mnt_flags & MNT_NOATIME) && !(mnt->mnt_flags & MNT_RELATIME))
+		seq_printf(s, ",atime_quantum=%u", osb->s_atime_quantum);
 
 	if (osb->osb_commit_interval)
 		seq_printf(s, ",commit=%u",

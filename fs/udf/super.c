@@ -257,9 +257,9 @@ static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 	return 0;
 }
 
-static int udf_show_options(struct seq_file *seq, struct dentry *root)
+static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
 {
-	struct super_block *sb = root->d_sb;
+	struct super_block *sb = mnt->mnt_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT))

@@ -322,9 +322,9 @@ static void ncp_stop_tasks(struct ncp_server *server) {
 		flush_work_sync(&server->timeout_tq);
 }
 
-static int  ncp_show_options(struct seq_file *seq, struct dentry *root)
+static int  ncp_show_options(struct seq_file *seq, struct vfsmount *mnt)
 {
-	struct ncp_server *server = NCP_SBP(root->d_sb);
+	struct ncp_server *server = NCP_SBP(mnt->mnt_sb);
 	unsigned int tmp;
 
 	if (server->m.uid != 0)
