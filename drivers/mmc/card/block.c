@@ -497,7 +497,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	struct mmc_request mrq = {0};
 	struct scatterlist *sg = NULL;
 	int i;
-	int err;
+	int err = 0;
 
 	/*
 	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
@@ -631,6 +631,7 @@ cmd_done:
 		mmc_blk_put(md);
 	if (sg)
 		kfree(sg);
+
 	kfree(idata->buf);
 	kfree(idata);
 	return err;
@@ -695,7 +696,7 @@ static inline int mmc_blk_part_switch(struct mmc_card *card,
 				 card->ext_csd.part_time);
 		if (ret)
 			return ret;
-}
+	}
 
 	main_md->part_curr = md->part_type;
 	return 0;
@@ -984,8 +985,15 @@ static int mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
 	unsigned int from, nr, arg;
 	int err = 0;
 
-	if (!mmc_can_secure_erase_trim(card)) {
+	if (!(mmc_can_secure_erase_trim(card) || mmc_can_sanitize(card))) {
 		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	/* The sanitize operation is supported at v4.5 only */
+	if (mmc_can_sanitize(card)) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+				EXT_CSD_SANITIZE_START, 1, 0);
 		goto out;
 	}
 
@@ -1030,16 +1038,18 @@ out:
 static int mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_blk_data *md = mq->data;
+	struct mmc_card *card = md->queue.card;
+	int ret = 0;
 
-	/*
-	 * No-op, only service this because we need REQ_FUA for reliable
-	 * writes.
-	 */
+	ret = mmc_flush_cache(card);
+	if (ret)
+		ret = -EIO;
+
 	spin_lock_irq(&md->lock);
-	__blk_end_request_all(req, 0);
+	__blk_end_request_all(req, ret);
 	spin_unlock_irq(&md->lock);
 
-	return 1;
+	return ret ? 0 : 1;
 }
 
 /*

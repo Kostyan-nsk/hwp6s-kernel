@@ -162,6 +162,7 @@ extern int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 extern int mmc_can_erase(struct mmc_card *card);
 extern int mmc_can_trim(struct mmc_card *card);
 extern int mmc_can_discard(struct mmc_card *card);
+extern int mmc_can_sanitize(struct mmc_card *card);
 extern int mmc_can_secure_erase_trim(struct mmc_card *card);
 extern int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 				   unsigned int nr);
@@ -176,6 +177,9 @@ extern int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
 extern void mmc_release_host(struct mmc_host *host);
 extern void mmc_do_release_host(struct mmc_host *host);
 extern int mmc_try_claim_host(struct mmc_host *host);
+
+extern int mmc_flush_cache(struct mmc_card *);
+
 extern int mmc_detect_card_removed(struct mmc_host *host);
 extern int _mmc_detect_card_removed(struct mmc_host *host);
 
