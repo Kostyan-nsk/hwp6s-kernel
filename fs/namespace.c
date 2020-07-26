@@ -1273,16 +1273,16 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 		propagate_umount(&tmp_list);
 
 	list_for_each_entry(p, &tmp_list, mnt_hash) {
-
-		list_del_init(&p->mnt.mnt_expire);
-		list_del_init(&p->mnt.mnt_list);
-		__touch_mnt_namespace(p->mnt.mnt_ns);
-		p->mnt.mnt_ns = NULL;
-		__mnt_make_shortterm(&p->mnt);
-		list_del_init(&p->mnt.mnt_child);
+		list_del_init(&p->mnt_expire);
+		list_del_init(&p->mnt_list);
+		__touch_mnt_namespace(p->mnt_ns);
+		if (p->mnt_ns)
+			__mnt_make_shortterm(p);
+		p->mnt_ns = NULL;
+		list_del_init(&p->mnt_child);
 		if (mnt_has_parent(p)) {
 			p->mnt_parent->mnt_ghosts++;
-			dentry_reset_mounted(p->mnt.mnt_mountpoint);
+			dentry_reset_mounted(p->mnt_parent, p->mnt_mountpoint);
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
@@ -1910,8 +1910,7 @@ static inline int tree_contains_unbindable(struct vfsmount *mnt)
 static int do_move_mount(struct path *path, char *old_name)
 {
 	struct path old_path, parent_path;
-	struct mount *p;
-	struct mount *old;
+	struct vfsmount *p;
 	int err = 0;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1936,9 +1935,7 @@ static int do_move_mount(struct path *path, char *old_name)
 	if (old_path.dentry != old_path.mnt->mnt_root)
 		goto out1;
 
-	old = real_mount(old_path.mnt);
-
-	if (!mnt_has_parent(old))
+	if (!mnt_has_parent(old_path.mnt))
 		goto out1;
 
 	if (S_ISDIR(path->dentry->d_inode->i_mode) !=
@@ -1957,8 +1954,8 @@ static int do_move_mount(struct path *path, char *old_name)
 	    tree_contains_unbindable(old_path.mnt))
 		goto out1;
 	err = -ELOOP;
-	for (p = real_mount(path->mnt); mnt_has_parent(p); p = real_mount(p->mnt_parent))
-		if (p == old)
+	for (p = path->mnt; mnt_has_parent(p); p = p->mnt_parent)
+		if (p == old_path.mnt)
 			goto out1;
 
 	err = attach_recursive_mnt(old_path.mnt, path, &parent_path);
@@ -2585,7 +2582,7 @@ out_type:
 bool is_path_reachable(struct vfsmount *mnt, struct dentry *dentry,
 			 const struct path *root)
 {
-	while (mnt != root->mnt && mnt_has_parent(real_mount(mnt))) {
+	while (mnt != root->mnt && mnt_has_parent(mnt)) {
 		dentry = mnt->mnt_mountpoint;
 		mnt = mnt->mnt_parent;
 	}
@@ -2672,11 +2669,11 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	error = -EINVAL;
 	if (root.mnt->mnt_root != root.dentry)
 		goto out4; /* not a mountpoint */
-	if (!mnt_has_parent(root_mnt))
+	if (!mnt_has_parent(root.mnt))
 		goto out4; /* not attached */
 	if (new.mnt->mnt_root != new.dentry)
 		goto out4; /* not a mountpoint */
-	if (!mnt_has_parent(new_mnt))
+	if (!mnt_has_parent(new.mnt))
 		goto out4; /* not attached */
 	/* make sure we can reach put_old from new_root */
 	if (!is_path_reachable(old.mnt, old.dentry, &new))

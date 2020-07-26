@@ -2758,14 +2758,6 @@ restart:
 			if (!error)
 				error = vfsmnt->mnt_ns ? 1 : 2;
 			break;
-
-			struct mount *mnt = real_mount(vfsmnt);
-			/* Global root? */
-			if (!mnt_has_parent(mnt))
-				goto global_root;
-			dentry = vfsmnt->mnt_mountpoint;
-			vfsmnt = mnt->mnt_parent;
-			continue;
 		}
 		parent = dentry->d_parent;
 		prefetch(parent);
