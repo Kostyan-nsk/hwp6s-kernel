@@ -63,7 +63,6 @@ extern int copy_mount_options(const void __user *, unsigned long *);
 extern int copy_mount_string(const void __user *, char **);
 
 extern unsigned int mnt_get_count(struct vfsmount *mnt);
-extern struct vfsmount *__lookup_mnt(struct vfsmount *, struct dentry *, int);
 extern struct vfsmount *lookup_mnt(struct path *);
 extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 				struct vfsmount *);
