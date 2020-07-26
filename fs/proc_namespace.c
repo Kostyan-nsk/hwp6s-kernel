@@ -183,13 +183,12 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 {
 	struct mount *r = real_mount(mnt);
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
-	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err = 0;
 
 	/* device */
-	if (sb->s_op->show_devname) {
+	if (mnt->mnt_sb->s_op->show_devname) {
 		seq_puts(m, "device ");
-		err = sb->s_op->show_devname(m, mnt);
+		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
 	} else {
 		if (r->mnt_devname) {
 			seq_puts(m, "device ");
@@ -205,13 +204,13 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 
 	/* file system type */
 	seq_puts(m, "with fstype ");
-	show_type(m, sb);
+	show_type(m, mnt->mnt_sb);
 
 	/* optional statistics */
-	if (sb->s_op->show_stats) {
+	if (mnt->mnt_sb->s_op->show_stats) {
 		seq_putc(m, ' ');
 		if (!err)
-			err = sb->s_op->show_stats(m, mnt_path.dentry);
+			err = mnt->mnt_sb->s_op->show_stats(m, mnt);
 	}
 
 	seq_putc(m, '\n');
