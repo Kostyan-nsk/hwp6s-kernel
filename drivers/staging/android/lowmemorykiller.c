@@ -216,7 +216,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			force_sig(SIGKILL, selected[i]);
 			rem -= selected_tasksize[i];
 		}
->>>>>>> 60a864d62b9... lowmemorykiller: make default lowmemorykiller debug message useful
 	}
 	if (selected) {
 		task_lock(selected);
