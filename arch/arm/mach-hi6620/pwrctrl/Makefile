@@ -6,5 +6,5 @@ obj-y				+= periMgr/
 obj-y				+= sleepMgr/
 obj-y				+= hotplug/
 obj-y				+= test/
-EXTRA_CFLAGS   -=	-Wformat
+# EXTRA_CFLAGS   -=	-Wformat
 

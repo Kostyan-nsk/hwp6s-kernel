@@ -36,18 +36,22 @@ void vfp_null_entry(void);
 void (*vfp_vector)(void) = vfp_null_entry;
 
 /*
- * The pointer to the vfpstate structure of the thread which currently
- * owns the context held in the VFP hardware, or NULL if the hardware
- * context is invalid.
- */
-union vfp_state *vfp_current_hw_state[NR_CPUS];
-
-/*
  * Dual-use variable.
  * Used in startup: set to non-zero if VFP checks fail
  * After startup, holds VFP architecture
  */
 unsigned int VFP_arch;
+
+/*
+ * The pointer to the vfpstate structure of the thread which currently
+ * owns the context held in the VFP hardware, or NULL if the hardware
+ * context is invalid.
+ *
+ * For UP, this is sufficient to tell which thread owns the VFP context.
+ * However, for SMP, we also need to check the CPU number stored in the
+ * saved state too to catch migrations.
+ */
+union vfp_state *vfp_current_hw_state[NR_CPUS];
 
 /*
  * Is 'thread's most up to date state stored in this CPUs hardware?
@@ -87,11 +91,6 @@ static void vfp_thread_flush(struct thread_info *thread)
 	union vfp_state *vfp = &thread->vfpstate;
 	unsigned int cpu;
 
-	memset(vfp, 0, sizeof(union vfp_state));
-
-	vfp->hard.fpexc = FPEXC_EN;
-	vfp->hard.fpscr = FPSCR_ROUND_NEAREST;
-
 	/*
 	 * Disable VFP to ensure we initialize it first.  We must ensure
 	 * that the modification of vfp_current_hw_state[] and hardware disable
@@ -102,6 +101,11 @@ static void vfp_thread_flush(struct thread_info *thread)
 		vfp_current_hw_state[cpu] = NULL;
 	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
 	put_cpu();
+
+	memset(vfp, 0, sizeof(union vfp_state));
+
+	vfp->hard.fpexc = FPEXC_EN;
+	vfp->hard.fpscr = FPSCR_ROUND_NEAREST;
 }
 
 static void vfp_thread_exit(struct thread_info *thread)
@@ -121,6 +125,9 @@ static void vfp_thread_copy(struct thread_info *thread)
 
 	vfp_sync_hwstate(parent);
 	thread->vfpstate = parent->vfpstate;
+#ifdef CONFIG_SMP
+	thread->vfpstate.hard.cpu = NR_CPUS;
+#endif
 }
 
 /*
@@ -444,6 +451,12 @@ static int vfp_pm_suspend(void)
 	struct thread_info *ti = current_thread_info();
 	u32 fpexc = fmrx(FPEXC);
 
+	/* If lazy disable, re-enable the VFP ready for it to be saved */
+	if (vfp_current_hw_state[ti->cpu] != &ti->vfpstate) {
+		fpexc |= FPEXC_EN;
+		fmxr(FPEXC, fpexc);
+	}
+
 	/* if vfp is on, then save state for resumption */
 	if (fpexc & FPEXC_EN) {
 		printk(KERN_DEBUG "%s: saving vfp state\n", __func__);
@@ -475,7 +488,7 @@ static void vfp_pm_resume(void)
 }
 
 static struct syscore_ops vfp_pm_syscore_ops = {
-	.suspend	= vfp_pm_suspend,
+	.suspend 	= vfp_pm_suspend,
 	.resume		= vfp_pm_resume,
 };
 
@@ -510,6 +523,7 @@ void vfp_sync_hwstate(struct thread_info *thread)
 	put_cpu();
 }
 
+/* Ensure that the thread reloads the hardware VFP state on the next use. */
 void vfp_flush_hwstate(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();

@@ -288,7 +288,7 @@ VOS_UINT32 atSendDataMsg(VOS_UINT32 TaskId, VOS_UINT32 MsgId, VOS_VOID* pData, V
     return u32Ret;
 }
 
-/* 定义了LTE与TDS私有AT命令 */
+/* 定义了LTE与TDS私有AT命令 */
 AT_PAR_CMD_ELEMENT_STRU g_astAtTLCmdTbl[] = {    {AT_CMD_LWCLASH,            VOS_NULL_PTR,           AT_SET_PARA_TIME,   AT_QryLwclashPara,      AT_QRY_PARA_TIME,   VOS_NULL_PTR, AT_NOT_SET_TIME,
             VOS_NULL_PTR,           AT_NOT_SET_TIME,
             AT_CME_INCORRECT_PARAMETERS, CMD_TBL_NO_LIMITED,
@@ -302,14 +302,14 @@ VOS_UINT32 atSendDataMsg(VOS_UINT32 TaskId, VOS_UINT32 MsgId, VOS_VOID* pData, V
     /*end_added by c64416 for lte wifi 20131013*/
 };
 
-/*****************************************************************************
- 函 数 名  : At_RegisterTLCmdTable
- 功能描述  : 向AT解析器注册TDS/LTE专有命令表
- 输入参数  : 无 输出参数  : 无
- 返 回 值  : VOS_UINT32
- 调用函数  : 被调函数  :
- 修改历史  :  1.日    期   : 2013年9月22日     作    者   : c64416         修改内容   : 新生成函数
-*****************************************************************************/
+/*****************************************************************************
+ 函 数 名  : At_RegisterTLCmdTable
+ 功能描述  : 向AT解析器注册TDS/LTE专有命令表
+ 输入参数  : 无 输出参数  : 无
+ 返 回 值  : VOS_UINT32
+ 调用函数  : 被调函数  :
+ 修改历史  :  1.日    期   : 2013年9月22日     作    者   : c64416         修改内容   : 新生成函数
+*****************************************************************************/
 VOS_UINT32 At_RegisterTLCmdTable(VOS_VOID)
 {
        return AT_RegisterCmdTable(g_astAtTLCmdTbl, sizeof(g_astAtTLCmdTbl)/sizeof(g_astAtTLCmdTbl[0]));

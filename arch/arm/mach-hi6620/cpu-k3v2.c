@@ -1525,7 +1525,7 @@ static int k3v2_target(struct cpufreq_policy *policy,
 	freqs.new = target_freq;
 	freqs.cpu = policy->cpu;
 
-    printk(KERN_ERR "%s old:%d new:%d CPU:%d\n",__func__, freqs.old, freqs.new, freqs.cpu);
+   // printk(KERN_ERR "%s old:%d new:%d CPU:%d\n",__func__, freqs.old, freqs.new, freqs.cpu);
 
 #if 0
 	if (freqs.old == freqs.new)

@@ -423,7 +423,7 @@ static inline int hi6401_reg_write(struct snd_soc_codec *codec,
        /*
         * main mic mute close zc first
         */
-        if (value & 0x01 << HI6401_MAINPGA_MUTE_BIT)
+        if (value & 0x01 << HI6401_MAINPGA_MUTE_BIT)
         {
             regval = __hi6401_reg_read(codec, HI6401_ZC_EN) & ~(0x01 << HI6401_MAINPGA_ZCD_EN_BIT);
             __hi6401_reg_write(codec, HI6401_ZC_EN, regval);
@@ -431,7 +431,7 @@ static inline int hi6401_reg_write(struct snd_soc_codec *codec,
         /*
          *  when unmute open zc first then mute then unmute
          */
-        else
+        else
         {
             regval = __hi6401_reg_read(codec, HI6401_ZC_EN) | (0x01 << HI6401_MAINPGA_ZCD_EN_BIT);
             __hi6401_reg_write(codec, HI6401_ZC_EN, regval);
@@ -442,7 +442,7 @@ static inline int hi6401_reg_write(struct snd_soc_codec *codec,
     /*
      * submic: the same as main mic sequence
      */
-    else if ( HI6401_AUXPGA_REG == reg )
+    else if ( HI6401_AUXPGA_REG == reg )
     {
         if (value & 0x01 << HI6401_AUXPGA_MUTE_BIT)
         {
