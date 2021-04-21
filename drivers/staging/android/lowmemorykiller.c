@@ -157,8 +157,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     sc->nr_to_scan, sc->gfp_mask, rem);
 		return rem;
 	}
-
 	selected_oom_score_adj = min_score_adj;
+
 	rcu_read_lock();
 	for_each_process(tsk) {
 		struct task_struct *p;
@@ -204,7 +204,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		selected_oom_score_adj = oom_score_adj;
 		lowmem_print(2, "select '%s' (%d), adj %hd, size %d, to kill\n",
 			     p->comm, p->pid, oom_score_adj, tasksize);
-
 	}
 #ifdef ENHANCED_LMK_ROUTINE
 	for (i = 0; i < LOWMEM_DEATHPENDING_DEPTH; i++) {
@@ -217,8 +216,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			force_sig(SIGKILL, selected[i]);
 			rem -= selected_tasksize[i];
 		}
-#endif
 	}
+#endif
 	if (selected) {
 		task_lock(selected);
 		send_sig(SIGKILL, selected, 0);
@@ -229,7 +228,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 				 "   to free %ldkB on behalf of '%s' (%d) because\n"
 				 "   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n"
 				 "   Free memory is %ldkB above reserved\n",
-
 			     selected->comm, selected->pid,
 			     selected_oom_score_adj,
 			     selected_tasksize * (long)(PAGE_SIZE / 1024),

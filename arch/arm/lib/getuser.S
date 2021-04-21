@@ -69,11 +69,11 @@ ENDPROC(__get_user_4)
 ENTRY(__get_user_8)
 	check_uaccess r0, 8, r1, r2, __get_user_bad
 #ifdef CONFIG_THUMB2_KERNEL
-5: TUSER(ldr)	r2, [r0]
-6: TUSER(ldr)	r3, [r0, #4]
+5: T(ldr)	r2, [r0]
+6: T(ldr)	r3, [r0, #4]
 #else
-5: TUSER(ldr)	r2, [r0], #4
-6: TUSER(ldr)	r3, [r0]
+5: T(ldr)	r2, [r0], #4
+6: T(ldr)	r3, [r0]
 #endif
 	mov	r0, #0
 	mov	pc, lr

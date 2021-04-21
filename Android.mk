@@ -69,7 +69,7 @@ $(KERNEL_CONFIG): MAKEFLAGS :=
 endif
 $(KERNEL_CONFIG): $(KERNEL_GEN_CONFIG_PATH)
 	+mkdir -p $(KERNEL_OUT)
-	$(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/home/sunniva/dev/sdk/linaro-gcc-4.9-abe-gnueabbihf/bin/arm-linux-gnueabihf- $(KERNEL_GEN_CONFIG_FILE)
+	$(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/home/sunniva/dev/sdk/gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf $(KERNEL_GEN_CONFIG_FILE)
 	@rm -frv $(KERNEL_GEN_CONFIG_PATH)
 
 $(TARGET_PREBUILT_KERNEL): $(GPIO_CONFIG_TARGET) $(KERNEL_CONFIG)
@@ -77,7 +77,7 @@ ifeq ($(OBB_PRINT_CMD), true)
 	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/home/sunniva/dev/sdk/gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf- vmlinux
 	touch $@
 else
-	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/home/sunniva/dev/sdk/linaro-gcc-4.9abe-gnueabihf/bin/arm-linux-gnueabihf- # arm-linux-androideabi-
+	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE/home/sunniva/dev/sdk/gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf  # arm-linux-androideabi-
 endif
 
 KERNEL_HEADERS_INSTALL := $(KERNEL_OUT)/usr
@@ -95,5 +95,5 @@ zImage:$(TARGET_PREBUILT_KERNEL)
 	@cp -fp $(TARGET_PREBUILT_KERNEL) $(INSTALLED_KERNEL_TARGET)
 
 pclint_kernel: $(KERNEL_CONFIG)
-	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/linaro-gcc-4.9-abe-gnueabihf/bin/arm-linux-gnueabihf- pc_lint_all
+	$(hide) $(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=/home/sunniva/dev/sdk/gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf pc_lint_all
 
