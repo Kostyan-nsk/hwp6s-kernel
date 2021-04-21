@@ -53,7 +53,7 @@
 
 
 static u32 lowmem_debug_level = 1;
-static int lowmem_adj[6] = {
+static short lowmem_adj[6] = {
 	0,
 	1,
 	6,
@@ -108,10 +108,10 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int rem = 0;
 	int tasksize;
 	int i;
-	int min_score_adj = OOM_SCORE_ADJ_MAX + 1;
+	short min_score_adj = OOM_SCORE_ADJ_MAX + 1;
 	int minfree = 0;
 	int selected_tasksize = 0;
-	int selected_oom_score_adj;
+	short selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
 #ifndef CONFIG_DMA_CMA
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
@@ -160,14 +160,10 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 
 	selected_oom_score_adj = min_score_adj;
 	rcu_read_lock();
-#ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
-	for (tsk = pick_first_task();
-		tsk != pick_last_task() && tsk != NULL;
-		tsk = pick_next_from_adj_tree(tsk)) {
-#else
 	for_each_process(tsk) {
 		struct task_struct *p;
-		int oom_score_adj;
+		short oom_score_adj;
+
 		if (tsk->flags & PF_KTHREAD)
 			continue;
 
@@ -221,6 +217,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			force_sig(SIGKILL, selected[i]);
 			rem -= selected_tasksize[i];
 		}
+#endif
 	}
 	if (selected) {
 		task_lock(selected);
