@@ -846,7 +846,7 @@ mmu_restore:
 	NOP
 	NOP
 	NOP
-	mov	pc, r9
+	ret	r9
 
 mmu_enalbed:
 	str	r7, [r8]

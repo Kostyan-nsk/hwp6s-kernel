@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/assembler.h>
+
 /*
  * unsigned int
  * csum_partial_copy_xxx(const char *src, char *dst, int len, int sum, )

@@ -14,6 +14,7 @@
 #include <linux/reboot.h>
 #include <linux/string.h>
 #include <linux/device.h>
+#include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -49,6 +50,8 @@ enum {
 #define HIBERNATION_FIRST (HIBERNATION_INVALID + 1)
 
 static int hibernation_mode = HIBERNATION_SHUTDOWN;
+
+static bool freezer_test_done;
 
 static const struct platform_hibernation_ops *hibernation_ops;
 
@@ -342,6 +345,17 @@ int hibernation_snapshot(int platform_mode)
 	if (error)
 		goto Close;
 
+	if (hibernation_test(TEST_FREEZER) ||
+		hibernation_testmode(HIBERNATION_TESTPROC)) {
+
+		/*
+		 * Indicate to the caller that we are returning due to a
+		 * successful freezer test.
+		 */
+		freezer_test_done = true;
+		goto Close;
+	}
+
 	error = dpm_prepare(PMSG_FREEZE);
 	if (error)
 		goto Complete_devices;
@@ -617,7 +631,7 @@ int hibernate(void)
 	/* Allocate memory management structures */
 	error = create_basic_memory_bitmaps();
 	if (error)
-		goto Enable_umh;
+		goto Exit;
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
 	sys_sync();
@@ -627,14 +641,8 @@ int hibernate(void)
 	if (error)
 		goto Free_bitmaps;
 
-	if (hibernation_test(TEST_FREEZER))
-		goto Thaw;
-
-	if (hibernation_testmode(HIBERNATION_TESTPROC))
-		goto Thaw;
-
 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
-	if (error)
+	if (error || freezer_test_done)
 		goto Thaw;
 
 	if (in_suspend) {
@@ -657,7 +665,18 @@ int hibernate(void)
 
  Thaw:
 	thaw_processes();
+
+	/* Don't bother checking whether freezer_test_done is true */
+	freezer_test_done = false;
+
  Free_bitmaps:
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+	usermodehelper_enable();
+>>>>>>> 74d47cc34c5... PM / Hibernate: Disable usermode helpers right before freezing tasks
+=======
+>>>>>>> 268b030f0c8... PM / Sleep: Move disabling of usermode helpers to the freezer
 	free_basic_memory_bitmaps();
  Exit:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);

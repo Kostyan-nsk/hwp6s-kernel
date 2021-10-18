@@ -261,7 +261,7 @@ typedef struct
 typedef struct
 {
     VOS_UINT32 ulRc; /* 结果码*/
-    VOS_UINT32 ulMsgId;  /* /* 消息ID*/
+    VOS_UINT32 ulMsgId; /* 消息ID*/
 } DIAG_CMD_LOG_CAT_USERPLANE_CNF_STRU;
 
 typedef struct

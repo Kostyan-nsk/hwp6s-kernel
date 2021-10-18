@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/linkage.h>
-
+#include <asm/assembler.h>
 /*
  * Debugging stuff
  *
@@ -276,7 +276,7 @@ restart:	adr	r0, LC0
 
 		adr	r0, BSYM(restart)
 		add	r0, r0, r6
-		mov	pc, r0
+		ret	r0
 
 wont_overwrite:
 /*
@@ -353,7 +353,7 @@ not_relocated:	mov	r0, #0
 		mov	r0, #0			@ must be zero
 		mov	r1, r7			@ restore architecture number
 		mov	r2, r8			@ restore atags pointer
-		mov	pc, r4			@ call kernel
+		ret	r4			@ call kernel
 
 		.align	2
 		.type	LC0, #object
@@ -370,7 +370,7 @@ LC0:		.word	LC0			@ r1
 #ifdef CONFIG_ARCH_RPC
 		.globl	params
 params:		ldr	r0, =0x10000100		@ params_phys for RPC
-		mov	pc, lr
+		ret	lr
 		.ltorg
 		.align
 #endif
@@ -428,7 +428,7 @@ __armv4_mpu_cache_on:
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c5, 0	@ flush(inval) I-Cache
 		mcr	p15, 0, r0, c7, c6, 0	@ flush(inval) D-Cache
-		mov	pc, lr
+		ret	lr
 
 __armv3_mpu_cache_on:
 		mov	r0, #0x3f		@ 4G, the whole
@@ -456,7 +456,7 @@ __armv3_mpu_cache_on:
 
 		/* ?? invalidate for the second time? */
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
-		mov	pc, lr
+		ret	lr
 
 __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		bic	r3, r3, #0xff		@ Align the pointer
@@ -499,7 +499,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		str	r1, [r0], #4
 		add	r1, r1, #1048576
 		str	r1, [r0]
-		mov	pc, lr
+		ret	lr
 ENDPROC(__setup_mmu)
 
 __arm926ejs_mmu_cache_on:
@@ -525,7 +525,7 @@ __armv4_mmu_cache_on:
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 #endif
-		mov	pc, r12
+		ret	r12
 
 __armv7_mmu_cache_on:
 		mov	r12, lr
@@ -555,7 +555,7 @@ __armv7_mmu_cache_on:
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
-		mov	pc, r12
+		ret	r12
 
 __fa526_cache_on:
 		mov	r12, lr
@@ -569,7 +569,7 @@ __fa526_cache_on:
 		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ flush UTLB
-		mov	pc, r12
+		ret	r12
 
 __arm6_mmu_cache_on:
 		mov	r12, lr
@@ -581,7 +581,7 @@ __arm6_mmu_cache_on:
 		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c5, c0, 0	@ invalidate whole TLB v3
-		mov	pc, r12
+		ret	r12
 
 __common_mmu_cache_on:
 #ifndef CONFIG_THUMB2_KERNEL
@@ -626,7 +626,7 @@ call_cache_fn:	adr	r12, proc_types
 		tst	r1, r2			@       & mask
  ARM(		addeq	pc, r12, r3		) @ call cache function
  THUMB(		addeq	r12, r3			)
- THUMB(		moveq	pc, r12			) @ call cache function
+ THUMB(		reteq	r12			) @ call cache function
 		add	r12, r12, #PROC_ENTRY_SIZE
 		b	1b
 
@@ -651,7 +651,7 @@ proc_types:
 		.word	0xffffffe0
 		W(b)	__arm6_mmu_cache_off	@ works, but slow
 		W(b)	__arm6_mmu_cache_off
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
 @		b	__arm6_mmu_cache_on		@ untested
 @		b	__arm6_mmu_cache_off
@@ -661,11 +661,11 @@ proc_types:
 		/* This collides with some V7 IDs, preventing correct detection */
 		.word	0x00000000		@ old ARM ID
 		.word	0x0000f000
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
 #endif
 
@@ -673,14 +673,14 @@ proc_types:
 		.word	0xfff8fe00
 		W(b)	__arm7_mmu_cache_off
 		W(b)	__arm7_mmu_cache_off
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
 
 		.word	0x41807200		@ ARM720T (writethrough)
 		.word	0xffffff00
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
 
 		.word	0x41007400		@ ARM74x
@@ -703,11 +703,11 @@ proc_types:
 
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
 
 		@ Everything from here on will be the new ID system.
@@ -791,11 +791,11 @@ proc_types:
 
 		.word	0			@ unrecognised type
 		.word	0
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
-		mov	pc, lr
+		ret	lr
  THUMB(		nop				)
 
 		.size	proc_types, . - proc_types
@@ -831,7 +831,7 @@ __armv4_mpu_cache_off:
 		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
 		mcr	p15, 0, r0, c7, c6, 0	@ flush D-Cache
 		mcr	p15, 0, r0, c7, c5, 0	@ flush I-Cache
-		mov	pc, lr
+		ret	lr
 
 __armv3_mpu_cache_off:
 		mrc	p15, 0, r0, c1, c0
@@ -839,7 +839,7 @@ __armv3_mpu_cache_off:
 		mcr	p15, 0, r0, c1, c0, 0	@ turn MPU and cache off
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
-		mov	pc, lr
+		ret	lr
 
 __armv4_mmu_cache_off:
 #ifdef CONFIG_MMU
@@ -850,7 +850,7 @@ __armv4_mmu_cache_off:
 		mcr	p15, 0, r0, c7, c7	@ invalidate whole cache v4
 		mcr	p15, 0, r0, c8, c7	@ invalidate whole TLB v4
 #endif
-		mov	pc, lr
+		ret	lr
 
 __armv7_mmu_cache_off:
 		mrc	p15, 0, r0, c1, c0
@@ -869,7 +869,7 @@ __armv7_mmu_cache_off:
 		mcr	p15, 0, r0, c7, c5, 6	@ invalidate BTC
 		mcr	p15, 0, r0, c7, c10, 4	@ DSB
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
-		mov	pc, r12
+		ret	r12
 
 __arm6_mmu_cache_off:
 		mov	r0, #0x00000030		@ ARM6 control reg.
@@ -884,7 +884,7 @@ __armv3_mmu_cache_off:
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
 		mcr	p15, 0, r0, c5, c0, 0	@ invalidate whole TLB v3
-		mov	pc, lr
+		ret	lr
 
 /*
  * Clean and flush the cache to maintain consistency.
@@ -914,14 +914,14 @@ __armv4_mpu_cache_flush:
 		teq	r2, #0
 		mcrne	p15, 0, ip, c7, c5, 0	@ invalidate I cache
 		mcr	p15, 0, ip, c7, c10, 4	@ drain WB
-		mov	pc, lr
+		ret	lr
 		
 __fa526_cache_flush:
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c14, 0	@ clean and invalidate D cache
 		mcr	p15, 0, r1, c7, c5, 0	@ flush I cache
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
-		mov	pc, lr
+		ret	lr
 
 __armv6_mmu_cache_flush:
 		mov	r1, #0
@@ -929,7 +929,7 @@ __armv6_mmu_cache_flush:
 		mcr	p15, 0, r1, c7, c5, 0	@ invalidate I+BTB
 		mcr	p15, 0, r1, c7, c15, 0	@ clean+invalidate unified
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
-		mov	pc, lr
+		ret	lr
 
 __armv7_mmu_cache_flush:
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
@@ -989,14 +989,14 @@ iflush:
 		mcr	p15, 0, r10, c7, c5, 0	@ invalidate I+BTB
 		mcr	p15, 0, r10, c7, c10, 4	@ DSB
 		mcr	p15, 0, r10, c7, c5, 4	@ ISB
-		mov	pc, lr
+		ret	lr
 
 __armv5tej_mmu_cache_flush:
 1:		mrc	p15, 0, r15, c7, c14, 3	@ test,clean,invalidate D cache
 		bne	1b
 		mcr	p15, 0, r0, c7, c5, 0	@ flush I cache
 		mcr	p15, 0, r0, c7, c10, 4	@ drain WB
-		mov	pc, lr
+		ret	lr
 
 __armv4_mmu_cache_flush:
 		mov	r2, #64*1024		@ default: 32K dcache size (*2)
@@ -1028,13 +1028,13 @@ no_cache_id:
 		mcr	p15, 0, r1, c7, c5, 0	@ flush I cache
 		mcr	p15, 0, r1, c7, c6, 0	@ flush D cache
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
-		mov	pc, lr
+		ret	lr
 
 __armv3_mmu_cache_flush:
 __armv3_mpu_cache_flush:
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c0, 0	@ invalidate whole cache v3
-		mov	pc, lr
+		ret	lr
 
 /*
  * Various debugging routines for printing hex characters and
@@ -1065,7 +1065,7 @@ phex:		adr	r3, phexbuf
 puts:		loadsp	r3, r1
 1:		ldrb	r2, [r0], #1
 		teq	r2, #0
-		moveq	pc, lr
+		reteq	lr
 2:		writeb	r2, r3
 		mov	r1, #0x00020000
 3:		subs	r1, r1, #1
@@ -1075,7 +1075,7 @@ puts:		loadsp	r3, r1
 		beq	2b
 		teq	r0, #0
 		bne	1b
-		mov	pc, lr
+		ret	lr
 @ putc corrupts {r0, r1, r2, r3}
 putc:
 		mov	r2, r0
@@ -1110,7 +1110,7 @@ memdump:	mov	r12, r0
 		bl	putc
 		cmp	r11, #64
 		blt	2b
-		mov	pc, r10
+		ret	r10
 #endif
 
 		.ltorg

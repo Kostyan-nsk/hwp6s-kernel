@@ -107,15 +107,13 @@ static int try_to_freeze_tasks(bool user_only)
 		       elapsed_msecs / 1000, elapsed_msecs % 1000,
 		       todo - wq_busy, wq_busy);
 
-		if (!wakeup) {
-			read_lock(&tasklist_lock);
-			do_each_thread(g, p) {
-				if (p != current && !freezer_should_skip(p)
-				    && freezing(p) && !frozen(p))
-					sched_show_task(p);
-			} while_each_thread(g, p);
-			read_unlock(&tasklist_lock);
-		}
+		read_lock(&tasklist_lock);
+		do_each_thread(g, p) {
+			if (!wakeup && !freezer_should_skip(p) &&
+			    p != current && freezing(p) && !frozen(p))
+				sched_show_task(p);
+		} while_each_thread(g, p);
+		read_unlock(&tasklist_lock);
 	} else {
 		printk("(elapsed %d.%03d seconds) ", elapsed_msecs / 1000,
 			elapsed_msecs % 1000);
@@ -127,10 +125,7 @@ static int try_to_freeze_tasks(bool user_only)
 /**
  * freeze_processes - Signal user space processes to enter the refrigerator.
  *
- * On success, returns 0.  On failure, -errno and only the kernel threads are
- * thawed, so as to give a chance to the caller to do additional cleanups
- * (if any) before thawing the userspace tasks. So, it is the responsibility
- * of the caller to thaw the userspace tasks, when the time is right.
+ * On success, returns 0.  On failure, -errno and system is fully thawed.
  */
 int freeze_processes(void)
 {
@@ -159,8 +154,13 @@ int freeze_processes(void)
 }
 
 /**
-+ * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
-+ */
+ * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
+ *
+ * On success, returns 0.  On failure, -errno and only the kernel threads are
+ * thawed, so as to give a chance to the caller to do additional cleanups
+ * (if any) before thawing the userspace tasks. So, it is the responsibility
+ * of the caller to thaw the userspace tasks, when the time is right.
+ */
 int freeze_kernel_threads(void)
 {
 	int error;

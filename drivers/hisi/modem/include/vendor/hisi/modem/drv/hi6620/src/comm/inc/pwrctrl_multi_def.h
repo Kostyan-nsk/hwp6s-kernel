@@ -65,9 +65,12 @@ extern "C" {
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
+/* I first thought it was the dos formatting but this ifned is
+   kindly igonored.
 #ifndef BIT
 #define BIT(x)                      ((unsigned)0x1 << (x))
 #endif
+*/
 #define BITMSK(x)                   (BIT(x) << 16)
 
 #ifdef WIN32

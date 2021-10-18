@@ -34,10 +34,13 @@
 
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
 #include <linux/sched.h>
+#include <linux/swap.h>
+#include <linux/rcupdate.h>
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/hw_kstate.h>
@@ -47,6 +50,8 @@
 #else
 #define _ZONE ZONE_NORMAL
 #endif
+
+
 static u32 lowmem_debug_level = 1;
 static short lowmem_adj[6] = {
 	0,
@@ -56,7 +61,6 @@ static short lowmem_adj[6] = {
 };
 
 static int lowmem_adj_size = 4;
-
 static int lowmem_minfree[6] = {
 	3 * 512,	/* 6MB */
 	2 * 1024,	/* 8MB */
@@ -65,7 +69,7 @@ static int lowmem_minfree[6] = {
 };
 
 static int lowmem_minfree_size = 4;
-
+static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
 
 #define lowmem_print(level, x...)			\
@@ -73,6 +77,29 @@ static unsigned long lowmem_deathpending_timeout;
 		if (lowmem_debug_level >= (level))	\
 			pr_info(x);			\
 	} while (0)
+
+static int
+task_notify_func(struct notifier_block *self, unsigned long val, void *data);
+
+static struct notifier_block task_nb = {
+	.notifier_call	= task_notify_func,
+};
+
+static int
+task_notify_func(struct notifier_block *self, unsigned long val, void *data)
+{
+	struct task_struct *task = data;
+
+	if (task == lowmem_deathpending)
+		lowmem_deathpending = NULL;
+	return NOTIFY_OK;
+}
+
+#ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
+static struct task_struct *pick_next_from_adj_tree(struct task_struct *task);
+static struct task_struct *pick_first_task(void);
+static struct task_struct *pick_last_task(void);
+#endif
 
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
@@ -86,9 +113,25 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int selected_tasksize = 0;
 	short selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
+#ifndef CONFIG_DMA_CMA
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
+#else
+	int other_free = global_page_state(NR_FREE_PAGES) -
+					global_page_state(NR_FREE_CMA_PAGES);
+#endif
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
+
+	/*
+	 * If we already have a death outstanding, then
+	 * bail out right away; indicating to vmscan
+	 * that we have nothing further to offer on
+	 * this pass.
+	 *
+	 */
+	if (lowmem_deathpending &&
+	    time_before_eq(jiffies, lowmem_deathpending_timeout))
+		return 0;
 
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
@@ -139,10 +182,16 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			task_unlock(p);
 			continue;
 		}
+		if (fatal_signal_pending(p)) {
+			lowmem_print(2, "skip slow dying process %d\n", p->pid);
+			task_unlock(p);
+			continue;
+		}
 		tasksize = get_mm_rss(p->mm);
 		task_unlock(p);
 		if (tasksize <= 0)
 			continue;
+
 		if (selected) {
 			if (oom_score_adj < selected_oom_score_adj)
 				continue;
@@ -156,6 +205,19 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(2, "select '%s' (%d), adj %hd, size %d, to kill\n",
 			     p->comm, p->pid, oom_score_adj, tasksize);
 	}
+#ifdef ENHANCED_LMK_ROUTINE
+	for (i = 0; i < LOWMEM_DEATHPENDING_DEPTH; i++) {
+		if (selected[i]) {
+			lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
+				selected[i]->pid, selected[i]->comm,
+				selected_oom_adj[i], selected_tasksize[i]);
+			lowmem_deathpending[i] = selected[i];
+			lowmem_deathpending_timeout = jiffies + HZ;
+			force_sig(SIGKILL, selected[i]);
+			rem -= selected_tasksize[i];
+		}
+	}
+#endif
 	if (selected) {
 		task_lock(selected);
 		send_sig(SIGKILL, selected, 0);
@@ -174,7 +236,12 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     minfree * (long)(PAGE_SIZE / 1024),
 			     min_score_adj,
 			     other_free * (long)(PAGE_SIZE / 1024));
+		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
+			     selected->pid, selected->comm,
+			     selected_oom_score_adj, selected_tasksize);
+		lowmem_deathpending = selected;
 		lowmem_deathpending_timeout = jiffies + HZ;
+		send_sig(SIGKILL, selected, 0);
 		rem -= selected_tasksize;
 	}
 
@@ -191,6 +258,7 @@ static struct shrinker lowmem_shrinker = {
 
 static int __init lowmem_init(void)
 {
+	task_free_register(&task_nb);
 	register_shrinker(&lowmem_shrinker);
 	return 0;
 }
@@ -200,9 +268,101 @@ device_initcall(lowmem_init);
  * not really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
+
+static void __exit lowmem_exit(void)
+{
+	unregister_shrinker(&lowmem_shrinker);
+	task_free_unregister(&task_nb);
+}
+
+#ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+static int lowmem_oom_adj_to_oom_score_adj(int oom_adj)
+{
+	if (oom_adj == OOM_ADJUST_MAX)
+		return OOM_SCORE_ADJ_MAX;
+	else
+		return (oom_adj * OOM_SCORE_ADJ_MAX) / -OOM_DISABLE;
+}
+
+static void lowmem_autodetect_oom_adj_values(void)
+{
+	int i;
+	int oom_adj;
+	int oom_score_adj;
+	int array_size = ARRAY_SIZE(lowmem_adj);
+
+	if (lowmem_adj_size < array_size)
+		array_size = lowmem_adj_size;
+
+	if (array_size <= 0)
+		return;
+
+	oom_adj = lowmem_adj[array_size - 1];
+	if (oom_adj > OOM_ADJUST_MAX)
+		return;
+
+	oom_score_adj = lowmem_oom_adj_to_oom_score_adj(oom_adj);
+	if (oom_score_adj <= OOM_ADJUST_MAX)
+		return;
+
+	lowmem_print(1, "lowmem_shrink: convert oom_adj to oom_score_adj:\n");
+	for (i = 0; i < array_size; i++) {
+		oom_adj = lowmem_adj[i];
+		oom_score_adj = lowmem_oom_adj_to_oom_score_adj(oom_adj);
+		lowmem_adj[i] = oom_score_adj;
+		lowmem_print(1, "oom_adj %d => oom_score_adj %d\n",
+			     oom_adj, oom_score_adj);
+	}
+}
+
+static int lowmem_adj_array_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_array_ops.set(val, kp);
+
+	/* HACK: Autodetect oom_adj values in lowmem_adj array */
+	lowmem_autodetect_oom_adj_values();
+
+	return ret;
+}
+
+static int lowmem_adj_array_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_array_ops.get(buffer, kp);
+}
+
+static void lowmem_adj_array_free(void *arg)
+{
+	param_array_ops.free(arg);
+}
+
+static struct kernel_param_ops lowmem_adj_array_ops = {
+	.set = lowmem_adj_array_set,
+	.get = lowmem_adj_array_get,
+	.free = lowmem_adj_array_free,
+};
+
+static const struct kparam_array __param_arr_adj = {
+	.max = ARRAY_SIZE(lowmem_adj),
+	.num = &lowmem_adj_size,
+	.ops = &param_ops_int,
+	.elemsize = sizeof(lowmem_adj[0]),
+	.elem = lowmem_adj,
+};
+#endif
+
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
+#ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+__module_param_call(MODULE_PARAM_PREFIX, adj,
+		    &lowmem_adj_array_ops,
+		    .arr = &__param_arr_adj,
+		    S_IRUGO | S_IWUSR, 0664);
+__MODULE_PARM_TYPE(adj, "array of int");
+#else
 module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
 			 S_IRUGO | S_IWUSR);
+#endif
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);

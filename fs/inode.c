@@ -2,9 +2,13 @@
  * (C) 1997 Linus Torvalds
  * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic inode allocation)
  */
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/dcache.h>
+#include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/writeback.h>
+#include <linux/export.h>
 #include <linux/backing-dev.h>
 #include <linux/hash.h>
 #include <linux/swap.h>

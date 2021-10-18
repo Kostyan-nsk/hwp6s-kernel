@@ -162,6 +162,7 @@ extern int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 extern int mmc_can_erase(struct mmc_card *card);
 extern int mmc_can_trim(struct mmc_card *card);
 extern int mmc_can_discard(struct mmc_card *card);
+extern int mmc_can_sanitize(struct mmc_card *card);
 extern int mmc_can_secure_erase_trim(struct mmc_card *card);
 extern int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 				   unsigned int nr);

@@ -509,7 +509,7 @@ VOS_UINT32 VOS_FixedQueueWrite( VOS_UINT32 ulQueueID, VOS_VOID * pBufferAddr,
         return VOS_ERR;
     }
     else
-    {
+    {
         VOS_ExecuteAwakeFun((MsgBlock*)((VOS_UINT32)pBufferAddr + VOS_MSG_BLK_HEAD_LEN));
 
         if ( VOS_OK != VOS_SmV( vos_QueueCtrlBlcok[ulQueueID].Sem_ID) )

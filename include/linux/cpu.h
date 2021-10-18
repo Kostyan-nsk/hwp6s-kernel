@@ -84,19 +84,31 @@ enum {
 #endif /* #else #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
 #ifdef CONFIG_HOTPLUG_CPU
 extern int register_cpu_notifier(struct notifier_block *nb);
+extern int __register_cpu_notifier(struct notifier_block *nb);
 extern void unregister_cpu_notifier(struct notifier_block *nb);
+extern void __unregister_cpu_notifier(struct notifier_block *nb);
 #else
 
 #ifndef MODULE
 extern int register_cpu_notifier(struct notifier_block *nb);
+extern int __register_cpu_notifier(struct notifier_block *nb);
 #else
 static inline int register_cpu_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int __register_cpu_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
 #endif
 
 static inline void unregister_cpu_notifier(struct notifier_block *nb)
+{
+}
+
+static inline void __unregister_cpu_notifier(struct notifier_block *nb)
 {
 }
 #endif
@@ -106,11 +118,20 @@ void notify_cpu_starting(unsigned int cpu);
 extern void cpu_maps_update_begin(void);
 extern void cpu_maps_update_done(void);
 
+#define cpu_notifier_register_begin	cpu_maps_update_begin
+#define cpu_notifier_register_done	cpu_maps_update_done
+
 #else	/* CONFIG_SMP */
 
 #define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
+#define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
 
 static inline int register_cpu_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int __register_cpu_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
@@ -119,11 +140,23 @@ static inline void unregister_cpu_notifier(struct notifier_block *nb)
 {
 }
 
+static inline void __unregister_cpu_notifier(struct notifier_block *nb)
+{
+}
+
 static inline void cpu_maps_update_begin(void)
 {
 }
 
 static inline void cpu_maps_update_done(void)
+{
+}
+
+static inline void cpu_notifier_register_begin(void)
+{
+}
+
+static inline void cpu_notifier_register_done(void)
 {
 }
 

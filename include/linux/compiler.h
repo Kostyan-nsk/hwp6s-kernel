@@ -86,23 +86,25 @@ struct ftrace_branch_data {
  */
 #if defined(CONFIG_TRACE_BRANCH_PROFILING) \
     && !defined(DISABLE_BRANCH_PROFILING) && !defined(__CHECKER__)
-void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
+void ftrace_likely_update(struct ftrace_likely_data *f, int val,
+			  int expect, int is_constant);
 
 #define likely_notrace(x)	__builtin_expect(!!(x), 1)
 #define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
 
-#define __branch_check__(x, expect) ({					\
-			int ______r;					\
-			static struct ftrace_branch_data		\
+#define __branch_check__(x, expect, is_constant) ({			\
+			long ______r;					\
+			static struct ftrace_likely_data		\
 				__attribute__((__aligned__(4)))		\
 				__attribute__((section("_ftrace_annotated_branch"))) \
 				______f = {				\
-				.func = __func__,			\
-				.file = __FILE__,			\
-				.line = __LINE__,			\
+				.data.func = __func__,			\
+				.data.file = __FILE__,			\
+				.data.line = __LINE__,			\
 			};						\
-			______r = likely_notrace(x);			\
-			ftrace_likely_update(&______f, ______r, expect); \
+			______r = __builtin_expect(!!(x), expect);	\
+			ftrace_likely_update(&______f, ______r,		\
+					     expect, is_constant);	\
 			______r;					\
 		})
 
@@ -112,10 +114,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  * written by Daniel Walker.
  */
 # ifndef likely
-#  define likely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 1))
+#  define likely(x)	(__branch_check__(x, 1, __builtin_constant_p(x)))
 # endif
 # ifndef unlikely
-#  define unlikely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 0))
+#  define unlikely(x)	(__branch_check__(x, 0, __builtin_constant_p(x)))
 # endif
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
@@ -125,7 +127,7 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  */
 #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
 #define __trace_if(cond) \
-	if (__builtin_constant_p((cond)) ? !!(cond) :			\
+	if (__builtin_constant_p(!!(cond)) ? !!(cond) :			\
 	({								\
 		int ______r;						\
 		static struct ftrace_branch_data			\
@@ -152,9 +154,72 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define barrier() __memory_barrier()
 #endif
 
+#ifndef barrier_data
+# define barrier_data(ptr) barrier()
+#endif
+
+/* workaround for GCC PR82365 if needed */
+#ifndef barrier_before_unreachable
+# define barrier_before_unreachable() do { } while (0)
+#endif
+
 /* Unreachable code */
+#ifdef CONFIG_STACK_VALIDATION
+/*
+ * These macros help objtool understand GCC code flow for unreachable code.
+ * The __COUNTER__ based labels are a hack to make each instance of the macros
+ * unique, to convince GCC not to merge duplicate inline asm statements.
+ */
+#define annotate_reachable() ({						\
+	asm volatile("%c0:\n\t"						\
+		     ".pushsection .discard.reachable\n\t"		\
+		     ".long %c0b - .\n\t"				\
+		     ".popsection\n\t" : : "i" (__COUNTER__));		\
+})
+#define annotate_unreachable() ({					\
+	asm volatile("%c0:\n\t"						\
+		     ".pushsection .discard.unreachable\n\t"		\
+		     ".long %c0b - .\n\t"				\
+		     ".popsection\n\t" : : "i" (__COUNTER__));		\
+})
+#define ASM_UNREACHABLE							\
+	"999:\n\t"							\
+	".pushsection .discard.unreachable\n\t"				\
+	".long 999b - .\n\t"						\
+	".popsection\n\t"
+#else
+#define annotate_reachable()
+#define annotate_unreachable()
+#endif
+
+#ifndef ASM_UNREACHABLE
+# define ASM_UNREACHABLE
+#endif
 #ifndef unreachable
-# define unreachable() do { } while (1)
+# define unreachable() do { annotate_reachable(); do { } while (1); } while (0)
+#endif
+
+/*
+ * KENTRY - kernel entry point
+ * This can be used to annotate symbols (functions or data) that are used
+ * without their linker symbol being referenced explicitly. For example,
+ * interrupt vector handlers, or functions in the kernel image that are found
+ * programatically.
+ *
+ * Not required for symbols exported with EXPORT_SYMBOL, or initcalls. Those
+ * are handled in their own way (with KEEP() in linker scripts).
+ *
+ * KENTRY can be avoided if the symbols in question are marked as KEEP() in the
+ * linker script. For example an architecture could KEEP() its entire
+ * boot/exception vector code rather than annotate each function and data.
+ */
+#ifndef KENTRY
+# define KENTRY(sym)						\
+	extern typeof(sym) sym;					\
+	static const unsigned long __kentry_##sym		\
+	__used							\
+	__attribute__((section("___kentry" "+" #sym ), used))	\
+	= (unsigned long)&sym;
 #endif
 
 #ifndef OPTIMIZER_HIDE_VAR
@@ -171,6 +236,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
+
+#ifndef __optimize
+# define __optimize(level)
+#endif
 
 #ifdef __KERNEL__
 /*
@@ -240,7 +309,7 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 
 /*
  * Rather then using noinline to prevent stack consumption, use
- * noinline_for_stack instead.  For documentaiton reasons.
+ * noinline_for_stack instead.  For documentation reasons.
  */
 #define noinline_for_stack noinline
 
@@ -282,9 +351,18 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define __section(S) __attribute__ ((__section__(#S)))
 #endif
 
+#ifndef __visible
+#define __visible
+#endif
+
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type
 # define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+#endif
+
+/* Is this type a native word size -- useful for atomic operations */
+#ifndef __native_word
+# define __native_word(t) (sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
 #endif
 
 /* Compile time object size, -1 for unknown */
@@ -296,7 +374,52 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #endif
 #ifndef __compiletime_error
 # define __compiletime_error(message)
+/*
+ * Sparse complains of variable sized arrays due to the temporary variable in
+ * __compiletime_assert. Unfortunately we can't just expand it out to make
+ * sparse see a constant array size without breaking compiletime_assert on old
+ * versions of GCC (e.g. 4.2.4), so hide the array from sparse altogether.
+ */
+# ifndef __CHECKER__
+#  define __compiletime_error_fallback(condition) \
+	do { ((void)sizeof(char[1 - 2 * condition])); } while (0)
+# endif
 #endif
+#ifndef __compiletime_error_fallback
+# define __compiletime_error_fallback(condition) do { } while (0)
+#endif
+
+#ifdef __OPTIMIZE__
+# define __compiletime_assert(condition, msg, prefix, suffix)		\
+	do {								\
+		bool __cond = !(condition);				\
+		extern void prefix ## suffix(void) __compiletime_error(msg); \
+		if (__cond)						\
+			prefix ## suffix();				\
+		__compiletime_error_fallback(__cond);			\
+	} while (0)
+#else
+# define __compiletime_assert(condition, msg, prefix, suffix) do { } while (0)
+#endif
+
+#define _compiletime_assert(condition, msg, prefix, suffix) \
+	__compiletime_assert(condition, msg, prefix, suffix)
+
+/**
+ * compiletime_assert - break build and emit msg if condition is false
+ * @condition: a compile-time constant condition to check
+ * @msg:       a message to emit if condition is false
+ *
+ * In tradition of POSIX assert, this macro will break the build if the
+ * supplied condition is *false*, emitting the supplied error message if the
+ * compiler has support to do so.
+ */
+#define compiletime_assert(condition, msg) \
+	_compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+
+#define compiletime_assert_atomic_type(t)				\
+	compiletime_assert(__native_word(t),				\
+		"Need native word sized stores/loads for atomicity.")
 
 /*
  * Prevent the compiler from merging or refetching accesses.  The compiler
@@ -312,4 +435,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  */
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
+/* Ignore/forbid kprobes attach on very low level functions marked by this attribute: */
+#ifdef CONFIG_KPROBES
+# define __kprobes	__attribute__((__section__(".kprobes.text")))
+#else
+# define __kprobes
+#endif
 #endif /* __LINUX_COMPILER_H */

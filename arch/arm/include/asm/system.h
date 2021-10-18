@@ -1,6 +1,7 @@
 #ifndef __ASM_ARM_SYSTEM_H
 #define __ASM_ARM_SYSTEM_H
 
+#include <asm/compiler.h>
 #ifdef __KERNEL__
 
 #define CPU_ARCH_UNKNOWN	0

@@ -22,7 +22,7 @@ struct balong_power_plat_data {
 /* MODEM state */
 enum modem_state_index {
     MODEM_NOT_READY = 0,
-    MODEM_READY,
+    MODEM_READY,
     MODEM_INVALID,
 };
 

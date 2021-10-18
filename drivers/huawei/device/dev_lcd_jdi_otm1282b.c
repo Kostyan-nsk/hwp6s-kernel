@@ -61,7 +61,7 @@ static struct platform_device k3_lcd_device = {
 	.resource = k3_lcd_resources,
 };
 
-static bool is_jdi_otm1282b() 
+static bool is_jdi_otm1282b(void)
 {
 	char lcd_chip_name[LCD_NAME_MAX_LEN + 1];
 	bool ret = 0;
@@ -83,7 +83,7 @@ int __init lcd_device_jdi_otm1282b_init(void)
 	int ret = 0;
 
 	if(is_jdi_otm1282b()) {
-		ret = platform_device_register(&k3_lcd_device);		
+		ret = platform_device_register(&k3_lcd_device);
 	}
 
 	return ret;

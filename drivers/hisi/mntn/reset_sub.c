@@ -1904,7 +1904,7 @@ void reset_only_for_test(int iparam)
         break;
     case 17:
         break;
-    default:
+    default:
         break;
     }
 #endif

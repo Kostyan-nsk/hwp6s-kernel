@@ -34,6 +34,11 @@
  *	in provided registers and increments 'ptr' past those words.
  *	The'abort' argument is used for fixup tables.
  *
+ * cpy8w dst src reg1 reg2 abort
+ *
+ *	This loads eight words starting from 'src' and stores them in 'dst'
+ *	The 'abort' argument is used for fixup tables.
+ *
  * ldr1b ptr reg cond abort
  *
  *	Similar to ldr1w, but it loads a byte and increments 'ptr' one byte.
@@ -66,7 +71,6 @@
  *	than one 32bit instruction in Thumb-2)
  */
 
-
 		enter	r4, lr
 
 		subs	r2, r2, #4
@@ -97,9 +101,14 @@
 	PLD(	pld	[r1, #92]		)
 
 3:	PLD(	pld	[r1, #124]		)
+#ifdef	CONFIG_USE_LDRDSTRD_OVER_LDMSTM
+4:		cpy8w	r0, r1, r4, r5, abort = 20f
+		subs	r2, r2, #32
+#else
 4:		ldr8w	r1, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
 		subs	r2, r2, #32
 		str8w	r0, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+#endif
 		bge	3b
 	PLD(	cmn	r2, #96			)
 	PLD(	bge	4b			)

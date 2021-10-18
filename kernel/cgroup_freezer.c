@@ -14,7 +14,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/cgroup.h>
 #include <linux/fs.h>
@@ -231,7 +231,7 @@ static void update_if_frozen(struct cgroup *cgroup,
 	cgroup_iter_start(cgroup, &it);
 	while ((task = cgroup_iter_next(cgroup, &it))) {
 		ntotal++;
-		if (is_task_frozen_enough(task))
+		if (freezing(task) && frozen(task))
 			nfrozen++;
 	}
 

@@ -943,7 +943,7 @@ AT_FTM_CNF_MSG_PROC_STRU g_astLteAtFtmCnfMsgTbl[] =
 	{ ID_MSG_FTM_RD_FCALITXIQS_CNF,		atQryFCALITXIQSParaCnfProc },
     { ID_MSG_FTM_SET_STCFGDPCH_CNF,       atSetSTCFGDPCHParaCnfProc },
     { ID_MSG_FTM_FPOW_CNF,              atSetFPOWParaCnfProc },
-   { ID_MSG_FTM_RD_STRXBER_CNF,        atQrySTRXBERParaCnfProc },};
+   { ID_MSG_FTM_RD_STRXBER_CNF,        atQrySTRXBERParaCnfProc },};
 /****************************************************************************** */
 /* 函数名称: atGetFtmCnfMsgProc */
 /* 功能描述: 根据回复的消息找到匹配的处理函数 */

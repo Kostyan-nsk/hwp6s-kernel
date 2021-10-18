@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/assembler.h>
 #include <asm/page.h>
 #include "proc-macros.S"
 

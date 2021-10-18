@@ -344,7 +344,7 @@ BSP_S32 BSP_IPF_CHInfo(IPF_CHANNEL_TYPE_E eChnType)
     IPF_PRINT("=============END============\n");
     return 0;
 }
-
+
 #ifdef PRODUCT_CFG_CORE_TYPE_MODEM
 /*****************************************************************************
 * º¯ Êý Ãû  : BSP_IPF_UseFilterInfo

@@ -15,7 +15,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
@@ -36,6 +36,7 @@
 #include <asm/uaccess.h>
 
 #include "internal.h"
+#include "mount.h"
 
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
